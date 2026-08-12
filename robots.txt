@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Operations is staff-only and behind a login. Keeping it out of the index means
+# it never turns up in a search for the shop's name.
+Disallow: /ops.html
+Disallow: /ops-login.html
+Disallow: /ops-category.html
+
+# Search result pages are endless combinations of the same products.
+Disallow: /shop.html?q=
+
+Sitemap: https://rexgiddotyhubs.shop/sitemap.xml

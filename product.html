@@ -93,6 +93,7 @@ let _p = null, _v = null, _qty = 1;
 
   _p = p;
   document.title = p.name + ' — Rex-Giddoty Hubs';
+  window.RG_SEO(document.title);   /* title is only known once the product loads */
   document.getElementById('pdp').style.display = '';
 
   const imgs = (p.product_images || []).sort((a,b)=>a.position-b.position);

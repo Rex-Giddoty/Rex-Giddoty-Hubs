@@ -15,6 +15,54 @@
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   window.RG_ESC = esc;
 
+  /* The shop answers on its own domain, the vercel.app address and any preview
+     build. Canonical tags point every one of them at the real domain so search
+     engines index it and not a deploy URL. */
+  const SITE = 'https://rexgiddotyhubs.shop';
+  window.RG_SITE = SITE;
+
+  function tag(sel, make) {
+    let el = document.head.querySelector(sel);
+    if (!el) { el = make(); document.head.appendChild(el); }
+    return el;
+  }
+  function metaProp(p, content) {
+    const el = tag(`meta[property="${p}"]`, () => {
+      const m = document.createElement('meta'); m.setAttribute('property', p); return m;
+    });
+    el.setAttribute('content', content);
+  }
+
+  function setSEO(title) {
+    const q = new URLSearchParams(location.search);
+    /* Keep only the parameters that identify a page. Sort order and the like
+       would otherwise mint a separate canonical for identical content. */
+    const keep = new URLSearchParams();
+    ['slug', 'category'].forEach(k => { if (q.get(k)) keep.set(k, q.get(k)); });
+    const path = location.pathname.replace(/\/index\.html$/, '/');
+    const url = SITE + path + (keep.toString() ? '?' + keep : '');
+
+    tag('link[rel="canonical"]', () => {
+      const l = document.createElement('link'); l.rel = 'canonical'; return l;
+    }).href = url;
+
+    metaProp('og:url', url);
+    metaProp('og:type', 'website');
+    metaProp('og:title', title || document.title);
+    metaProp('og:image', SITE + '/assets/logo.png');
+    const desc = document.head.querySelector('meta[name="description"]');
+    if (desc) metaProp('og:description', desc.content);
+
+    /* Search results are endless combinations of the same products; let them be
+       followed for discovery but keep them out of the index. */
+    if (q.get('q')) {
+      tag('meta[name="robots"]', () => {
+        const m = document.createElement('meta'); m.name = 'robots'; return m;
+      }).setAttribute('content', 'noindex,follow');
+    }
+  }
+  window.RG_SEO = setSEO;
+
   /* ── bag ── */
   const Bag = {
     read() {
@@ -209,6 +257,8 @@
     const tree = await window.RG_CAT_TREE();
     const store = s.store_name || 'Rex-Giddoty Hubs';
     document.title = document.title.replace(/Rex-Giddoty Hubs/g, store);
+    metaProp('og:site_name', store);
+    setSEO();
 
     const catHref = c => '/shop.html?category=' + encodeURIComponent(c.slug);
     const entries = tree.map(t => ({

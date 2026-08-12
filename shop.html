@@ -126,6 +126,7 @@ function setHead(t, s) {
   document.getElementById('title').textContent = t;
   document.getElementById('sub').textContent = s || '';
   document.title = t + ' — Rex-Giddoty Hubs';
+  if (window.RG_SEO) window.RG_SEO(document.title);
 }
 
 function render() {
