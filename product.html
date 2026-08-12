@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/assets/site.css"/>
+</head>
+<body>
+
+<header class="nav" data-nav></header>
+
+<main class="wrap">
+  <div id="state"></div>
+  <div class="pdp" id="pdp" style="display:none;">
+    <div class="pdp__gallery" id="gallery"></div>
+    <div class="pdp__panel">
+      <div class="eyebrow" id="p-cat"></div>
+      <h1 class="display" id="p-name" style="font-size:clamp(26px,3.4vw,38px);margin-top:8px;"></h1>
+      <p class="note" id="p-subtitle" style="margin-top:6px;"></p>
+      <div class="pdp__price" id="p-price"></div>
+
+      <div id="opt-wrap" style="display:none;">
+        <div class="eyebrow" style="margin-bottom:10px;" id="opt-label">Size</div>
+        <div class="opt" id="opts"></div>
+      </div>
+
+      <div id="stock-note" class="note" style="margin-bottom:18px;"></div>
+      <button class="btn btn--wide" id="add">Add to bag</button>
+      <p class="note" style="margin-top:14px;" id="ship-note"></p>
+
+      <div style="margin-top:34px;">
+        <div class="acc">
+          <button class="acc__q" data-acc>Description <span>+</span></button>
+          <div class="acc__a" id="p-description"></div>
+        </div>
+        <div class="acc">
+          <button class="acc__q" data-acc>Details <span>+</span></button>
+          <div class="acc__a" id="p-details"></div>
+        </div>
+        <div class="acc">
+          <button class="acc__q" data-acc>Delivery &amp; payment <span>+</span></button>
+          <div class="acc__a" id="p-delivery"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="section" id="more-section" style="display:none;">
+    <div class="section__head"><h2 class="display">You may also like</h2></div>
+    <div class="grid" id="more"></div>
+  </section>
+</main>
+
+<footer class="foot" data-foot></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script src="/assets/site.js"></script>
+<script>
+const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG;
+const slug = new URLSearchParams(location.search).get('slug');
+let _product = null, _variant = null;
+
+(async () => {
+  await window.RG_CHROME();
+  const s = await window.RG_SETTINGS();
+
+  if (!slug) { notFound(); return; }
+
+  const { data: p } = await db.from('products')
+    .select('id,slug,name,subtitle,description,details,price_minor,currency,status,product_images(path,position),product_variants(id,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug))')
+    .eq('slug', slug).eq('status','published').maybeSingle();
+
+  if (!p) { notFound(); return; }
+  _product = p;
+  document.title = p.name + ' — Rex-Giddoty Hubs';
+  document.getElementById('pdp').style.display = '';
+
+  const imgs = (p.product_images || []).sort((a,b)=>a.position-b.position);
+  document.getElementById('gallery').innerHTML = imgs.length
+    ? imgs.map(i => `<img src="${esc(IMG(i.path))}" alt="${esc(p.name)}"/>`).join('')
+    : '<div class="skeleton" style="aspect-ratio:3/4;"></div>';
+
+  const cat = (p.product_categories || [])[0]?.categories;
+  document.getElementById('p-cat').textContent = cat ? cat.name : '';
+  document.getElementById('p-name').textContent = p.name;
+  document.getElementById('p-subtitle').textContent = p.subtitle || '';
+  document.getElementById('p-description').textContent = p.description || 'No description provided.';
+  document.getElementById('p-details').textContent = p.details || 'No further details provided.';
+
+  const free = parseInt(s.free_shipping_over_minor || '0', 10);
+  const flat = parseInt(s.shipping_flat_minor || '0', 10);
+  document.getElementById('ship-note').textContent = free
+    ? `Complimentary delivery on orders over ${M.fmt(free, p.currency)}.`
+    : (flat ? `Delivery ${M.fmt(flat, p.currency)}.` : '');
+  document.getElementById('p-delivery').textContent =
+    (s.payment_instructions || 'Payment is confirmed manually before dispatch.') +
+    (flat ? `\n\nDelivery is ${M.fmt(flat, p.currency)}` : '') +
+    (free ? `, complimentary over ${M.fmt(free, p.currency)}.` : '.');
+
+  const variants = (p.product_variants || [])
+    .filter(v => v.is_active).sort((a,b)=>a.position-b.position);
+
+  /* A single "One Size" variant is plumbing, not a choice — don't make the
+     customer pick from a list of one. */
+  const meaningful = variants.length > 1 ||
+    (variants[0] && String(variants[0].option_value).toLowerCase() !== 'one size');
+
+  if (meaningful) {
+    document.getElementById('opt-wrap').style.display = '';
+    document.getElementById('opt-label').textContent = variants[0]?.option_name || 'Size';
+    document.getElementById('opts').innerHTML = variants.map(v =>
+      `<button data-v="${v.id}" ${v.stock <= 0 ? 'disabled' : ''} aria-pressed="false">${esc(v.option_value)}</button>`).join('');
+    document.querySelectorAll('#opts button').forEach(b => b.onclick = () => {
+      document.querySelectorAll('#opts button').forEach(x => x.setAttribute('aria-pressed','false'));
+      b.setAttribute('aria-pressed','true');
+      select(variants.find(v => v.id === b.dataset.v));
+    });
+  }
+
+  const firstInStock = variants.find(v => v.stock > 0);
+  select(firstInStock || variants[0] || null);
+  if (firstInStock && meaningful) {
+    const btn = document.querySelector(`#opts button[data-v="${firstInStock.id}"]`);
+    if (btn) btn.setAttribute('aria-pressed','true');
+  }
+
+  /* related pieces */
+  const { data: more } = await db.from('products')
+    .select('id,slug,name,price_minor,currency,product_images(path,position),product_variants(stock)')
+    .eq('status','published').neq('id', p.id).limit(4);
+  if (more && more.length) {
+    document.getElementById('more-section').style.display = '';
+    document.getElementById('more').innerHTML = more.map(window.RG_CARD).join('');
+  }
+})();
+
+function select(v) {
+  _variant = v;
+  const price = v && v.price_minor != null ? v.price_minor : _product.price_minor;
+  document.getElementById('p-price').textContent = M.fmt(price, _product.currency);
+
+  const add  = document.getElementById('add');
+  const note = document.getElementById('stock-note');
+  if (!v || v.stock <= 0) {
+    add.disabled = true;
+    add.textContent = v ? 'Sold out' : 'Unavailable';
+    note.textContent = v ? 'This piece is currently out of stock.' : '';
+  } else {
+    add.disabled = false;
+    add.textContent = 'Add to bag';
+    note.textContent = v.stock <= 3 ? `Only ${v.stock} remaining.` : '';
+  }
+}
+
+document.getElementById('add').onclick = () => {
+  if (!_variant || _variant.stock <= 0) return;
+  window.RG_BAG.add(_variant.id, 1);
+  window.RG_TOAST('Added to your bag');
+};
+
+function notFound() {
+  document.getElementById('state').innerHTML = `<div class="empty-state">
+    <h2 class="display">Piece not found</h2>
+    <p>It may have been removed or is not yet published.</p>
+    <a class="btn btn--ghost" href="/shop.html">Continue shopping</a>
+  </div>`;
+}
+
+document.querySelectorAll('[data-acc]').forEach(q => q.onclick = () => {
+  const a = q.nextElementSibling;
+  const open = a.classList.toggle('open');
+  q.querySelector('span').textContent = open ? '−' : '+';
+});
+</script>
+</body>
+</html>
