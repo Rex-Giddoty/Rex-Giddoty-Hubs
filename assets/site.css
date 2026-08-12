@@ -50,6 +50,13 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 /* ── layout ─────────────────────────────────────────────────────────────── */
 .shell{max-width:var(--max);margin:0 auto;padding:12px;display:grid;grid-template-columns:200px 1fr;gap:12px;align-items:start;}
 .shell--full{grid-template-columns:1fr;}
+/* A grid item is min-width:auto by default, so it refuses to shrink below its
+   content and pushes the whole page wider than the screen. Every track that
+   holds arbitrary content needs this or the layout overflows on a phone. */
+.shell > *{min-width:0;}
+.pgrid > *{min-width:0;}
+.pdp > *,.pdp__main > *{min-width:0;}
+.foot__grid > *{min-width:0;}
 .box{background:var(--paper);border-radius:var(--radius);}
 .box__hd{padding:11px 13px;border-bottom:1px solid var(--line);font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:10px;}
 .box__hd a{font-size:12.5px;color:var(--brand);font-weight:500;}
@@ -61,7 +68,11 @@ input,select,textarea{font-family:inherit;font-size:14px;}
 .rail a.on{color:var(--brand);font-weight:600;}
 
 /* ── hero ───────────────────────────────────────────────────────────────── */
-.hero{background:var(--paper);border-radius:var(--radius);overflow:hidden;position:relative;aspect-ratio:16/6;min-height:190px;display:flex;align-items:center;}
+/* width must be stated explicitly: with only aspect-ratio and min-height, once
+   the height hits the minimum the ratio runs backwards and derives the WIDTH
+   from it (190 x 16/6 = 507px), pushing the page wider than the phone. */
+.hero{background:var(--paper);border-radius:var(--radius);overflow:hidden;position:relative;
+  width:100%;max-width:100%;aspect-ratio:16/6;min-height:190px;display:flex;align-items:center;}
 .hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 .hero__txt{position:relative;z-index:2;padding:26px 30px;max-width:560px;}
 .hero--img .hero__txt{color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.5);}
