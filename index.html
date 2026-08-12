@@ -39,11 +39,6 @@
       <div class="thumbs" id="thumbs"></div>
     </section>
 
-    <!-- six promo tiles -->
-    <section class="sect" id="fl-sect" style="display:none;">
-      <div class="freelinks" id="freelinks"></div>
-    </section>
-
     <!-- flash sales -->
     <section class="sect" id="flash-sect" style="display:none;">
       <div class="sect__hd sect__hd--flash">
@@ -194,16 +189,6 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
             : `<span class="fl__ico">${ICO(c.slug, c.name)}</span>`}
         <span class="fl__cap">${esc(c.name)}</span></a>`;
     }).join('');
-  }
-
-  /* ── six promo tiles from the newest photographed products ── */
-  const shot = list.filter(img1).slice(0, 6);
-  if (shot.length >= 3) {
-    document.getElementById('fl-sect').style.display = '';
-    document.getElementById('freelinks').innerHTML = shot.map(p => `
-      <a class="fl" href="/product.html?slug=${encodeURIComponent(p.slug)}">
-        <img src="${esc(img1(p))}" alt="${esc(p.name)}" loading="lazy"/>
-        <span class="fl__cap">${esc(p.name)}</span></a>`).join('');
   }
 
   /* ── flash sales ── */

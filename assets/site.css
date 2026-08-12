@@ -287,6 +287,7 @@ ul{margin:0;padding:0;list-style:none;}
 .crs__nav svg{width:22px;height:22px;}
 .crs__nav._p{left:0;border-radius:0 4px 4px 0;}
 .crs__nav._n{right:0;border-radius:4px 0 0 4px;}
+.crs--static .crs__nav{display:none;}   /* nothing to scroll, so nothing to press */
 @media (hover:none){.crs__nav{display:none;}}
 
 /* thumbnail strip */

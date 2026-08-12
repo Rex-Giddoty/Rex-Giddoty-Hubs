@@ -452,6 +452,26 @@
     if (track) track.scrollBy({ left: Number(nav.dataset.crs) * track.clientWidth * 0.9, behavior: 'smooth' });
   });
 
+  /* A row with only a couple of items has nothing to scroll, and the arrows then
+     just sit on top of the cards hiding their names. Rows are filled after the
+     data arrives, so watch for that rather than checking once at load. */
+  function syncCarousels() {
+    document.querySelectorAll('.crs').forEach(c => {
+      const t = c.querySelector('.crs__track');
+      if (t) c.classList.toggle('crs--static', t.scrollWidth <= t.clientWidth + 2);
+    });
+  }
+  window.RG_CRS_SYNC = syncCarousels;
+
+  if (window.MutationObserver) {
+    let timer;
+    const mo = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(syncCarousels, 80); });
+    const start = () => mo.observe(document.body, { childList: true, subtree: true });
+    if (document.body) start();
+    else document.addEventListener('DOMContentLoaded', start);
+  }
+  window.addEventListener('resize', () => { clearTimeout(window.__crsT); window.__crsT = setTimeout(syncCarousels, 120); });
+
   /* One listener for every grid rather than one per card. */
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-add]');
