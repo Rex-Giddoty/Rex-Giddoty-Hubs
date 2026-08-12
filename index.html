@@ -160,32 +160,38 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
     return out;
   };
 
-  /* Art comes from a product actually in that category; if the category has no
-     photographed product yet we borrow any photo rather than show a grey slab. */
-  const anyArt = (list.map(img1).find(Boolean)) || null;
+  /* Card art, in order of preference: the image uploaded for the category in
+     ops, then a photo of something actually in it. Never a photo borrowed from
+     an unrelated category — that is what made every card look the same. When
+     there is nothing, the caller falls back to the category's own icon. */
   const artFor = node => {
+    if (node.image_path) return IMG(node.image_path);
     const ids = idsFor(node);
     const hit = list.find(p => ids.has(p.id) && img1(p));
-    return hit ? img1(hit) : anyArt;
+    return hit ? img1(hit) : null;
   };
 
   if (cats.length) {
     document.getElementById('thumbs-sect').style.display = '';
+    const ICO = window.RG_CAT_ICON;
     document.getElementById('thumbs').innerHTML = [
-      { name:'Deals', href:'/shop.html?deals=1', emoji:'🔥', img:null },
-      { name:'New Arrivals', href:'/shop.html?new=1', emoji:'✨', img:null },
-    ].concat(cats.map(c => ({ name:c.name, href:'/shop.html?category='+encodeURIComponent(c.slug),
-                              emoji:'🛍️', img:artFor(c) })))
+      { name:'Deals', href:'/shop.html?deals=1', slug:'__deals', img:null },
+      { name:'New Arrivals', href:'/shop.html?new=1', slug:'__new', img:null },
+    ].concat(cats.map(c => ({ name:c.name, slug:c.slug,
+                              href:'/shop.html?category='+encodeURIComponent(c.slug),
+                              img:artFor(c) })))
      .map(t => `<a class="thumb" href="${t.href}">
-        <div class="thumb__img">${t.img ? `<img src="${esc(t.img)}" alt="" loading="lazy"/>`
-                                        : `<span>${t.emoji}</span>`}</div>
+        <div class="thumb__img">${t.img
+          ? `<img src="${esc(t.img)}" alt="" loading="lazy"/>`
+          : `<span class="ico">${ICO(t.slug, t.name)}</span>`}</div>
         <p>${esc(t.name)}</p></a>`).join('');
 
     document.getElementById('cats-sect').style.display = '';
     document.getElementById('cats').innerHTML = cats.slice(0,12).map(c => {
       const a = artFor(c);
       return `<a class="fl" href="/shop.html?category=${encodeURIComponent(c.slug)}">
-        ${a ? `<img src="${esc(a)}" alt="" loading="lazy"/>` : ''}
+        ${a ? `<img src="${esc(a)}" alt="" loading="lazy"/>`
+            : `<span class="fl__ico">${ICO(c.slug, c.name)}</span>`}
         <span class="fl__cap">${esc(c.name)}</span></a>`;
     }).join('');
   }

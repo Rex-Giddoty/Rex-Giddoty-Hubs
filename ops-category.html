@@ -41,6 +41,14 @@
             Pick a parent to make this a drop-down item. Menus are one level deep.
           </div>
         </div>
+        <div class="full"><label class="f">Card image</label>
+          <div class="gal" id="c-image" style="grid-template-columns:repeat(auto-fill,minmax(96px,1fr));"></div>
+          <input type="file" id="c-image-file" accept="image/*" hidden onchange="uploadCatImage(this)"/>
+          <div class="muted" style="font-size:12px;margin-top:6px;">
+            Shown on the category cards on the home page. Roughly square works best —
+            it is cropped to fill, so keep the subject near the middle.
+          </div>
+        </div>
         <div class="full"><label class="f">Description</label><textarea class="inp" id="c-description"></textarea></div>
         <div><label class="f">Position</label><input class="inp" id="c-position" type="number" value="0"/></div>
         <div><label class="f">Visible</label>
@@ -163,7 +171,7 @@ const slugify = s => String(s).toLowerCase().trim()
 
 const CAT_ID = new URLSearchParams(location.search).get('id') || null;
 let _cat = null, _cats = [], _items = [], _settings = {};
-let _item = null, _images = [], _sizes = [];
+let _item = null, _images = [], _sizes = [], _catImage = null;
 
 let _toastT;
 function toast(msg, bad) {
@@ -213,6 +221,9 @@ function paintCategory() {
   /* Items can only be filed once the category exists to file them under. */
   document.getElementById('add-item-btn').disabled = isNew;
 
+  _catImage = _cat?.image_path || null;
+  renderCatImage();
+
   const hasKids = _cat && _cats.some(c => c.parent_id === _cat.id);
   const psel = document.getElementById('c-parent');
   psel.innerHTML = '<option value="">— top level —</option>' +
@@ -223,12 +234,41 @@ function paintCategory() {
   psel.title = hasKids ? 'This category holds a drop-down, so it stays top level.' : '';
 }
 
+/* ── card image ── */
+function renderCatImage() {
+  document.getElementById('c-image').innerHTML = _catImage
+    ? `<figure><img src="${esc(IMG(_catImage))}" alt=""/>
+         <button class="x" onclick="removeCatImage()" title="Remove">×</button></figure>
+       <div class="drop" onclick="document.getElementById('c-image-file').click()"
+            style="font-size:12px;">Replace</div>`
+    : `<div class="drop" onclick="document.getElementById('c-image-file').click()">+</div>`;
+}
+function removeCatImage(){ _catImage = null; renderCatImage(); }
+
+async function uploadCatImage(input) {
+  const file = (input.files || [])[0];
+  input.value = '';
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) return toast('Image is over 10 MB', true);
+  toast('Uploading…');
+  const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-50);
+  const base = slugify(document.getElementById('c-slug').value
+    || document.getElementById('c-name').value || 'category') || 'category';
+  const path = `categories/${base}/${Date.now()}-${safe}`;
+  const { error } = await db.storage.from('product-images').upload(path, file, { contentType: file.type });
+  if (error) return toast(error.message, true);
+  _catImage = path;
+  renderCatImage();
+  toast('Card image added — remember to save');
+}
+
 async function saveCategory() {
   const name = document.getElementById('c-name').value.trim();
   if (!name) return toast('Name is required', true);
   const row = {
     name,
     slug: slugify(document.getElementById('c-slug').value || name),
+    image_path: _catImage,
     description: document.getElementById('c-description').value.trim() || null,
     position: parseInt(document.getElementById('c-position').value || '0', 10),
     is_active: document.getElementById('c-active').value === 'true',

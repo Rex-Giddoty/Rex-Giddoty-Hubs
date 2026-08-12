@@ -97,7 +97,7 @@
   window.RG_CATS = async function () {
     if (_cats) return _cats;
     const { data } = await db.from('categories')
-      .select('id,slug,name,position,parent_id').eq('is_active', true).order('position').order('name');
+      .select('id,slug,name,position,parent_id,image_path').eq('is_active', true).order('position').order('name');
     _cats = data || [];
     return _cats;
   };
