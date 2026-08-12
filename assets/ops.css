@@ -93,6 +93,10 @@ select.inp{color-scheme:dark;}
 
 /* ── category workspace (ops-category.html) ── */
 .wsp{max-width:1180px;margin:0 auto;padding:22px 18px 80px;}
+/* Cards on the main ops page wrap full-bleed tables, whose cells carry their own
+   padding, so .card itself has none. Workspace cards hold headings and fields
+   instead, which would otherwise sit hard against the border. */
+.wsp .card{padding:18px;}
 .wsp__bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
 .wsp__bar h1{font-size:20px;font-weight:600;}
 .wsp__bar .spacer{flex:1;}
