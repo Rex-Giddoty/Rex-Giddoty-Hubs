@@ -133,6 +133,76 @@
   };
   window.RG_ICON = I;
 
+  /* ── category icons ──
+   * Drawn on one 24×24 grid with a single stroke weight so they sit together
+   * evenly in the sidebar. */
+  const g = p => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" '
+    + 'stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+
+  const CI = {
+    collection: g('<path d="M12 7.2V9"/><path d="M12 7.2a2.1 2.1 0 112.1-2.1"/>'
+      + '<path d="M12 9l-8 5.6c-.9.6-.5 2 .6 2h14.8c1.1 0 1.5-1.4.6-2L12 9z"/>'),
+    tops: g('<path d="M9 3.2L4.2 5.8l1.9 3.9L8 8.8V21h8V8.8l1.9.9 1.9-3.9L15 3.2a3 3 0 01-6 0z"/>'),
+    /* Shorts rather than full trousers, so Bottoms stays distinguishable from
+       Jeans at 19px where finer detail disappears. */
+    bottoms: g('<path d="M5.8 3.4h12.4l.5 3.6-.8 9.6h-4.3L12 10.4l-1.6 6.2H6.1L5.3 7z"/>'
+      + '<path d="M6 7.2h12"/>'),
+    /* Jeans differ from plain bottoms by the button and pocket seams — without
+       them the two silhouettes are identical at 19px. */
+    jeans: g('<path d="M6.4 3h11.2l.5 4-1 14h-3.6L12 10.5 10.5 21H6.9l-1-14z"/><path d="M6.7 7h10.6"/>'
+      + '<circle cx="12" cy="4.9" r=".75"/>'
+      + '<path d="M8.1 8.7L9.6 7.2"/><path d="M15.9 8.7L14.4 7.2"/>'),
+    joggers: g('<path d="M6.4 3h11.2l.5 4-1 11.6h-3.6L12 9.6 10.5 18.6H6.9l-1-11.6z"/>'
+      + '<path d="M6.9 18.6h3.6V21H6.9zM13.5 18.6h3.6V21h-3.6z"/>'
+      + '<path d="M10.5 4.4l1.5 1.3 1.5-1.3"/>'),
+    fragrance: g('<rect x="7.2" y="9" width="9.6" height="12" rx="2.2"/>'
+      + '<path d="M10.2 9V6.4h3.6V9"/><rect x="10.4" y="2.6" width="3.2" height="2.6" rx=".9"/>'
+      + '<path d="M9.7 13.4h4.3"/>'),
+    fullfit: g('<path d="M8.5 3.5L12 8l3.5-4.5 4.1 2.1V21H4.4V5.6z"/><path d="M12 8v13"/>'
+      + '<path d="M9.7 3.7L12 8l2.3-4.3"/>'),
+    bags: g('<path d="M4.6 8h14.8l-1.1 12.2a1 1 0 01-1 .9H6.7a1 1 0 01-1-.9z"/>'
+      + '<path d="M8.7 8V6.4a3.3 3.3 0 016.6 0V8"/>'),
+    shoes: g('<path d="M2.8 19.2h18.4a.8.8 0 00.8-.8v-.9c0-1.4-1-2.6-2.3-2.9l-4.5-1.1-3.1-2.6a1 1 0 00-.9-.2l-2.7.5-1.1-1.5-2.5.6A2.6 2.6 0 002 12.8v5.6c0 .4.4.8.8.8z"/>'
+      + '<path d="M6.9 10.3l1.3 1.9M10 11.1l1.2 1.8"/><path d="M2.2 16.6h19.5"/>'),
+    jewellery: g('<path d="M8.6 3h6.8l3.1 4.2L12 15.4 5.5 7.2z"/>'
+      + '<path d="M5.6 7.2h12.8M9.4 7.2L12 15.4l2.6-8.2M8.6 3l.8 4.2M15.4 3l-.8 4.2"/>'),
+    decor: g('<path d="M8.4 3.4h7.2l2.8 6.8H5.6z"/><path d="M12 10.2V19"/>'
+      + '<path d="M8.6 21h6.8a3.4 3.4 0 00-6.8 0z"/>'),
+    accessories: g('<path d="M3.4 15.8c0-4.8 3.9-8.7 8.6-8.7s8.6 3.9 8.6 8.7z"/>'
+      + '<path d="M12 7.1V4.6"/><path d="M20.6 15.8c1.3 0 2 .7 2 1.7"/>'),
+    news: g('<path d="M11 3.2l1.7 4.6 4.6 1.7-4.6 1.7L11 15.8 9.3 11.2 4.7 9.5l4.6-1.7z"/>'
+      + '<path d="M17.8 14.6l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8z"/>'),
+    deals: g('<path d="M3.6 12.4l8.8-8.8h7.2v7.2l-8.8 8.8a1.6 1.6 0 01-2.3 0l-4.9-4.9a1.6 1.6 0 010-2.3z"/>'
+      + '<circle cx="16.4" cy="7.6" r="1.2"/><path d="M9.5 15.1l4.3-4.3"/>'
+      + '<circle cx="9.7" cy="11" r=".9"/><circle cx="13.6" cy="14.9" r=".9"/>'),
+  };
+
+  /* Matched on slug and name, most specific first, so a category the shop owner
+     adds later ("Denim jackets", "Perfume") still lands on a sensible icon
+     instead of the generic tag. */
+  const CI_MATCH = [
+    [/jean|denim/, 'jeans'],
+    [/jogger|track|sweat|lounge/, 'joggers'],
+    [/bottom|trouser|pant|short|skirt|legging/, 'bottoms'],
+    [/fragrance|perfume|scent|cologne|body\s*spray/, 'fragrance'],
+    [/full.?fit|suit|outfit|two.?piece|co.?ord/, 'fullfit'],
+    [/bag|purse|tote|backpack|luggage/, 'bags'],
+    [/shoe|sneaker|footwear|boot|sandal|slipper|trainer/, 'shoes'],
+    [/jewel|ring|necklace|earring|bracelet|watch/, 'jewellery'],
+    [/cap|hat|accessor|belt|sunglass/, 'accessories'],
+    [/decor|lifestyle|home|furniture|lamp|kitchen/, 'decor'],
+    [/top|shirt|tee|blouse|hoodie|jacket/, 'tops'],
+    [/collection|clothing|clothes|apparel|wear|fashion/, 'collection'],
+    [/new|arrival|latest/, 'news'],
+    [/deal|sale|discount|offer|clearance|promo/, 'deals'],
+  ];
+
+  window.RG_CAT_ICON = function (slug, name) {
+    const s = (String(slug || '') + ' ' + String(name || '')).toLowerCase();
+    for (const [re, key] of CI_MATCH) if (re.test(s)) return CI[key];
+    return I.tag;
+  };
+
   /* ── chrome ── */
   window.RG_CHROME = async function (active) {
     const s = await window.RG_SETTINGS();
@@ -151,17 +221,18 @@
     window.RG_MENU = entries;
 
     /* A group opens when it is the page you are on, or holds it. */
+    const ico = e => window.RG_CAT_ICON(e.slug, e.name);
     const groupHtml = (e, sub) => {
       if (!e.children || !e.children.length)
-        return `<a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${I.tag}${esc(e.name)}</a>`;
+        return `<a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${ico(e)}${esc(e.name)}</a>`;
       const open = active === e.slug || e.children.some(c => c.slug === active);
       return `<div class="rail__grp${open ? ' open' : ''}">
         <div class="rail__row">
-          <a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${I.tag}${esc(e.name)}</a>
+          <a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${ico(e)}${esc(e.name)}</a>
           <button class="rail__tog" data-tog aria-expanded="${open}" aria-label="Show ${esc(e.name)}">${I.caret}</button>
         </div>
         <div class="rail__sub">${e.children.map(c =>
-          `<a href="${c.href}" class="${active === c.slug ? 'on' : ''}">${sub ? I.tag : ''}${esc(c.name)}</a>`).join('')}</div>
+          `<a href="${c.href}" class="${active === c.slug ? 'on' : ''}">${ico(c)}${esc(c.name)}</a>`).join('')}</div>
       </div>`;
     };
 
@@ -181,7 +252,10 @@
         </div></div>
         <div class="hdr__main">
           <button class="burger" data-burger aria-label="Menu">${I.menu}</button>
-          <a class="logo" href="/">${esc(parts[0])}<span>${esc(parts.slice(1).join(' '))}</span></a>
+          <a class="logo" href="/" aria-label="${esc(store)}">
+            <img class="logo__mark" src="/assets/logo-mark.png" alt=""/>
+            <span class="logo__txt"><b>${esc(parts[0])}<em>${esc(parts.slice(1).join(' '))}</em></b><i>Unlimited</i></span>
+          </a>
           <form class="search" action="/shop.html" method="get" role="search">
             ${I.search}
             <input name="q" placeholder="Search products, brands and categories" value="${esc(q)}" aria-label="Search"/>
@@ -238,8 +312,9 @@
       foot.innerHTML = `
         <div class="foot__news"><div class="in">
           <div>
-            <div class="logo" style="font-size:22px;">${esc(parts[0])}<span style="color:#fff;">${esc(parts.slice(1).join(' '))}</span></div>
-            <p style="margin:10px 0 0;">Everyday essentials and standout pieces, delivered nationwide.</p>
+            <!-- the full logo is white-on-transparent, so it only works here on the dark panel -->
+            <img src="/assets/logo.png" alt="${esc(store)}" style="width:190px;max-width:100%;height:auto;margin:-14px 0 -6px -10px;"/>
+            <p style="margin:6px 0 0;">Everyday essentials and standout pieces, delivered nationwide.</p>
           </div>
           <div>
             <div class="foot__t">NEW TO ${esc(store.toUpperCase())}?</div>

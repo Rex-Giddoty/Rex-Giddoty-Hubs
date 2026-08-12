@@ -10,6 +10,7 @@
 
 :root{
   --brand:#f68b1e;        /* the orange everything hangs off */
+  --brandv:#9030d0;       /* purple sampled from the logo artwork */
   --brand-dk:#e07d10;
   --flash:#be1d3e;        /* flash-sale header band */
   --beige:#fce7bb;        /* section header bands */
@@ -68,9 +69,16 @@ ul{margin:0;padding:0;list-style:none;}
 .burger{display:none;background:none;border:0;padding:6px;color:var(--ink);}
 .burger svg{width:24px;height:24px;}
 
-.logo{font-size:23px;font-weight:800;letter-spacing:-.6px;color:var(--brand);
-  flex-shrink:0;white-space:nowrap;line-height:1;}
-.logo span{color:var(--ink);}
+/* The supplied logo has a white wordmark, so on the light header we show the
+   purple mark only and set the name in type beside it. The full artwork is used
+   in the footer, where the dark panel it was drawn for lets it read properly. */
+.logo{display:flex;align-items:center;gap:9px;flex-shrink:0;line-height:1;}
+.logo__mark{height:40px;width:auto;flex-shrink:0;}
+.logo__txt{display:flex;flex-direction:column;gap:3px;white-space:nowrap;}
+.logo__txt b{font-size:19px;font-weight:800;letter-spacing:-.5px;color:var(--brandv);}
+.logo__txt b em{font-style:normal;color:var(--ink);}
+.logo__txt i{font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--mute);}
 
 .search{
   flex:1;min-width:0;display:flex;align-items:center;gap:6px;
@@ -460,7 +468,9 @@ ul{margin:0;padding:0;list-style:none;}
   .vbar{display:none;}
   .burger{display:block;}
   .hdr__main{gap:8px;padding:8px 10px;flex-wrap:wrap;}
-  .logo{font-size:19px;}
+  .logo__mark{height:32px;}
+  .logo__txt b{font-size:16px;}
+  .logo__txt i{display:none;}
   .search{order:3;flex:1 0 100%;}
   .search button{padding:9px 14px;}
   .hact--label,.hact .caret{display:none;}
@@ -486,7 +496,8 @@ ul{margin:0;padding:0;list-style:none;}
 }
 
 @media (max-width:380px){
-  .logo{font-size:17px;}
+  .logo__mark{height:28px;}
+  .logo__txt b{font-size:14px;}
   .pcard{padding:7px;}
   .freelinks{grid-template-columns:repeat(2,1fr);}
 }
