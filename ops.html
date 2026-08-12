@@ -6,100 +6,7 @@
 <meta name="robots" content="noindex,nofollow"/>
 <title>Operations — Rex-Giddoty Hubs</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<style>
-:root{
-  --bg:#0c0c0d; --s1:#141416; --s2:#1b1b1e; --b:rgba(255,255,255,.08);
-  --text:#ececec; --sub:#8b8b90; --accent:#ececec; --green:#3ecf8e; --red:#ff6b6b; --amber:#f0b429;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-size:14px;}
-button,input,select,textarea{font-family:inherit;}
-a{color:inherit;}
-
-.top{position:sticky;top:0;z-index:50;height:56px;background:var(--s1);border-bottom:1px solid var(--b);display:flex;align-items:center;gap:14px;padding:0 18px;}
-.brand{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--sub);white-space:nowrap;}
-.tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;}
-.tab{background:none;border:none;color:var(--sub);padding:8px 14px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;}
-.tab:hover{color:var(--text);background:var(--s2);}
-.tab.active{color:var(--text);background:var(--s2);}
-.who{font-size:12px;color:var(--sub);white-space:nowrap;}
-.link{background:none;border:none;color:var(--sub);font-size:12px;cursor:pointer;text-decoration:underline;}
-
-.page{display:none;padding:22px 18px 60px;max-width:1180px;margin:0 auto;}
-.page.active{display:block;}
-.head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
-h2{font-size:19px;font-weight:600;letter-spacing:-.2px;}
-.count{font-size:12px;color:var(--sub);}
-.spacer{flex:1;}
-
-.btn{background:var(--s2);border:1px solid var(--b);color:var(--text);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;}
-.btn:hover{border-color:rgba(255,255,255,.2);}
-.btn--primary{background:var(--accent);color:#0c0c0d;border-color:var(--accent);font-weight:600;}
-.btn--sm{padding:5px 10px;font-size:12px;}
-.btn--danger{color:var(--red);border-color:rgba(255,107,107,.3);}
-
-/* overflow-x so a wide table can be scrolled to rather than clipped — with
-   overflow:hidden the Edit column simply vanished on a phone */
-.card{background:var(--s1);border:1px solid var(--b);border-radius:12px;overflow:hidden;}
-.card > div{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-table{width:100%;border-collapse:collapse;min-width:520px;}
-th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);font-weight:500;padding:11px 14px;border-bottom:1px solid var(--b);white-space:nowrap;}
-td{padding:11px 14px;border-bottom:1px solid var(--b);vertical-align:middle;}
-tr:last-child td{border-bottom:none;}
-.thumb{width:44px;height:56px;object-fit:cover;border-radius:5px;background:var(--s2);display:block;}
-.muted{color:var(--sub);font-size:12px;}
-.empty{padding:44px 20px;text-align:center;color:var(--sub);font-size:13px;}
-
-.pill{display:inline-block;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:20px;border:1px solid;white-space:nowrap;}
-.pill--live{color:var(--green);border-color:rgba(62,207,142,.35);background:rgba(62,207,142,.1);}
-.pill--draft{color:var(--sub);border-color:var(--b);}
-.pill--warn{color:var(--amber);border-color:rgba(240,180,41,.35);background:rgba(240,180,41,.1);}
-.pill--red{color:var(--red);border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.1);}
-
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;}
-.modal.open{display:flex;}
-.sheet{background:var(--s1);border:1px solid var(--b);border-radius:14px;width:100%;max-width:720px;padding:24px;margin:auto 0;}
-.sheet h3{font-size:17px;font-weight:600;margin-bottom:18px;}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-.full{grid-column:1/-1;}
-label.f{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);margin-bottom:6px;}
-.inp{width:100%;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13.5px;outline:none;}
-.inp:focus{border-color:var(--sub);}
-textarea.inp{resize:vertical;min-height:76px;line-height:1.55;}
-select.inp{color-scheme:dark;}
-.row-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap;}
-
-.imgs{display:flex;flex-wrap:wrap;gap:9px;}
-.imgs figure{position:relative;width:74px;height:92px;border-radius:7px;overflow:hidden;background:var(--s2);border:1px solid var(--b);}
-.imgs img{width:100%;height:100%;object-fit:cover;display:block;}
-.imgs .x{position:absolute;top:3px;right:3px;width:19px;height:19px;border-radius:50%;background:rgba(0,0,0,.75);color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;}
-.drop{width:74px;height:92px;border:1px dashed rgba(255,255,255,.22);border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:22px;cursor:pointer;}
-.drop:hover{border-color:var(--sub);color:var(--text);}
-
-.variant{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
-.variant .inp{flex:1;min-width:96px;}
-
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--s2);border:1px solid var(--b);color:var(--text);padding:11px 18px;border-radius:9px;font-size:13px;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:90vw;text-align:center;}
-.toast.show{opacity:1;}
-.toast.bad{border-color:rgba(255,107,107,.4);color:#ffb3b3;}
-
-@media(max-width:720px){
-  .grid{grid-template-columns:1fr;}
-  .hide-sm{display:none;}
-  .top{padding:0 12px;gap:10px;}
-  .brand{display:none;}
-  .who{display:none;}                 /* the email is the first thing to go */
-  table{min-width:0;}                 /* fewer columns on small screens, so no scroll needed */
-  .page{padding:18px 12px 50px;}
-  .sheet{padding:18px;}
-  .head{gap:8px;}
-  .head h2{font-size:17px;}
-  #product-search{max-width:none;flex:1;}
-  .variant{gap:6px;}
-  .variant .inp{min-width:72px;}
-  .modal{padding:12px;}
-}
-</style>
+<link rel="stylesheet" href="/assets/ops.css"/>
 </head>
 <body>
 
@@ -131,7 +38,7 @@ select.inp{color-scheme:dark;}
   <div class="head">
     <h2>Categories</h2><span class="count" id="categories-count"></span>
     <div class="spacer"></div>
-    <button class="btn btn--primary" onclick="openCategory()">+ New category</button>
+    <a class="btn btn--primary" href="/ops-category.html">+ New category</a>
   </div>
   <div class="card"><div id="categories-body"></div></div>
 </div>
@@ -224,32 +131,6 @@ select.inp{color-scheme:dark;}
 </div>
 
 <!-- CATEGORY MODAL -->
-<div class="modal" id="category-modal">
-  <div class="sheet" style="max-width:460px;">
-    <h3 id="category-modal-title">New category</h3>
-    <div class="grid">
-      <div class="full"><label class="f">Name</label><input class="inp" id="c-name"/></div>
-      <div class="full"><label class="f">URL slug</label><input class="inp" id="c-slug" placeholder="bags"/></div>
-      <div class="full"><label class="f">Sits under</label>
-        <select class="inp" id="c-parent"></select>
-        <div class="muted" style="font-size:12px;margin-top:4px;">
-          Pick a parent to make this a drop-down item (e.g. Tops under Collection).
-          Menus are one level deep, so a category with children cannot itself sit under another.
-        </div>
-      </div>
-      <div class="full"><label class="f">Description</label><textarea class="inp" id="c-description"></textarea></div>
-      <div><label class="f">Position</label><input class="inp" id="c-position" type="number" value="0"/></div>
-      <div><label class="f">Visible</label><select class="inp" id="c-active"><option value="true">Yes</option><option value="false">No</option></select></div>
-    </div>
-    <div class="row-actions">
-      <button class="btn btn--danger" id="c-delete" onclick="deleteCategory()">Delete</button>
-      <div class="spacer"></div>
-      <button class="btn" onclick="closeModal('category-modal')">Cancel</button>
-      <button class="btn btn--primary" onclick="saveCategory()">Save category</button>
-    </div>
-  </div>
-</div>
-
 <!-- ORDER MODAL -->
 <div class="modal" id="order-modal">
   <div class="sheet" style="max-width:640px;">
@@ -390,75 +271,9 @@ function renderCategories() {
         <td class="hide-sm muted">/${esc(c.slug)}</td>
         <td class="muted">${n}</td>
         <td>${c.is_active ? '<span class="pill pill--live">Visible</span>' : '<span class="pill pill--draft">Hidden</span>'}</td>
-        <td style="text-align:right;"><button class="btn btn--sm" onclick="openCategory('${c.id}')">Edit</button></td>
+        <td style="text-align:right;"><a class="btn btn--sm" href="/ops-category.html?id=${c.id}">Edit</a></td>
       </tr>`;
     }).join('') + '</tbody></table>';
-}
-
-function openCategory(id) {
-  _editCategory = id ? _categories.find(c => c.id === id) : null;
-  document.getElementById('category-modal-title').textContent = _editCategory ? 'Edit category' : 'New category';
-  document.getElementById('c-name').value        = _editCategory?.name || '';
-  document.getElementById('c-slug').value        = _editCategory?.slug || '';
-  document.getElementById('c-description').value = _editCategory?.description || '';
-  document.getElementById('c-position').value    = _editCategory?.position ?? 0;
-  document.getElementById('c-active').value      = String(_editCategory?.is_active ?? true);
-
-  /* Offer only real top-level categories as parents, never this category itself
-     and never one of its own children — either would make a loop. */
-  const hasKids = _editCategory && _categories.some(c => c.parent_id === _editCategory.id);
-  const opts = _categories.filter(c =>
-    !c.parent_id && (!_editCategory || c.id !== _editCategory.id));
-  const psel = document.getElementById('c-parent');
-  psel.innerHTML = '<option value="">— top level —</option>' +
-    opts.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  psel.value = _editCategory?.parent_id || '';
-  /* A category that already holds a drop-down cannot also be nested. */
-  psel.disabled = !!hasKids;
-  psel.title = hasKids ? 'This category has children, so it stays at the top level.' : '';
-  document.getElementById('c-delete').style.display = _editCategory ? '' : 'none';
-  openModal('category-modal');
-}
-
-const slugify = s => String(s).toLowerCase().trim()
-  .replace(/['’]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
-
-async function saveCategory() {
-  const name = document.getElementById('c-name').value.trim();
-  if (!name) return toast('Name is required', true);
-  const row = {
-    name,
-    slug: slugify(document.getElementById('c-slug').value || name),
-    description: document.getElementById('c-description').value.trim() || null,
-    position: parseInt(document.getElementById('c-position').value || '0', 10),
-    is_active: document.getElementById('c-active').value === 'true',
-    parent_id: document.getElementById('c-parent').value || null,
-  };
-  /* Guard the loop here too — the select is disabled for parents, but a stale
-     modal shouldn't be able to file a category under itself. */
-  if (_editCategory && row.parent_id === _editCategory.id) row.parent_id = null;
-  const q = _editCategory
-    ? db.from('categories').update(row).eq('id', _editCategory.id)
-    : db.from('categories').insert(row);
-  const { error } = await q;
-  if (error) return toast(error.message, true);
-  closeModal('category-modal');
-  await loadCategories();
-  toast('Category saved');
-}
-
-async function deleteCategory() {
-  if (!_editCategory) return;
-  const kids = _categories.filter(c => c.parent_id === _editCategory.id);
-  const warn = kids.length
-    ? `\n\n${kids.length} category(ies) sit under it (${kids.map(k => k.name).join(', ')}). They will move up to the top level, not be deleted.`
-    : '';
-  if (!confirm(`Delete "${_editCategory.name}"? Products stay, they just lose this category.${warn}`)) return;
-  const { error } = await db.from('categories').delete().eq('id', _editCategory.id);
-  if (error) return toast(error.message, true);
-  closeModal('category-modal');
-  await loadCategories();
-  toast('Category deleted');
 }
 
 /* ── products ── */
@@ -507,6 +322,9 @@ function renderProducts() {
       </tr>`;
     }).join('') + '</tbody></table>';
 }
+
+const slugify = s => String(s).toLowerCase().trim()
+  .replace(/['’]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
 
 function autoSlug() {
   const slug = document.getElementById('p-slug');

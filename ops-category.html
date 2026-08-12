@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Category — Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/assets/ops.css"/>
+</head>
+<body>
+
+<div class="top">
+  <div class="brand">Rex-Giddoty · Ops</div>
+  <div class="tabs"><a class="tab" href="/ops.html">← All categories</a></div>
+  <div class="who" id="who"></div>
+  <button class="link" onclick="signOut()">Sign out</button>
+</div>
+
+<!-- ═══ CATEGORY VIEW ═══ -->
+<div class="wsp view on" id="view-cat">
+  <div class="wsp__bar">
+    <div>
+      <button class="crumb" onclick="location.href='/ops.html'">Categories</button>
+      <h1 id="cat-title">Category</h1>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn--primary" onclick="openItem(null)" id="add-item-btn">+ Add item</button>
+  </div>
+
+  <div class="split">
+    <!-- category settings -->
+    <div class="card">
+      <h3 style="margin-bottom:14px;">Category details</h3>
+      <div class="grid">
+        <div class="full"><label class="f">Name</label><input class="inp" id="c-name"/></div>
+        <div class="full"><label class="f">URL slug</label><input class="inp" id="c-slug" placeholder="bags"/></div>
+        <div class="full"><label class="f">Sits under</label>
+          <select class="inp" id="c-parent"></select>
+          <div class="muted" style="font-size:12px;margin-top:4px;">
+            Pick a parent to make this a drop-down item. Menus are one level deep.
+          </div>
+        </div>
+        <div class="full"><label class="f">Description</label><textarea class="inp" id="c-description"></textarea></div>
+        <div><label class="f">Position</label><input class="inp" id="c-position" type="number" value="0"/></div>
+        <div><label class="f">Visible</label>
+          <select class="inp" id="c-active"><option value="true">Yes</option><option value="false">No</option></select></div>
+      </div>
+      <div class="row-actions" style="margin-top:16px;">
+        <button class="btn btn--danger" id="c-delete" onclick="deleteCategory()">Delete</button>
+        <div class="spacer"></div>
+        <button class="btn btn--primary" onclick="saveCategory()">Save</button>
+      </div>
+    </div>
+
+    <!-- items in this category -->
+    <div class="card">
+      <div class="head" style="margin-bottom:14px;">
+        <h3>Items in this category</h3>
+        <span class="count" id="items-count"></span>
+      </div>
+      <div class="stat" id="cat-stats"></div>
+      <div class="items" id="items"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ITEM VIEW (full page) ═══ -->
+<div class="wsp view" id="view-item">
+  <div class="wsp__bar">
+    <div>
+      <button class="crumb" onclick="backToCategory()">← Back to <span id="crumb-cat">category</span></button>
+      <h1 id="item-title">New item</h1>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn--danger" id="i-delete" onclick="deleteItem()">Delete</button>
+    <button class="btn btn--primary" onclick="saveItem()">Save item</button>
+  </div>
+
+  <div class="split">
+    <!-- photos -->
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Photos</h3>
+      <div class="muted" style="font-size:12px;margin-bottom:12px;">The first photo is the one shoppers see in listings.</div>
+      <div class="gal" id="i-images"></div>
+      <input type="file" id="i-image-file" accept="image/*" multiple hidden onchange="uploadImages(this)"/>
+      <div class="stat" style="margin:14px 0 0;" id="i-stats"></div>
+    </div>
+
+    <div>
+      <!-- the basics -->
+      <div class="card" style="margin-bottom:14px;">
+        <h3 style="margin-bottom:14px;">Item details</h3>
+        <div class="grid">
+          <div class="full"><label class="f">Name</label><input class="inp" id="i-name" oninput="syncSlug()"/></div>
+          <div><label class="f">URL slug</label><input class="inp" id="i-slug"/></div>
+          <div><label class="f">Brand</label><input class="inp" id="i-brand" placeholder="Optional"/></div>
+          <div class="full"><label class="f">Short subtitle</label><input class="inp" id="i-subtitle" placeholder="One line under the name"/></div>
+          <div class="full"><label class="f">Description</label><textarea class="inp" id="i-description" rows="4"></textarea></div>
+          <div class="full"><label class="f">Material</label>
+            <input class="inp" id="i-material" placeholder="e.g. 100% cotton, full-grain leather"/></div>
+          <div class="full"><label class="f">Specifications</label>
+            <textarea class="inp" id="i-details" rows="3" placeholder="Care, dimensions, what is in the box…"></textarea></div>
+        </div>
+      </div>
+
+      <!-- money -->
+      <div class="card" style="margin-bottom:14px;">
+        <h3 style="margin-bottom:14px;">Price</h3>
+        <div class="grid">
+          <div><label class="f">Selling price</label><input class="inp" id="i-price" inputmode="decimal" placeholder="0.00"/></div>
+          <div><label class="f">Was (crossed out)</label><input class="inp" id="i-compare" inputmode="decimal" placeholder="Optional"/></div>
+          <div><label class="f">Badge</label><input class="inp" id="i-badge" placeholder="e.g. NEW"/></div>
+          <div><label class="f">Status</label>
+            <select class="inp" id="i-status">
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select></div>
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:8px;" id="i-off-note"></div>
+      </div>
+
+      <!-- sizes and stock -->
+      <div class="card">
+        <div class="head" style="margin-bottom:6px;">
+          <h3>Sizes &amp; stock</h3>
+          <span class="count" id="i-stock-note"></span>
+        </div>
+        <div class="muted" style="font-size:12px;margin-bottom:12px;">
+          Every item needs at least one row. Use “One Size” if it does not come in sizes.
+          Stock is how many you hold; the storefront shows “N items left”.
+        </div>
+        <div class="srow" style="margin-bottom:6px;">
+          <div class="lbl">Label</div><div class="lbl">Size</div>
+          <div class="lbl">In stock</div><div class="lbl">Price override</div><div></div>
+        </div>
+        <div class="sizes" id="i-sizes"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn--sm" onclick="addSize()">+ Add size</button>
+          <button class="btn btn--sm" onclick="addSizeSet(['S','M','L','XL'])">+ S M L XL</button>
+          <button class="btn btn--sm" onclick="addSizeSet(['38','39','40','41','42','43','44','45'])">+ Shoe sizes</button>
+        </div>
+        <div class="grid" style="margin-top:16px;">
+          <div><label class="f">Warn me when stock drops to</label>
+            <input class="inp" id="i-low" type="number" min="0" value="5"/></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script>
+const db = window.RG_DB, M = window.RG_MONEY, IMG = window.RG_IMG;
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const slugify = s => String(s).toLowerCase().trim()
+  .replace(/['’]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+
+const CAT_ID = new URLSearchParams(location.search).get('id') || null;
+let _cat = null, _cats = [], _items = [], _settings = {};
+let _item = null, _images = [], _sizes = [];
+
+let _toastT;
+function toast(msg, bad) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (bad ? ' bad' : '');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+async function signOut(){ await db.auth.signOut(); location.href = '/ops-login.html'; }
+
+/* ── boot ── */
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { location.href = '/ops-login.html'; return; }
+  const { data: admin } = await db.from('admin_users').select('id,email').eq('id', session.user.id).maybeSingle();
+  if (!admin) { await db.auth.signOut(); location.href = '/ops-login.html'; return; }
+  document.getElementById('who').textContent = session.user.email;
+
+  const { data: st } = await db.from('site_settings').select('key,value');
+  _settings = Object.fromEntries((st || []).map(r => [r.key, r.value]));
+
+  const { data: cats } = await db.from('categories').select('*').order('position').order('name');
+  _cats = cats || [];
+
+  if (CAT_ID) {
+    _cat = _cats.find(c => c.id === CAT_ID) || null;
+    if (!_cat) { toast('Category not found', true); setTimeout(() => location.href = '/ops.html', 1200); return; }
+  }
+  paintCategory();
+  await loadItems();
+})();
+
+/* ── category ── */
+function paintCategory() {
+  const isNew = !_cat;
+  document.getElementById('cat-title').textContent = isNew ? 'New category' : _cat.name;
+  document.getElementById('crumb-cat').textContent = isNew ? 'category' : _cat.name;
+  document.title = (isNew ? 'New category' : _cat.name) + ' — Ops';
+
+  document.getElementById('c-name').value        = _cat?.name || '';
+  document.getElementById('c-slug').value        = _cat?.slug || '';
+  document.getElementById('c-description').value = _cat?.description || '';
+  document.getElementById('c-position').value    = _cat?.position ?? 0;
+  document.getElementById('c-active').value      = String(_cat?.is_active ?? true);
+  document.getElementById('c-delete').style.display = isNew ? 'none' : '';
+  /* Items can only be filed once the category exists to file them under. */
+  document.getElementById('add-item-btn').disabled = isNew;
+
+  const hasKids = _cat && _cats.some(c => c.parent_id === _cat.id);
+  const psel = document.getElementById('c-parent');
+  psel.innerHTML = '<option value="">— top level —</option>' +
+    _cats.filter(c => !c.parent_id && (!_cat || c.id !== _cat.id))
+         .map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  psel.value = _cat?.parent_id || '';
+  psel.disabled = !!hasKids;
+  psel.title = hasKids ? 'This category holds a drop-down, so it stays top level.' : '';
+}
+
+async function saveCategory() {
+  const name = document.getElementById('c-name').value.trim();
+  if (!name) return toast('Name is required', true);
+  const row = {
+    name,
+    slug: slugify(document.getElementById('c-slug').value || name),
+    description: document.getElementById('c-description').value.trim() || null,
+    position: parseInt(document.getElementById('c-position').value || '0', 10),
+    is_active: document.getElementById('c-active').value === 'true',
+    parent_id: document.getElementById('c-parent').value || null,
+  };
+  if (_cat && row.parent_id === _cat.id) row.parent_id = null;
+
+  if (_cat) {
+    const { error } = await db.from('categories').update(row).eq('id', _cat.id);
+    if (error) return toast(error.message, true);
+    Object.assign(_cat, row);
+    paintCategory();
+    toast('Category saved');
+  } else {
+    const { data, error } = await db.from('categories').insert(row).select('*').single();
+    if (error) return toast(error.message, true);
+    /* Land on the saved category so items can be added straight away. */
+    location.href = '/ops-category.html?id=' + data.id;
+  }
+}
+
+async function deleteCategory() {
+  if (!_cat) return;
+  const kids = _cats.filter(c => c.parent_id === _cat.id);
+  const warn = kids.length
+    ? `\n\n${kids.length} category(ies) sit under it (${kids.map(k => k.name).join(', ')}). They move up to the top level, they are not deleted.`
+    : '';
+  if (!confirm(`Delete "${_cat.name}"? Items stay in the shop, they just lose this category.${warn}`)) return;
+  const { error } = await db.from('categories').delete().eq('id', _cat.id);
+  if (error) return toast(error.message, true);
+  location.href = '/ops.html';
+}
+
+/* ── items ── */
+const stockOf = p => (p.product_variants || []).reduce((s, v) => s + (v.stock || 0), 0);
+
+async function loadItems() {
+  if (!_cat) { renderItems(); return; }
+  const { data, error } = await db.from('products')
+    .select('*, product_images(id,path,position), product_variants(id,option_name,option_value,price_minor,stock,position), product_categories!inner(category_id)')
+    .eq('product_categories.category_id', _cat.id)
+    .order('created_at', { ascending: false });
+  if (error) return toast(error.message, true);
+  _items = data || [];
+  renderItems();
+}
+
+function renderItems() {
+  const box = document.getElementById('items');
+  document.getElementById('items-count').textContent =
+    _items.length ? _items.length + (_items.length === 1 ? ' item' : ' items') : '';
+
+  if (!_cat) {
+    document.getElementById('cat-stats').innerHTML = '';
+    box.innerHTML = '<div class="empty">Save the category first, then you can add items to it.</div>';
+    return;
+  }
+
+  const units = _items.reduce((s, p) => s + stockOf(p), 0);
+  const low   = _items.filter(p => { const st = stockOf(p); return st > 0 && st <= (p.low_stock_at ?? 5); }).length;
+  const out   = _items.filter(p => stockOf(p) === 0).length;
+  const draft = _items.filter(p => p.status !== 'published').length;
+  document.getElementById('cat-stats').innerHTML = `
+    <div><b>${_items.length}</b><span>Items</span></div>
+    <div><b>${units}</b><span>Units in stock</span></div>
+    <div class="${low ? 'warn' : ''}"><b>${low}</b><span>Running low</span></div>
+    <div class="${out ? 'bad' : ''}"><b>${out}</b><span>Out of stock</span></div>
+    <div><b>${draft}</b><span>Draft</span></div>`;
+
+  box.innerHTML = _items.map(p => {
+    const imgs = (p.product_images || []).slice().sort((a,b) => a.position - b.position);
+    const st = stockOf(p);
+    const cls = st === 0 ? 'out' : (st <= (p.low_stock_at ?? 5) ? 'low' : '');
+    const sizes = (p.product_variants || []).length;
+    return `<button class="item" onclick="openItem('${p.id}')">
+      <div class="item__img">${imgs[0]
+        ? `<img src="${esc(IMG(imgs[0].path))}" alt="" loading="lazy"/>`
+        : '<span>No photo</span>'}</div>
+      <div class="item__b">
+        <div class="item__n">${esc(p.name)}</div>
+        <div class="item__p">${M.fmt(p.price_minor, p.currency)}</div>
+        <div class="item__s ${cls}">${st === 0 ? 'Out of stock' : st + ' left'} · ${sizes} size${sizes===1?'':'s'}${
+          p.status !== 'published' ? ' · Draft' : ''}</div>
+      </div>
+    </button>`;
+  }).join('') +
+  `<button class="item item--new" onclick="openItem(null)"><div style="font-size:26px;">+</div>Add item</button>`;
+}
+
+/* ── item editor ── */
+function show(view) {
+  document.getElementById('view-cat').classList.toggle('on', view === 'cat');
+  document.getElementById('view-item').classList.toggle('on', view === 'item');
+  window.scrollTo({ top: 0 });
+}
+function backToCategory(){ show('cat'); history.replaceState(null, '', '/ops-category.html?id=' + _cat.id); }
+
+function openItem(id) {
+  if (!_cat) return toast('Save the category first', true);
+  _item = id ? _items.find(p => p.id === id) : null;
+  _images = _item ? (_item.product_images || []).slice().sort((a,b) => a.position - b.position)
+                      .map(im => ({ path: im.path })) : [];
+  _sizes = _item ? (_item.product_variants || []).slice().sort((a,b) => a.position - b.position)
+                     .map(v => ({ ...v })) : [{ option_name:'Size', option_value:'One Size', stock:0, price_minor:null }];
+
+  document.getElementById('item-title').textContent = _item ? _item.name : 'New item';
+  document.getElementById('i-name').value        = _item?.name || '';
+  document.getElementById('i-slug').value        = _item?.slug || '';
+  document.getElementById('i-brand').value       = _item?.brand || '';
+  document.getElementById('i-subtitle').value    = _item?.subtitle || '';
+  document.getElementById('i-description').value = _item?.description || '';
+  document.getElementById('i-material').value    = _item?.material || '';
+  document.getElementById('i-details').value     = _item?.details || '';
+  document.getElementById('i-price').value       = _item ? M.toMajor(_item.price_minor) : '';
+  document.getElementById('i-compare').value     = _item?.compare_at_minor ? M.toMajor(_item.compare_at_minor) : '';
+  document.getElementById('i-badge').value       = _item?.badge || '';
+  document.getElementById('i-status').value      = _item?.status || 'published';
+  document.getElementById('i-low').value         = _item?.low_stock_at ?? 5;
+  document.getElementById('i-delete').style.display = _item ? '' : 'none';
+
+  renderImages(); renderSizes();
+  show('item');
+}
+
+function syncSlug() {
+  /* Only follow the name while the slug has not been hand-edited. */
+  const slug = document.getElementById('i-slug');
+  if (_item || slug.dataset.touched) return;
+  slug.value = slugify(document.getElementById('i-name').value);
+}
+document.getElementById('i-slug').addEventListener('input', e => { e.target.dataset.touched = '1'; });
+
+function renderImages() {
+  document.getElementById('i-images').innerHTML =
+    _images.map((im, i) => `<figure>
+      <img src="${esc(IMG(im.path))}" alt=""/>
+      <button class="x" onclick="removeImage(${i})" title="Remove">×</button>
+      ${i === 0 ? '<span class="main">MAIN</span>' : ''}
+    </figure>`).join('') +
+    `<div class="drop" onclick="document.getElementById('i-image-file').click()">+</div>`;
+}
+function removeImage(i){ _images.splice(i, 1); renderImages(); }
+
+async function uploadImages(input) {
+  const files = Array.from(input.files || []);
+  input.value = '';
+  if (!files.length) return;
+  toast('Uploading…');
+  for (const file of files) {
+    if (file.size > 10 * 1024 * 1024) { toast(file.name + ' is over 10 MB', true); continue; }
+    const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-50);
+    const base = slugify(document.getElementById('i-name').value || 'item') || 'item';
+    const path = `${base}/${Date.now()}-${safe}`;
+    const { error } = await db.storage.from('product-images').upload(path, file, { contentType: file.type });
+    if (error) { toast(error.message, true); continue; }
+    _images.push({ path });
+  }
+  renderImages();
+  toast('Photos added — remember to save');
+}
+
+function renderSizes() {
+  document.getElementById('i-sizes').innerHTML = _sizes.map((v, i) => `
+    <div class="srow">
+      <input class="inp" value="${esc(v.option_name || 'Size')}" placeholder="Size"
+        oninput="_sizes[${i}].option_name=this.value"/>
+      <input class="inp" value="${esc(v.option_value || '')}" placeholder="M"
+        oninput="_sizes[${i}].option_value=this.value"/>
+      <input class="inp" type="number" min="0" value="${v.stock ?? 0}" placeholder="0"
+        oninput="_sizes[${i}].stock=parseInt(this.value||'0',10);stockNote();"/>
+      <input class="inp" inputmode="decimal" placeholder="—"
+        value="${v.price_minor != null ? M.toMajor(v.price_minor) : ''}"
+        oninput="_sizes[${i}]._price=this.value"/>
+      <button class="btn btn--sm btn--danger rm" onclick="_sizes.splice(${i},1);renderSizes();">×</button>
+    </div>`).join('');
+  stockNote();
+}
+function addSize(){ _sizes.push({ option_name:'Size', option_value:'', stock:0, price_minor:null }); renderSizes(); }
+function addSizeSet(vals) {
+  /* Skip sizes already on the item rather than creating duplicates. */
+  const have = new Set(_sizes.map(v => String(v.option_value).trim().toLowerCase()));
+  for (const val of vals) {
+    if (have.has(val.toLowerCase())) continue;
+    _sizes.push({ option_name:'Size', option_value:val, stock:0, price_minor:null });
+  }
+  renderSizes();
+}
+
+function stockNote() {
+  const total = _sizes.reduce((s, v) => s + (parseInt(v.stock, 10) || 0), 0);
+  const low = parseInt(document.getElementById('i-low').value || '5', 10);
+  const el = document.getElementById('i-stock-note');
+  el.textContent = total === 0 ? 'Out of stock'
+    : `${total} in stock across ${_sizes.length} size${_sizes.length === 1 ? '' : 's'}`;
+  el.style.color = total === 0 ? 'var(--red)' : (total <= low ? 'var(--amber)' : '');
+
+  document.getElementById('i-stats').innerHTML = `
+    <div class="${total === 0 ? 'bad' : (total <= low ? 'warn' : '')}"><b>${total}</b><span>Units left</span></div>
+    <div><b>${_sizes.length}</b><span>Sizes</span></div>
+    <div><b>${_images.length}</b><span>Photos</span></div>`;
+}
+document.getElementById('i-low').addEventListener('input', stockNote);
+
+['i-price','i-compare'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+  const p = M.toMinor(document.getElementById('i-price').value);
+  const c = M.toMinor(document.getElementById('i-compare').value);
+  const note = document.getElementById('i-off-note');
+  note.textContent = (p && c && c > p)
+    ? `Shoppers see -${Math.round((1 - p / c) * 100)}% and the old price crossed out.`
+    : (c && p && c <= p ? 'The “was” price must be higher than the selling price to show a discount.' : '');
+}));
+
+async function saveItem() {
+  const name = document.getElementById('i-name').value.trim();
+  if (!name) return toast('Name is required', true);
+  const price = M.toMinor(document.getElementById('i-price').value);
+  if (!price) return toast('Set a selling price', true);
+
+  const sizes = _sizes.filter(v => String(v.option_value || '').trim());
+  if (!sizes.length) return toast('Add at least one size (use “One Size” if it has none)', true);
+
+  const compare = M.toMinor(document.getElementById('i-compare').value) || null;
+  const row = {
+    name,
+    slug: slugify(document.getElementById('i-slug').value || name),
+    subtitle:    document.getElementById('i-subtitle').value.trim() || null,
+    description: document.getElementById('i-description').value.trim() || null,
+    material:    document.getElementById('i-material').value.trim() || null,
+    details:     document.getElementById('i-details').value.trim() || null,
+    brand:       document.getElementById('i-brand').value.trim() || null,
+    badge:       document.getElementById('i-badge').value.trim() || null,
+    price_minor: price,
+    compare_at_minor: compare,
+    low_stock_at: Math.max(0, parseInt(document.getElementById('i-low').value || '5', 10)),
+    currency: _settings.currency || 'NGN',
+    status: document.getElementById('i-status').value,
+    updated_at: new Date().toISOString(),
+  };
+
+  let pid = _item?.id;
+  if (pid) {
+    const { error } = await db.from('products').update(row).eq('id', pid);
+    if (error) return toast(error.message, true);
+  } else {
+    const { data, error } = await db.from('products').insert(row).select('id').single();
+    if (error) return toast(error.message, true);
+    pid = data.id;
+  }
+
+  /* Photos are replaced wholesale — simpler than diffing, and the counts are small. */
+  await db.from('product_images').delete().eq('product_id', pid);
+  if (_images.length) {
+    const { error } = await db.from('product_images')
+      .insert(_images.map((im, i) => ({ product_id: pid, path: im.path, position: i })));
+    if (error) return toast(error.message, true);
+  }
+
+  /* Sizes are updated in place where they already exist, so carts holding a
+     variant keep pointing at the same row. */
+  const keep = sizes.filter(v => v.id).map(v => v.id);
+  let del = db.from('product_variants').delete().eq('product_id', pid);
+  if (keep.length) del = del.not('id', 'in', `(${keep.join(',')})`);
+  await del;
+
+  for (let i = 0; i < sizes.length; i++) {
+    const v = sizes[i];
+    const body = {
+      product_id: pid,
+      option_name: (v.option_name || 'Size').trim() || 'Size',
+      option_value: String(v.option_value).trim(),
+      stock: Math.max(0, parseInt(v.stock || 0, 10)),
+      price_minor: v._price !== undefined ? (M.toMinor(v._price) || null) : (v.price_minor ?? null),
+      position: i,
+    };
+    const { error } = v.id
+      ? await db.from('product_variants').update(body).eq('id', v.id)
+      : await db.from('product_variants').insert(body);
+    if (error) return toast(error.message, true);
+  }
+
+  /* Keep it in this category without disturbing any others it belongs to. */
+  const { error: linkErr } = await db.from('product_categories')
+    .upsert({ product_id: pid, category_id: _cat.id }, { onConflict: 'product_id,category_id' });
+  if (linkErr) return toast(linkErr.message, true);
+
+  await loadItems();
+  _item = _items.find(p => p.id === pid) || null;
+  if (_item) {
+    document.getElementById('item-title').textContent = _item.name;
+    document.getElementById('i-delete').style.display = '';
+    _sizes = (_item.product_variants || []).slice().sort((a,b) => a.position - b.position).map(v => ({ ...v }));
+    renderSizes();
+  }
+  toast('Item saved');
+}
+
+async function deleteItem() {
+  if (!_item) return;
+  if (!confirm(`Delete "${_item.name}"? This cannot be undone.`)) return;
+  const { error } = await db.from('products').delete().eq('id', _item.id);
+  if (error) return toast(error.message, true);
+  await loadItems();
+  show('cat');
+  toast('Item deleted');
+}
+</script>
+</body>
+</html>
