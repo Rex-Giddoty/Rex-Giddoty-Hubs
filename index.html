@@ -3,104 +3,132 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Rex-Giddoty Hubs</title>
-<meta name="description" content="Considered pieces, made to be kept."/>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet"/>
+<title>Rex-Giddoty Hubs — Online Shopping</title>
+<meta name="description" content="Shop clothes, bags, shoes, jewellery and more. Nationwide delivery."/>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/assets/site.css"/>
 </head>
 <body>
 
-<header class="nav" data-nav></header>
+<header class="hdr" data-hdr></header>
 
-<section class="hero" id="hero">
-  <div class="hero__body">
-    <div class="wrap">
-      <div class="eyebrow" id="hero-eyebrow">New</div>
-      <h1 class="display" id="hero-heading">The New Collection</h1>
-      <p id="hero-sub" style="max-width:440px;font-size:15px;">Crafted without compromise</p>
-      <a class="btn" href="/shop.html">Discover</a>
-    </div>
-  </div>
-</section>
+<div class="shell">
+  <aside class="box rail-box" data-rail></aside>
 
-<section class="section">
-  <div class="wrap">
-    <div class="section__head">
-      <div>
-        <div class="eyebrow" style="margin-bottom:10px;">Selected</div>
-        <h2 class="display">Featured pieces</h2>
+  <main>
+    <section class="hero" id="hero">
+      <div class="hero__txt">
+        <h1 id="hero-h">Everything you need</h1>
+        <p id="hero-p">Delivered across Nigeria</p>
+        <a class="btn" href="/shop.html">Shop now</a>
       </div>
-      <a href="/shop.html" style="font-size:11.5px;letter-spacing:.17em;text-transform:uppercase;border-bottom:1px solid var(--ink);padding-bottom:3px;">View all</a>
-    </div>
-    <div class="grid" id="featured"></div>
-  </div>
-</section>
+    </section>
 
-<section class="section" id="cats-section" style="padding-top:0;display:none;">
-  <div class="wrap">
-    <div class="section__head"><h2 class="display">The collections</h2></div>
-    <div class="grid" id="cats"></div>
-  </div>
-</section>
+    <section class="sect" id="flash-sect" style="display:none;">
+      <div class="sect__hd">
+        <h2 id="flash-title">Flash Sales</h2>
+        <div class="countdown" id="countdown"></div>
+        <a href="/shop.html?deals=1">See all ›</a>
+      </div>
+      <div class="pgrid" id="flash"></div>
+    </section>
+
+    <section class="sect">
+      <div class="sect__hd"><h2>New Arrivals</h2><a href="/shop.html?new=1">See all ›</a></div>
+      <div class="pgrid" id="newest"></div>
+    </section>
+
+    <section class="sect" id="cats-sect" style="display:none;">
+      <div class="sect__hd sect__hd--plain"><h2>Shop by category</h2><a href="/shop.html">See all ›</a></div>
+      <div class="pgrid" id="cats" style="background:var(--paper);gap:0;"></div>
+    </section>
+
+    <section class="sect">
+      <div class="sect__hd sect__hd--plain"><h2>Recommended for you</h2><a href="/shop.html">See all ›</a></div>
+      <div class="pgrid" id="reco"></div>
+    </section>
+  </main>
+</div>
 
 <footer class="foot" data-foot></footer>
+<nav class="tabbar" data-tabbar></nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
 <script src="/assets/site.js"></script>
 <script>
 const db = window.RG_DB, esc = window.RG_ESC, IMG = window.RG_IMG;
+const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,created_at,product_images(path,position),product_variants(id,stock)';
 
 (async () => {
   await window.RG_CHROME();
   const s = await window.RG_SETTINGS();
-  if (s.hero_heading)    document.getElementById('hero-heading').textContent = s.hero_heading;
-  if (s.hero_subheading) document.getElementById('hero-sub').textContent     = s.hero_subheading;
 
-  /* The hero image is the first image of a featured piece — no separate asset
-     to manage, and it changes as soon as the collection does. */
-  const { data: featured } = await db.from('products')
-    .select('id,slug,name,price_minor,currency,is_featured,product_images(path,position),product_variants(stock)')
-    .eq('status','published').eq('is_featured', true).order('position').limit(8);
+  if (s.hero_heading)    document.getElementById('hero-h').textContent = s.hero_heading;
+  if (s.hero_subheading) document.getElementById('hero-p').textContent = s.hero_subheading;
 
-  const { data: latest } = await db.from('products')
-    .select('id,slug,name,price_minor,currency,product_images(path,position),product_variants(stock)')
-    .eq('status','published').order('created_at',{ascending:false}).limit(8);
-
-  const list = (featured && featured.length) ? featured : (latest || []);
-  const grid = document.getElementById('featured');
+  const { data: all } = await db.from('products').select(SEL)
+    .eq('status','published').order('created_at',{ascending:false}).limit(48);
+  const list = all || [];
 
   if (!list.length) {
-    grid.outerHTML = `<div class="empty-state">
-      <h2 class="display">The collection is being prepared</h2>
+    document.querySelector('main').innerHTML = `<div class="box empty">
+      <h2>No products yet</h2>
       <p>Publish a product in operations and it will appear here.</p>
-    </div>`;
-  } else {
-    grid.innerHTML = list.map(window.RG_CARD).join('');
-    const heroImgs = (list[0].product_images || []).sort((a,b)=>a.position-b.position);
-    if (heroImgs[0]) {
-      const hero = document.getElementById('hero');
-      const img = document.createElement('img');
-      img.src = IMG(heroImgs[0].path); img.alt = '';
-      hero.insertBefore(img, hero.firstChild);
-      hero.classList.add('hero--dark');
-    } else {
-      document.getElementById('hero').classList.add('hero--plain');
-    }
+      <a class="btn" href="/ops-login.html">Go to operations</a></div>`;
+    return;
   }
 
-  const { data: cats } = await db.from('categories')
-    .select('slug,name,description').eq('is_active', true).order('position').order('name');
-  if (cats && cats.length) {
-    document.getElementById('cats-section').style.display = '';
+  /* hero art comes from the newest piece with a photo — nothing extra to manage */
+  const withImg = list.find(p => (p.product_images || []).length);
+  if (withImg) {
+    const imgs = withImg.product_images.sort((a,b)=>a.position-b.position);
+    const hero = document.getElementById('hero');
+    const im = document.createElement('img');
+    im.src = IMG(imgs[0].path); im.alt = '';
+    hero.insertBefore(im, hero.firstChild);
+    hero.classList.add('hero--img');
+  }
+
+  const deals = list.filter(p => p.compare_at_minor && p.compare_at_minor > p.price_minor);
+  if (deals.length) {
+    document.getElementById('flash-sect').style.display = '';
+    document.getElementById('flash-title').textContent = s.flash_title || 'Flash Sales';
+    document.getElementById('flash').innerHTML = deals.slice(0,12).map(window.RG_CARD).join('');
+    startCountdown(s.flash_ends_at);
+  }
+
+  document.getElementById('newest').innerHTML = list.slice(0,12).map(window.RG_CARD).join('');
+  document.getElementById('reco').innerHTML =
+    list.slice().sort(() => Math.random() - .5).slice(0,12).map(window.RG_CARD).join('');
+
+  const cats = await window.RG_CATS();
+  if (cats.length) {
+    document.getElementById('cats-sect').style.display = '';
     document.getElementById('cats').innerHTML = cats.map(c => `
-      <a class="product-card" href="/shop.html?category=${encodeURIComponent(c.slug)}">
-        <div class="card__media" style="aspect-ratio:1/1;display:flex;align-items:flex-end;padding:18px;">
-          <span class="display" style="font-size:24px;">${esc(c.name)}</span>
-        </div>
+      <a class="pcard" href="/shop.html?category=${encodeURIComponent(c.slug)}" style="text-align:center;">
+        <div class="pcard__media" style="border-radius:50%;overflow:hidden;"></div>
+        <div class="pcard__name" style="height:auto;text-align:center;font-weight:500;">${esc(c.name)}</div>
       </a>`).join('');
   }
 })();
+
+function startCountdown(endsAt) {
+  const el = document.getElementById('countdown');
+  /* No end date configured means no clock, rather than a fake one. */
+  if (!endsAt) { el.style.display = 'none'; return; }
+  const end = new Date(endsAt).getTime();
+  if (isNaN(end)) { el.style.display = 'none'; return; }
+  const tick = () => {
+    let d = Math.max(0, end - Date.now());
+    if (!d) { el.textContent = 'Ended'; return; }
+    const h = String(Math.floor(d/3.6e6)).padStart(2,'0');
+    const m = String(Math.floor(d%3.6e6/6e4)).padStart(2,'0');
+    const sec = String(Math.floor(d%6e4/1000)).padStart(2,'0');
+    el.innerHTML = `Ends in <b>${h}</b><b>${m}</b><b>${sec}</b>`;
+  };
+  tick(); setInterval(tick, 1000);
+}
 </script>
 </body>
 </html>

@@ -4,108 +4,124 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Shop — Rex-Giddoty Hubs</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/assets/site.css"/>
 </head>
 <body>
 
-<header class="nav" data-nav></header>
+<header class="hdr" data-hdr></header>
 
-<main class="wrap" style="padding-top:44px;">
-  <div class="section__head">
-    <div>
-      <div class="eyebrow" style="margin-bottom:10px;" id="crumb">Shop</div>
-      <h1 class="display" id="title" style="font-size:clamp(30px,4.4vw,48px);">All pieces</h1>
-      <p class="note" id="cat-desc" style="margin-top:8px;max-width:520px;"></p>
+<div class="shell">
+  <aside class="box rail-box" data-rail></aside>
+
+  <main>
+    <div class="box" style="padding:11px 13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:0;">
+        <h1 id="title" style="font-size:17px;font-weight:700;">All products</h1>
+        <div class="note" id="sub"></div>
+      </div>
+      <select id="sort" style="padding:9px 11px;border:1px solid var(--line);border-radius:3px;background:#fff;">
+        <option value="new">Newest first</option>
+        <option value="low">Price: low to high</option>
+        <option value="high">Price: high to low</option>
+        <option value="off">Biggest discount</option>
+        <option value="name">Name A–Z</option>
+      </select>
     </div>
-    <select id="sort" style="padding:11px 13px;border:1px solid var(--line);background:#fff;">
-      <option value="new">Newest</option>
-      <option value="low">Price — low to high</option>
-      <option value="high">Price — high to low</option>
-      <option value="name">Name</option>
-    </select>
-  </div>
 
-  <div class="grid" id="grid"></div>
-  <div id="state"></div>
-</main>
+    <div class="sect" style="margin-top:8px;">
+      <div class="pgrid" id="grid"></div>
+    </div>
+    <div id="state"></div>
+  </main>
+</div>
 
 <footer class="foot" data-foot></footer>
+<nav class="tabbar" data-tabbar></nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
 <script src="/assets/site.js"></script>
 <script>
 const db = window.RG_DB, esc = window.RG_ESC;
-const params = new URLSearchParams(location.search);
-const catSlug = params.get('category');
-const isNew   = params.get('new') === '1';
+const P = new URLSearchParams(location.search);
+const catSlug = P.get('category'), isNew = P.get('new') === '1',
+      isDeals = P.get('deals') === '1', q = (P.get('q') || '').trim();
+const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,brand,rating_avg,rating_count,created_at,product_images(path,position),product_variants(id,stock)';
 let _items = [];
 
 (async () => {
-  await window.RG_CHROME();
+  let categoryId = null, activeSlug = null;
 
-  let categoryId = null;
-  if (isNew) {
-    document.getElementById('title').textContent = 'New Arrivals';
-    document.getElementById('crumb').textContent = 'Just in';
-    document.getElementById('cat-desc').textContent = 'The most recent additions to the collection.';
-    document.title = 'New Arrivals — Rex-Giddoty Hubs';
+  if (q) {
+    setHead('Results for “' + q + '”', '');
+  } else if (isNew) {
+    setHead('New Arrivals', 'The most recent additions.');
+    activeSlug = '__new';
     document.getElementById('sort').value = 'new';
+  } else if (isDeals) {
+    setHead('Deals', 'Everything currently reduced.');
+    document.getElementById('sort').value = 'off';
   } else if (catSlug) {
     const { data: cat } = await db.from('categories')
       .select('id,name,description').eq('slug', catSlug).maybeSingle();
-    if (cat) {
-      categoryId = cat.id;
-      document.getElementById('title').textContent = cat.name;
-      document.getElementById('crumb').textContent = 'Collection';
-      document.getElementById('cat-desc').textContent = cat.description || '';
-      document.title = cat.name + ' — Rex-Giddoty Hubs';
-    }
+    if (cat) { categoryId = cat.id; activeSlug = catSlug; setHead(cat.name, cat.description || ''); }
   }
 
-  let q = db.from('products')
-    .select('id,slug,name,price_minor,currency,created_at,product_images(path,position),product_variants(stock),product_categories!inner(category_id)')
-    .eq('status', 'published');
-  if (categoryId) q = q.eq('product_categories.category_id', categoryId);
+  await window.RG_CHROME(activeSlug);
 
-  /* Without a category filter the inner join would drop uncategorised pieces,
-     so fall back to a plain select when showing everything. */
-  if (!categoryId) {
-    q = db.from('products')
-      .select('id,slug,name,price_minor,currency,created_at,product_images(path,position),product_variants(stock)')
-      .eq('status', 'published');
-    if (isNew) q = q.order('created_at', { ascending: false }).limit(24);
+  let query;
+  if (categoryId) {
+    query = db.from('products').select(SEL + ',product_categories!inner(category_id)')
+      .eq('status','published').eq('product_categories.category_id', categoryId);
+  } else {
+    query = db.from('products').select(SEL).eq('status','published');
+  }
+  /* Search across name, brand and description — ilike keeps it simple and the
+     catalogue is small enough that a full-text index would be premature. */
+  if (q) {
+    const safe = q.replace(/[%,()]/g, ' ');
+    query = query.or(`name.ilike.%${safe}%,brand.ilike.%${safe}%,description.ilike.%${safe}%`);
   }
 
-  const { data, error } = await q;
+  const { data, error } = await query.limit(200);
   if (error) {
-    document.getElementById('state').innerHTML =
-      `<div class="empty-state"><p>${esc(error.message)}</p></div>`;
+    document.getElementById('state').innerHTML = `<div class="box empty"><p>${esc(error.message)}</p></div>`;
     return;
   }
   _items = data || [];
+  if (isDeals) _items = _items.filter(p => p.compare_at_minor && p.compare_at_minor > p.price_minor);
   render();
 })();
 
+function setHead(t, s) {
+  document.getElementById('title').textContent = t;
+  document.getElementById('sub').textContent = s || '';
+  document.title = t + ' — Rex-Giddoty Hubs';
+}
+
 function render() {
   const sort = document.getElementById('sort').value;
-  const list = _items.slice().sort((a, b) => {
+  const off = p => (p.compare_at_minor && p.compare_at_minor > p.price_minor)
+    ? 1 - p.price_minor / p.compare_at_minor : 0;
+  const list = _items.slice().sort((a,b) => {
     if (sort === 'low')  return a.price_minor - b.price_minor;
     if (sort === 'high') return b.price_minor - a.price_minor;
     if (sort === 'name') return a.name.localeCompare(b.name);
+    if (sort === 'off')  return off(b) - off(a);
     return new Date(b.created_at) - new Date(a.created_at);
   });
 
-  const grid  = document.getElementById('grid');
-  const state = document.getElementById('state');
+  document.getElementById('sub').textContent =
+    list.length + (list.length === 1 ? ' product' : ' products');
+
+  const grid = document.getElementById('grid'), state = document.getElementById('state');
   if (!list.length) {
     grid.innerHTML = '';
-    state.innerHTML = `<div class="empty-state">
-      <h2 class="display">Nothing here yet</h2>
-      <p>${catSlug ? 'This collection has no published pieces.' : 'No pieces have been published yet.'}</p>
-      <a class="btn btn--ghost" href="/">Back to home</a>
-    </div>`;
+    state.innerHTML = `<div class="box empty" style="margin-top:8px;">
+      <h2 style="font-size:17px;">Nothing found</h2>
+      <p>${q ? 'Try a different search term.' : 'No products here yet.'}</p>
+      <a class="btn" href="/shop.html">Browse all products</a></div>`;
     return;
   }
   state.innerHTML = '';

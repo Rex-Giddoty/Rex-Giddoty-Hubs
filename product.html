@@ -4,56 +4,73 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Rex-Giddoty Hubs</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/assets/site.css"/>
 </head>
 <body>
 
-<header class="nav" data-nav></header>
+<header class="hdr" data-hdr></header>
 
-<main class="wrap">
+<div class="shell shell--full">
   <div id="state"></div>
-  <div class="pdp" id="pdp" style="display:none;">
-    <div class="pdp__gallery" id="gallery"></div>
-    <div class="pdp__panel">
-      <div class="eyebrow" id="p-cat"></div>
-      <h1 class="display" id="p-name" style="font-size:clamp(26px,3.4vw,38px);margin-top:8px;"></h1>
-      <p class="note" id="p-subtitle" style="margin-top:6px;"></p>
-      <div class="pdp__price" id="p-price"></div>
 
-      <div id="opt-wrap" style="display:none;">
-        <div class="eyebrow" style="margin-bottom:10px;" id="opt-label">Size</div>
-        <div class="opt" id="opts"></div>
+  <main class="pdp" id="pdp" style="display:none;">
+    <div class="box pdp__main">
+      <div>
+        <div class="gal__big" id="gal-big"></div>
+        <div class="gal__thumbs" id="gal-thumbs"></div>
       </div>
+      <div>
+        <div class="note" id="p-brand"></div>
+        <h1 id="p-name" style="font-size:19px;font-weight:500;line-height:1.35;margin:2px 0 6px;"></h1>
+        <div class="stars" id="p-stars" style="margin-bottom:10px;"></div>
 
-      <div id="stock-note" class="note" style="margin-bottom:18px;"></div>
-      <button class="btn btn--wide" id="add">Add to bag</button>
-      <p class="note" style="margin-top:14px;" id="ship-note"></p>
+        <div>
+          <span class="price-now" id="p-price"></span>
+          <span class="price-was" id="p-was" style="display:none;"></span>
+          <span class="off-tag" id="p-off" style="display:none;"></span>
+        </div>
+        <div class="note" id="p-stock" style="margin-top:6px;"></div>
 
-      <div style="margin-top:34px;">
-        <div class="acc">
-          <button class="acc__q" data-acc>Description <span>+</span></button>
-          <div class="acc__a" id="p-description"></div>
+        <div id="opt-wrap" style="display:none;margin-top:14px;">
+          <div style="font-size:13px;font-weight:600;" id="opt-label">Size</div>
+          <div class="opt" id="opts"></div>
         </div>
-        <div class="acc">
-          <button class="acc__q" data-acc>Details <span>+</span></button>
-          <div class="acc__a" id="p-details"></div>
+
+        <div style="display:flex;gap:9px;align-items:center;margin-top:16px;flex-wrap:wrap;">
+          <div class="qty">
+            <button onclick="bump(-1)">−</button><span id="qty">1</span><button onclick="bump(1)">+</button>
+          </div>
+          <button class="btn" id="add" style="flex:1;min-width:180px;">Add to cart</button>
         </div>
-        <div class="acc">
-          <button class="acc__q" data-acc>Delivery &amp; payment <span>+</span></button>
-          <div class="acc__a" id="p-delivery"></div>
+
+        <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:13px;">
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:5px;">Delivery &amp; payment</div>
+          <div class="note" id="p-delivery" style="white-space:pre-wrap;"></div>
         </div>
       </div>
     </div>
-  </div>
 
-  <section class="section" id="more-section" style="display:none;">
-    <div class="section__head"><h2 class="display">You may also like</h2></div>
-    <div class="grid" id="more"></div>
+    <aside>
+      <div class="box" style="padding:13px;">
+        <div style="font-weight:600;margin-bottom:9px;">Product details</div>
+        <div class="note" id="p-desc" style="white-space:pre-wrap;"></div>
+      </div>
+      <div class="box" style="padding:13px;margin-top:12px;" id="details-box">
+        <div style="font-weight:600;margin-bottom:9px;">Specifications</div>
+        <div class="note" id="p-details" style="white-space:pre-wrap;"></div>
+      </div>
+    </aside>
+  </main>
+
+  <section class="sect" id="more-sect" style="display:none;">
+    <div class="sect__hd sect__hd--plain"><h2>You may also like</h2><a href="/shop.html">See all ›</a></div>
+    <div class="pgrid" id="more"></div>
   </section>
-</main>
+</div>
 
 <footer class="foot" data-foot></footer>
+<nav class="tabbar" data-tabbar></nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
@@ -61,119 +78,124 @@
 <script>
 const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG;
 const slug = new URLSearchParams(location.search).get('slug');
-let _product = null, _variant = null;
+let _p = null, _v = null, _qty = 1;
 
 (async () => {
   await window.RG_CHROME();
   const s = await window.RG_SETTINGS();
-
-  if (!slug) { notFound(); return; }
+  if (!slug) return notFound();
 
   const { data: p } = await db.from('products')
-    .select('id,slug,name,subtitle,description,details,price_minor,currency,status,product_images(path,position),product_variants(id,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug))')
+    .select('id,slug,name,subtitle,description,details,brand,badge,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,product_images(path,position),product_variants(id,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug))')
     .eq('slug', slug).eq('status','published').maybeSingle();
+  if (!p) return notFound();
 
-  if (!p) { notFound(); return; }
-  _product = p;
+  _p = p;
   document.title = p.name + ' — Rex-Giddoty Hubs';
   document.getElementById('pdp').style.display = '';
 
   const imgs = (p.product_images || []).sort((a,b)=>a.position-b.position);
-  document.getElementById('gallery').innerHTML = imgs.length
-    ? imgs.map(i => `<img src="${esc(IMG(i.path))}" alt="${esc(p.name)}"/>`).join('')
-    : '<div class="skeleton" style="aspect-ratio:3/4;"></div>';
+  const big = document.getElementById('gal-big');
+  big.innerHTML = imgs.length ? `<img id="big-img" src="${esc(IMG(imgs[0].path))}" alt="${esc(p.name)}"/>`
+                              : '<div class="skeleton" style="width:100%;height:100%;"></div>';
+  document.getElementById('gal-thumbs').innerHTML = imgs.length > 1
+    ? imgs.map((im,i) => `<img src="${esc(IMG(im.path))}" class="${i?'':'on'}" data-src="${esc(IMG(im.path))}" alt=""/>`).join('') : '';
+  document.querySelectorAll('.gal__thumbs img').forEach(t => t.onclick = () => {
+    document.getElementById('big-img').src = t.dataset.src;
+    document.querySelectorAll('.gal__thumbs img').forEach(x => x.classList.remove('on'));
+    t.classList.add('on');
+  });
 
   const cat = (p.product_categories || [])[0]?.categories;
-  document.getElementById('p-cat').textContent = cat ? cat.name : '';
+  document.getElementById('p-brand').textContent = p.brand || (cat ? cat.name : '');
   document.getElementById('p-name').textContent = p.name;
-  document.getElementById('p-subtitle').textContent = p.subtitle || '';
-  document.getElementById('p-description').textContent = p.description || 'No description provided.';
-  document.getElementById('p-details').textContent = p.details || 'No further details provided.';
+  document.getElementById('p-desc').textContent = p.description || p.subtitle || 'No description provided.';
+  const dbox = document.getElementById('details-box');
+  if (p.details) document.getElementById('p-details').textContent = p.details;
+  else dbox.style.display = 'none';
 
-  const free = parseInt(s.free_shipping_over_minor || '0', 10);
+  if (p.rating_avg) {
+    const full = Math.round(Number(p.rating_avg));
+    document.getElementById('p-stars').innerHTML =
+      `<i>${'★'.repeat(full)}${'☆'.repeat(5-full)}</i> ${Number(p.rating_avg).toFixed(1)} (${p.rating_count||0} reviews)`;
+  }
+
   const flat = parseInt(s.shipping_flat_minor || '0', 10);
-  document.getElementById('ship-note').textContent = free
-    ? `Complimentary delivery on orders over ${M.fmt(free, p.currency)}.`
-    : (flat ? `Delivery ${M.fmt(flat, p.currency)}.` : '');
+  const free = parseInt(s.free_shipping_over_minor || '0', 10);
   document.getElementById('p-delivery').textContent =
-    (s.payment_instructions || 'Payment is confirmed manually before dispatch.') +
-    (flat ? `\n\nDelivery is ${M.fmt(flat, p.currency)}` : '') +
-    (free ? `, complimentary over ${M.fmt(free, p.currency)}.` : '.');
+    (flat ? `Delivery ${M.fmt(flat, p.currency)}` : 'Delivery calculated at checkout') +
+    (free ? `, free on orders over ${M.fmt(free, p.currency)}.` : '.') +
+    '\n\n' + (s.payment_instructions || 'Payment is confirmed before dispatch.');
 
-  const variants = (p.product_variants || [])
-    .filter(v => v.is_active).sort((a,b)=>a.position-b.position);
-
-  /* A single "One Size" variant is plumbing, not a choice — don't make the
-     customer pick from a list of one. */
-  const meaningful = variants.length > 1 ||
-    (variants[0] && String(variants[0].option_value).toLowerCase() !== 'one size');
-
+  const vs = (p.product_variants || []).filter(v => v.is_active).sort((a,b)=>a.position-b.position);
+  const meaningful = vs.length > 1 || (vs[0] && String(vs[0].option_value).toLowerCase() !== 'one size');
   if (meaningful) {
     document.getElementById('opt-wrap').style.display = '';
-    document.getElementById('opt-label').textContent = variants[0]?.option_name || 'Size';
-    document.getElementById('opts').innerHTML = variants.map(v =>
-      `<button data-v="${v.id}" ${v.stock <= 0 ? 'disabled' : ''} aria-pressed="false">${esc(v.option_value)}</button>`).join('');
+    document.getElementById('opt-label').textContent = vs[0]?.option_name || 'Size';
+    document.getElementById('opts').innerHTML = vs.map(v =>
+      `<button data-v="${v.id}" ${v.stock<=0?'disabled':''} aria-pressed="false">${esc(v.option_value)}</button>`).join('');
     document.querySelectorAll('#opts button').forEach(b => b.onclick = () => {
       document.querySelectorAll('#opts button').forEach(x => x.setAttribute('aria-pressed','false'));
       b.setAttribute('aria-pressed','true');
-      select(variants.find(v => v.id === b.dataset.v));
+      pick(vs.find(v => v.id === b.dataset.v));
     });
   }
-
-  const firstInStock = variants.find(v => v.stock > 0);
-  select(firstInStock || variants[0] || null);
-  if (firstInStock && meaningful) {
-    const btn = document.querySelector(`#opts button[data-v="${firstInStock.id}"]`);
-    if (btn) btn.setAttribute('aria-pressed','true');
+  const inStock = vs.find(v => v.stock > 0);
+  pick(inStock || vs[0] || null);
+  if (inStock && meaningful) {
+    const b = document.querySelector(`#opts button[data-v="${inStock.id}"]`);
+    if (b) b.setAttribute('aria-pressed','true');
   }
 
-  /* related pieces */
   const { data: more } = await db.from('products')
-    .select('id,slug,name,price_minor,currency,product_images(path,position),product_variants(stock)')
-    .eq('status','published').neq('id', p.id).limit(4);
+    .select('id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,product_images(path,position),product_variants(id,stock)')
+    .eq('status','published').neq('id', p.id).limit(12);
   if (more && more.length) {
-    document.getElementById('more-section').style.display = '';
+    document.getElementById('more-sect').style.display = '';
     document.getElementById('more').innerHTML = more.map(window.RG_CARD).join('');
   }
 })();
 
-function select(v) {
-  _variant = v;
-  const price = v && v.price_minor != null ? v.price_minor : _product.price_minor;
-  document.getElementById('p-price').textContent = M.fmt(price, _product.currency);
+function pick(v) {
+  _v = v; _qty = 1; document.getElementById('qty').textContent = '1';
+  const price = v && v.price_minor != null ? v.price_minor : _p.price_minor;
+  document.getElementById('p-price').textContent = M.fmt(price, _p.currency);
 
-  const add  = document.getElementById('add');
-  const note = document.getElementById('stock-note');
+  const was = document.getElementById('p-was'), offEl = document.getElementById('p-off');
+  if (_p.compare_at_minor && _p.compare_at_minor > price) {
+    was.textContent = M.fmt(_p.compare_at_minor, _p.currency); was.style.display = '';
+    offEl.textContent = '-' + Math.round((1 - price/_p.compare_at_minor)*100) + '%'; offEl.style.display = '';
+  } else { was.style.display = 'none'; offEl.style.display = 'none'; }
+
+  const add = document.getElementById('add'), note = document.getElementById('p-stock');
   if (!v || v.stock <= 0) {
-    add.disabled = true;
-    add.textContent = v ? 'Sold out' : 'Unavailable';
-    note.textContent = v ? 'This piece is currently out of stock.' : '';
+    add.disabled = true; add.textContent = v ? 'Out of stock' : 'Unavailable';
+    note.textContent = v ? 'This option is out of stock.' : '';
   } else {
-    add.disabled = false;
-    add.textContent = 'Add to bag';
-    note.textContent = v.stock <= 3 ? `Only ${v.stock} remaining.` : '';
+    add.disabled = false; add.textContent = 'Add to cart';
+    note.textContent = v.stock <= 5 ? `Only ${v.stock} left in stock` : 'In stock';
   }
 }
 
+function bump(d) {
+  if (!_v) return;
+  /* never let the counter promise more than the shelf holds */
+  _qty = Math.max(1, Math.min(20, Math.min(_v.stock || 1, _qty + d)));
+  document.getElementById('qty').textContent = _qty;
+}
+
 document.getElementById('add').onclick = () => {
-  if (!_variant || _variant.stock <= 0) return;
-  window.RG_BAG.add(_variant.id, 1);
-  window.RG_TOAST('Added to your bag');
+  if (!_v || _v.stock <= 0) return;
+  window.RG_BAG.add(_v.id, _qty);
+  window.RG_TOAST(_qty + ' added to cart');
 };
 
 function notFound() {
-  document.getElementById('state').innerHTML = `<div class="empty-state">
-    <h2 class="display">Piece not found</h2>
-    <p>It may have been removed or is not yet published.</p>
-    <a class="btn btn--ghost" href="/shop.html">Continue shopping</a>
-  </div>`;
+  document.getElementById('state').innerHTML = `<div class="box empty">
+    <h2 style="font-size:18px;">Product not found</h2>
+    <p>It may have been removed or is not published.</p>
+    <a class="btn" href="/shop.html">Continue shopping</a></div>`;
 }
-
-document.querySelectorAll('[data-acc]').forEach(q => q.onclick = () => {
-  const a = q.nextElementSibling;
-  const open = a.classList.toggle('open');
-  q.querySelector('span').textContent = open ? '−' : '+';
-});
 </script>
 </body>
 </html>
