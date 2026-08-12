@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Operations — Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:#0c0c0d;color:#ececec;-webkit-font-smoothing:antialiased;}
+.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.card{width:100%;max-width:380px;background:#141416;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:34px 30px;}
+.brand{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#8b8b90;text-align:center;margin-bottom:6px;}
+h1{font-size:19px;font-weight:600;text-align:center;margin-bottom:26px;letter-spacing:-.2px;}
+label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#8b8b90;margin-bottom:6px;}
+input{width:100%;height:44px;background:#0c0c0d;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:0 13px;color:#ececec;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;}
+input:focus{border-color:#8b8b90;}
+.field{margin-bottom:16px;}
+button{width:100%;height:44px;background:#ececec;color:#0c0c0d;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;}
+button:hover{opacity:.88;}
+button:disabled{opacity:.5;cursor:not-allowed;}
+.err{background:rgba(220,60,60,.1);border:1px solid rgba(220,60,60,.3);color:#ff9b9b;font-size:12.5px;border-radius:8px;padding:10px 12px;margin-bottom:16px;display:none;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="brand">Rex-Giddoty Hubs</div>
+    <h1>Operations</h1>
+    <div class="err" id="err"></div>
+    <form id="form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="username" required/>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password" required/>
+      </div>
+      <button type="submit" id="btn">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script>
+const db  = window.RG_DB;
+const err = document.getElementById('err');
+const btn = document.getElementById('btn');
+
+function fail(msg) { err.textContent = msg; err.style.display = 'block'; }
+
+/* Already signed in as staff? Go straight through. */
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) return;
+  const { data: admin } = await db.from('admin_users').select('id').eq('id', session.user.id).maybeSingle();
+  if (admin) location.href = '/ops.html';
+})();
+
+document.getElementById('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  const { data, error } = await db.auth.signInWithPassword({
+    email: document.getElementById('email').value.trim(),
+    password: document.getElementById('password').value,
+  });
+
+  if (error) {
+    fail(error.message);
+    btn.disabled = false; btn.textContent = 'Sign in';
+    return;
+  }
+
+  /* Signing in is not the same as being staff. Anyone with an account could
+     reach this form, so membership decides access — and RLS enforces it again
+     on every query regardless of what this page does. */
+  const { data: admin } = await db.from('admin_users').select('id').eq('id', data.user.id).maybeSingle();
+  if (!admin) {
+    await db.auth.signOut();
+    fail('That account does not have operations access.');
+    btn.disabled = false; btn.textContent = 'Sign in';
+    return;
+  }
+
+  sessionStorage.setItem('rg_ops_login_at', String(Date.now()));
+  location.href = '/ops.html';
+});
+</script>
+</body>
+</html>
