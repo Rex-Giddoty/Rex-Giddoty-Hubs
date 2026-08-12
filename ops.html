@@ -38,8 +38,11 @@ h2{font-size:19px;font-weight:600;letter-spacing:-.2px;}
 .btn--sm{padding:5px 10px;font-size:12px;}
 .btn--danger{color:var(--red);border-color:rgba(255,107,107,.3);}
 
+/* overflow-x so a wide table can be scrolled to rather than clipped — with
+   overflow:hidden the Edit column simply vanished on a phone */
 .card{background:var(--s1);border:1px solid var(--b);border-radius:12px;overflow:hidden;}
-table{width:100%;border-collapse:collapse;}
+.card > div{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;min-width:520px;}
 th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);font-weight:500;padding:11px 14px;border-bottom:1px solid var(--b);white-space:nowrap;}
 td{padding:11px 14px;border-bottom:1px solid var(--b);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
@@ -85,6 +88,16 @@ select.inp{color-scheme:dark;}
   .hide-sm{display:none;}
   .top{padding:0 12px;gap:10px;}
   .brand{display:none;}
+  .who{display:none;}                 /* the email is the first thing to go */
+  table{min-width:0;}                 /* fewer columns on small screens, so no scroll needed */
+  .page{padding:18px 12px 50px;}
+  .sheet{padding:18px;}
+  .head{gap:8px;}
+  .head h2{font-size:17px;}
+  #product-search{max-width:none;flex:1;}
+  .variant{gap:6px;}
+  .variant .inp{min-width:72px;}
+  .modal{padding:12px;}
 }
 </style>
 </head>
