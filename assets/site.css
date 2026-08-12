@@ -131,6 +131,24 @@ ul{margin:0;padding:0;list-style:none;}
 .rail a.on{color:var(--brand);font-weight:600;}
 .rail a svg{width:19px;height:19px;flex-shrink:0;}
 
+/* expandable group (Collection ▾ Tops, Bottoms, …) */
+.rail__row{display:flex;align-items:center;}
+.rail__row > a{flex:1;min-width:0;}
+.rail__tog{border:0;background:none;padding:8px 12px;color:var(--mute);
+  display:grid;place-items:center;flex-shrink:0;}
+.rail__tog:hover{color:var(--brand);}
+.rail__tog svg{width:15px;height:15px;transition:transform .18s ease;}
+.rail__grp.open > .rail__row .rail__tog svg{transform:rotate(180deg);}
+.rail__sub{display:none;background:#fafafa;}
+.rail__grp.open > .rail__sub{display:block;}
+.rail__sub a{padding-left:34px;font-size:13px;}
+
+/* same markup inside the mobile drawer, with the drawer's spacing */
+.drawer__panel .rail__row > a{border-bottom:1px solid #f2f2f2;}
+.drawer__panel .rail__tog{padding:12px 16px;border-bottom:1px solid #f2f2f2;}
+.drawer__panel .rail__tog svg{width:18px;height:18px;}
+.drawer__panel .rail__sub a{padding-left:46px;background:#fafafa;font-size:13.5px;}
+
 /* ───────────────────── top block: slider + services ───────────────────── */
 
 .topblock{display:grid;grid-template-columns:1fr 210px;gap:8px;align-items:stretch;}
@@ -293,6 +311,12 @@ ul{margin:0;padding:0;list-style:none;}
 .btn:disabled{background:#d4d4d4;color:#fff;cursor:not-allowed;}
 .btn--ghost{background:#fff;color:var(--brand);border:1px solid var(--brand);}
 .btn--ghost:hover{background:#fff5eb;}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px;flex:1 0 100%;}
+.chips a{border:1px solid var(--line);border-radius:16px;padding:6px 13px;
+  font-size:12.5px;color:var(--ink-2);background:#fff;white-space:nowrap;}
+.chips a:hover{border-color:var(--brand);color:var(--brand);}
+.chips a.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:500;}
 
 .note{font-size:12.5px;color:var(--mute);}
 .empty{padding:44px 18px;text-align:center;}

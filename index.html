@@ -142,23 +142,29 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
   buildSlides(list, s);
 
   /* ── category membership ──
-     One query, grouped here, rather than a round trip per category. */
-  const cats = await window.RG_CATS();
+     One query, grouped here, rather than a round trip per category. Only
+     top-level categories get a tile; a parent counts everything filed under
+     its children as its own. */
+  const cats = await window.RG_CAT_TREE();
   const { data: pcs } = await db.from('product_categories')
-    .select('product_id,categories(slug)').in('product_id', list.map(p => p.id));
-  const bySlug = new Map();
+    .select('product_id,category_id').in('product_id', list.map(p => p.id));
+  const byCat = new Map();
   for (const r of (pcs || [])) {
-    const sl = r.categories && r.categories.slug;
-    if (!sl) continue;
-    if (!bySlug.has(sl)) bySlug.set(sl, new Set());
-    bySlug.get(sl).add(r.product_id);
+    if (!byCat.has(r.category_id)) byCat.set(r.category_id, new Set());
+    byCat.get(r.category_id).add(r.product_id);
   }
+  const idsFor = node => {
+    const out = new Set(byCat.get(node.id) || []);
+    for (const k of (node.children || [])) for (const id of (byCat.get(k.id) || [])) out.add(id);
+    return out;
+  };
+
   /* Art comes from a product actually in that category; if the category has no
      photographed product yet we borrow any photo rather than show a grey slab. */
   const anyArt = (list.map(img1).find(Boolean)) || null;
-  const artFor = slug => {
-    const ids = bySlug.get(slug);
-    const hit = ids && list.find(p => ids.has(p.id) && img1(p));
+  const artFor = node => {
+    const ids = idsFor(node);
+    const hit = list.find(p => ids.has(p.id) && img1(p));
     return hit ? img1(hit) : anyArt;
   };
 
@@ -168,7 +174,7 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
       { name:'Deals', href:'/shop.html?deals=1', emoji:'🔥', img:null },
       { name:'New Arrivals', href:'/shop.html?new=1', emoji:'✨', img:null },
     ].concat(cats.map(c => ({ name:c.name, href:'/shop.html?category='+encodeURIComponent(c.slug),
-                              emoji:'🛍️', img:artFor(c.slug) })))
+                              emoji:'🛍️', img:artFor(c) })))
      .map(t => `<a class="thumb" href="${t.href}">
         <div class="thumb__img">${t.img ? `<img src="${esc(t.img)}" alt="" loading="lazy"/>`
                                         : `<span>${t.emoji}</span>`}</div>
@@ -176,7 +182,7 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
 
     document.getElementById('cats-sect').style.display = '';
     document.getElementById('cats').innerHTML = cats.slice(0,12).map(c => {
-      const a = artFor(c.slug);
+      const a = artFor(c);
       return `<a class="fl" href="/shop.html?category=${encodeURIComponent(c.slug)}">
         ${a ? `<img src="${esc(a)}" alt="" loading="lazy"/>` : ''}
         <span class="fl__cap">${esc(c.name)}</span></a>`;
@@ -223,8 +229,8 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
   const tint = ['#fce7bb','#e7f0d9','#dbe9f5','#f6dfe4','#e8e2f3','#fdeadf'];
   let ti = 0;
   for (const c of cats) {
-    const ids = bySlug.get(c.slug);
-    if (!ids) continue;
+    const ids = idsFor(c);
+    if (!ids.size) continue;
     const items = list.filter(p => ids.has(p.id)).slice(0, 16);
     if (items.length < 2) continue;
 

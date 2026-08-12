@@ -97,9 +97,19 @@
   window.RG_CATS = async function () {
     if (_cats) return _cats;
     const { data } = await db.from('categories')
-      .select('slug,name,position').eq('is_active', true).order('position').order('name');
+      .select('id,slug,name,position,parent_id').eq('is_active', true).order('position').order('name');
     _cats = data || [];
     return _cats;
+  };
+
+  /* Categories are one level deep: top-level entries, each with its children.
+     Anything whose parent is missing or hidden is promoted to the top rather
+     than disappearing from the menu entirely. */
+  window.RG_CAT_TREE = async function () {
+    const all = await window.RG_CATS();
+    const ids = new Set(all.map(c => c.id));
+    const tops = all.filter(c => !c.parent_id || !ids.has(c.parent_id));
+    return tops.map(t => ({ ...t, children: all.filter(c => c.parent_id === t.id) }));
   };
 
   /* ── icons ── */
@@ -126,16 +136,34 @@
   /* ── chrome ── */
   window.RG_CHROME = async function (active) {
     const s = await window.RG_SETTINGS();
-    const cats = await window.RG_CATS();
+    const tree = await window.RG_CAT_TREE();
     const store = s.store_name || 'Rex-Giddoty Hubs';
     document.title = document.title.replace(/Rex-Giddoty Hubs/g, store);
 
-    const entries = cats.map(c => ({ name: c.name, position: c.position,
-      href: '/shop.html?category=' + encodeURIComponent(c.slug), slug: c.slug }));
-    entries.push({ name: 'New Arrivals', position: 40, href: '/shop.html?new=1', slug: '__new' });
-    entries.push({ name: 'Deals', position: 41, href: '/shop.html?deals=1', slug: '__deals' });
+    const catHref = c => '/shop.html?category=' + encodeURIComponent(c.slug);
+    const entries = tree.map(t => ({
+      name: t.name, position: t.position, slug: t.slug, href: catHref(t),
+      children: (t.children || []).map(c => ({ name: c.name, slug: c.slug, href: catHref(c) })),
+    }));
+    entries.push({ name: 'New Arrivals', position: 40, href: '/shop.html?new=1', slug: '__new', children: [] });
+    entries.push({ name: 'Deals', position: 41, href: '/shop.html?deals=1', slug: '__deals', children: [] });
     entries.sort((a, b) => a.position - b.position);
     window.RG_MENU = entries;
+
+    /* A group opens when it is the page you are on, or holds it. */
+    const groupHtml = (e, sub) => {
+      if (!e.children || !e.children.length)
+        return `<a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${I.tag}${esc(e.name)}</a>`;
+      const open = active === e.slug || e.children.some(c => c.slug === active);
+      return `<div class="rail__grp${open ? ' open' : ''}">
+        <div class="rail__row">
+          <a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${I.tag}${esc(e.name)}</a>
+          <button class="rail__tog" data-tog aria-expanded="${open}" aria-label="Show ${esc(e.name)}">${I.caret}</button>
+        </div>
+        <div class="rail__sub">${e.children.map(c =>
+          `<a href="${c.href}" class="${active === c.slug ? 'on' : ''}">${sub ? I.tag : ''}${esc(c.name)}</a>`).join('')}</div>
+      </div>`;
+    };
 
     const q = new URLSearchParams(location.search).get('q') || '';
     const parts = store.split(' ');
@@ -189,7 +217,7 @@
         <div class="drawer__panel">
           <div class="hd">${esc(store)}</div>
           <a href="/">${I.home}Home</a>
-          ${entries.map(e => `<a href="${e.href}">${I.tag}${esc(e.name)}</a>`).join('')}
+          ${entries.map(e => groupHtml(e, true)).join('')}
           <a href="/account.html">${I.account}My account</a>
           <a href="/bag.html">${I.cart}My cart</a>
           <a href="mailto:${esc(email)}">${I.help}Help</a>
@@ -202,8 +230,7 @@
     const rail = document.querySelector('[data-rail]');
     if (rail) {
       rail.innerHTML = `<div class="box__hd">Categories</div><div class="rail">` +
-        entries.map(e => `<a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${I.tag}${esc(e.name)}</a>`).join('') +
-        `</div>`;
+        entries.map(e => groupHtml(e, false)).join('') + `</div>`;
     }
 
     const foot = document.querySelector('[data-foot]');
@@ -330,6 +357,18 @@
       <button class="crs__nav _n" data-crs="1" aria-label="Next">${I.right}</button>
     </div>`;
   };
+
+  /* Expand/collapse a category group. Delegated, so it works for the sidebar
+     and the mobile drawer without either knowing about the other. */
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-tog]');
+    if (!t) return;
+    e.preventDefault();
+    const grp = t.closest('.rail__grp');
+    if (!grp) return;
+    const open = grp.classList.toggle('open');
+    t.setAttribute('aria-expanded', String(open));
+  });
 
   document.addEventListener('click', e => {
     const nav = e.target.closest('[data-crs]');

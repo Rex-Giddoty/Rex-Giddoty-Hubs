@@ -230,6 +230,13 @@ select.inp{color-scheme:dark;}
     <div class="grid">
       <div class="full"><label class="f">Name</label><input class="inp" id="c-name"/></div>
       <div class="full"><label class="f">URL slug</label><input class="inp" id="c-slug" placeholder="bags"/></div>
+      <div class="full"><label class="f">Sits under</label>
+        <select class="inp" id="c-parent"></select>
+        <div class="muted" style="font-size:12px;margin-top:4px;">
+          Pick a parent to make this a drop-down item (e.g. Tops under Collection).
+          Menus are one level deep, so a category with children cannot itself sit under another.
+        </div>
+      </div>
       <div class="full"><label class="f">Description</label><textarea class="inp" id="c-description"></textarea></div>
       <div><label class="f">Position</label><input class="inp" id="c-position" type="number" value="0"/></div>
       <div><label class="f">Visible</label><select class="inp" id="c-active"><option value="true">Yes</option><option value="false">No</option></select></div>
@@ -345,10 +352,25 @@ async function loadCategories() {
   const { data, error } = await db.from('categories').select('*').order('position').order('name');
   if (error) return toast(error.message, true);
   _categories = data || [];
+  /* Order the picker as the shopper sees it: each parent followed by its own
+     children, indented, rather than one flat alphabetical run. */
   const sel = document.getElementById('p-category');
   sel.innerHTML = '<option value="">— none —</option>' +
-    _categories.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    catOrder().map(c => `<option value="${c.id}">${c.parent_id ? '&nbsp;&nbsp;— ' : ''}${esc(c.name)}</option>`).join('');
   renderCategories();
+}
+
+/* parents in position order, each trailed by its children */
+function catOrder() {
+  const tops = _categories.filter(c => !c.parent_id);
+  const out = [];
+  for (const t of tops) {
+    out.push(t);
+    for (const k of _categories.filter(c => c.parent_id === t.id)) out.push(k);
+  }
+  /* anything orphaned still has to appear somewhere */
+  for (const c of _categories) if (!out.includes(c)) out.push(c);
+  return out;
 }
 
 function renderCategories() {
@@ -356,10 +378,15 @@ function renderCategories() {
   const box = document.getElementById('categories-body');
   if (!_categories.length) { box.innerHTML = '<div class="empty">No categories yet. Add one to group your products.</div>'; return; }
   box.innerHTML = `<table><thead><tr><th>Name</th><th class="hide-sm">Slug</th><th>Products</th><th>Visible</th><th></th></tr></thead><tbody>` +
-    _categories.map(c => {
-      const n = _products.filter(p => (p.product_categories || []).some(pc => pc.category_id === c.id)).length;
+    catOrder().map(c => {
+      const kids = _categories.filter(k => k.parent_id === c.id);
+      const ids = [c.id].concat(kids.map(k => k.id));
+      /* a parent counts its children's products, matching what the storefront shows */
+      const n = _products.filter(p => (p.product_categories || [])
+        .some(pc => ids.includes(pc.category_id))).length;
       return `<tr>
-        <td>${esc(c.name)}</td>
+        <td>${c.parent_id ? '<span class="muted">└&nbsp;</span>' : ''}${esc(c.name)}${
+          kids.length ? ` <span class="muted" style="font-size:12px;">(${kids.length} in drop-down)</span>` : ''}</td>
         <td class="hide-sm muted">/${esc(c.slug)}</td>
         <td class="muted">${n}</td>
         <td>${c.is_active ? '<span class="pill pill--live">Visible</span>' : '<span class="pill pill--draft">Hidden</span>'}</td>
@@ -376,6 +403,19 @@ function openCategory(id) {
   document.getElementById('c-description').value = _editCategory?.description || '';
   document.getElementById('c-position').value    = _editCategory?.position ?? 0;
   document.getElementById('c-active').value      = String(_editCategory?.is_active ?? true);
+
+  /* Offer only real top-level categories as parents, never this category itself
+     and never one of its own children — either would make a loop. */
+  const hasKids = _editCategory && _categories.some(c => c.parent_id === _editCategory.id);
+  const opts = _categories.filter(c =>
+    !c.parent_id && (!_editCategory || c.id !== _editCategory.id));
+  const psel = document.getElementById('c-parent');
+  psel.innerHTML = '<option value="">— top level —</option>' +
+    opts.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  psel.value = _editCategory?.parent_id || '';
+  /* A category that already holds a drop-down cannot also be nested. */
+  psel.disabled = !!hasKids;
+  psel.title = hasKids ? 'This category has children, so it stays at the top level.' : '';
   document.getElementById('c-delete').style.display = _editCategory ? '' : 'none';
   openModal('category-modal');
 }
@@ -392,7 +432,11 @@ async function saveCategory() {
     description: document.getElementById('c-description').value.trim() || null,
     position: parseInt(document.getElementById('c-position').value || '0', 10),
     is_active: document.getElementById('c-active').value === 'true',
+    parent_id: document.getElementById('c-parent').value || null,
   };
+  /* Guard the loop here too — the select is disabled for parents, but a stale
+     modal shouldn't be able to file a category under itself. */
+  if (_editCategory && row.parent_id === _editCategory.id) row.parent_id = null;
   const q = _editCategory
     ? db.from('categories').update(row).eq('id', _editCategory.id)
     : db.from('categories').insert(row);
@@ -405,7 +449,11 @@ async function saveCategory() {
 
 async function deleteCategory() {
   if (!_editCategory) return;
-  if (!confirm(`Delete "${_editCategory.name}"? Products stay, they just lose this category.`)) return;
+  const kids = _categories.filter(c => c.parent_id === _editCategory.id);
+  const warn = kids.length
+    ? `\n\n${kids.length} category(ies) sit under it (${kids.map(k => k.name).join(', ')}). They will move up to the top level, not be deleted.`
+    : '';
+  if (!confirm(`Delete "${_editCategory.name}"? Products stay, they just lose this category.${warn}`)) return;
   const { error } = await db.from('categories').delete().eq('id', _editCategory.id);
   if (error) return toast(error.message, true);
   closeModal('category-modal');

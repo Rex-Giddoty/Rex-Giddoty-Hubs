@@ -27,6 +27,7 @@
         <option value="off">Biggest discount</option>
         <option value="name">Name A–Z</option>
       </select>
+      <div class="chips" id="subcats" style="display:none;"></div>
     </div>
 
     <div class="sect" style="margin-top:8px;">
@@ -64,16 +65,42 @@ let _items = [];
     document.getElementById('sort').value = 'off';
   } else if (catSlug) {
     const { data: cat } = await db.from('categories')
-      .select('id,name,description').eq('slug', catSlug).maybeSingle();
+      .select('id,name,description,parent_id').eq('slug', catSlug).maybeSingle();
     if (cat) { categoryId = cat.id; activeSlug = catSlug; setHead(cat.name, cat.description || ''); }
   }
 
   await window.RG_CHROME(activeSlug);
 
-  let query;
+  /* A parent category shows everything filed under its children too — landing on
+     "Collection" and seeing nothing because the products live in Tops and Jeans
+     would just look broken. */
+  let catIds = categoryId ? [categoryId] : null;
   if (categoryId) {
+    const all = await window.RG_CATS();
+    const kids = all.filter(c => c.parent_id === categoryId);
+    if (kids.length) {
+      catIds = [categoryId].concat(kids.map(c => c.id));
+      const chips = document.getElementById('subcats');
+      chips.style.display = '';
+      chips.innerHTML = kids.map(c =>
+        `<a href="/shop.html?category=${encodeURIComponent(c.slug)}">${esc(c.name)}</a>`).join('');
+    } else {
+      /* on a child page, offer its siblings for quick hopping */
+      const me = all.find(c => c.id === categoryId);
+      const sibs = me && me.parent_id ? all.filter(c => c.parent_id === me.parent_id) : [];
+      if (sibs.length > 1) {
+        const chips = document.getElementById('subcats');
+        chips.style.display = '';
+        chips.innerHTML = sibs.map(c =>
+          `<a href="/shop.html?category=${encodeURIComponent(c.slug)}" class="${c.id === categoryId ? 'on' : ''}">${esc(c.name)}</a>`).join('');
+      }
+    }
+  }
+
+  let query;
+  if (catIds) {
     query = db.from('products').select(SEL + ',product_categories!inner(category_id)')
-      .eq('status','published').eq('product_categories.category_id', categoryId);
+      .eq('status','published').in('product_categories.category_id', catIds);
   } else {
     query = db.from('products').select(SEL).eq('status','published');
   }
