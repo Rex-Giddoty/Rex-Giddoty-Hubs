@@ -109,10 +109,19 @@
     document.title = document.title.replace(/Rex-Giddoty Hubs/g, store);
 
     const { data: cats } = await db.from('categories')
-      .select('slug,name').eq('is_active', true).order('position').order('name');
+      .select('slug,name,position').eq('is_active', true).order('position').order('name');
 
-    const links = (cats || []).map(c =>
-      `<a href="/shop.html?category=${encodeURIComponent(c.slug)}">${esc(c.name)}</a>`).join('');
+    /* New Arrivals is a view, not a category. Tagging pieces by hand to keep it
+       current would go stale the first busy week, so it lists whatever was
+       published most recently and takes care of itself. */
+    const entries = (cats || []).map(c => ({
+      name: c.name, position: c.position,
+      href: '/shop.html?category=' + encodeURIComponent(c.slug),
+    }));
+    entries.push({ name: 'New Arrivals', position: 40, href: '/shop.html?new=1' });
+    entries.sort((a, b) => a.position - b.position);
+
+    const links = entries.map(e => `<a href="${e.href}">${esc(e.name)}</a>`).join('');
 
     const nav = document.querySelector('[data-nav]');
     if (nav) {
