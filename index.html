@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Rex-Giddoty Hubs — Online Shopping</title>
-<meta name="description" content="Shop clothes, bags, shoes, jewellery and more. Nationwide delivery."/>
+<title>Rex-Giddoty Hubs — Online Shopping for Fashion, Bags, Shoes &amp; More</title>
+<meta name="description" content="Shop clothes, bags, shoes, jewellery, decor and lifestyle. Best prices, nationwide delivery, pay on confirmation."/>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/assets/site.css"/>
 </head>
@@ -16,36 +16,77 @@
   <aside class="box rail-box" data-rail></aside>
 
   <main>
-    <section class="hero" id="hero">
-      <div class="hero__txt">
-        <h1 id="hero-h">Everything you need</h1>
-        <p id="hero-p">Delivered across Nigeria</p>
-        <a class="btn" href="/shop.html">Shop now</a>
+    <!-- slider + service cards -->
+    <section class="topblock">
+      <div class="slider" id="slider">
+        <div class="slider__track" id="sl-track"></div>
+        <button class="slider__nav _p" id="sl-prev" aria-label="Previous"></button>
+        <button class="slider__nav _n" id="sl-next" aria-label="Next"></button>
+        <div class="slider__dots" id="sl-dots"></div>
+      </div>
+
+      <div class="svc">
+        <div class="svc__card" id="svc-card"></div>
+        <a class="svc__promo" href="/shop.html?deals=1">
+          <b>Deals of the day</b><span>Up to 70% off selected items</span>
+        </a>
       </div>
     </section>
 
+    <!-- category thumbnails -->
+    <section class="sect" id="thumbs-sect" style="display:none;">
+      <div class="thumbs" id="thumbs"></div>
+    </section>
+
+    <!-- six promo tiles -->
+    <section class="sect" id="fl-sect" style="display:none;">
+      <div class="freelinks" id="freelinks"></div>
+    </section>
+
+    <!-- flash sales -->
     <section class="sect" id="flash-sect" style="display:none;">
-      <div class="sect__hd">
+      <div class="sect__hd sect__hd--flash">
         <h2 id="flash-title">Flash Sales</h2>
         <div class="countdown" id="countdown"></div>
-        <a href="/shop.html?deals=1">See all ›</a>
+        <a href="/shop.html?deals=1">See All ›</a>
       </div>
-      <div class="pgrid" id="flash"></div>
+      <div id="flash"></div>
     </section>
 
-    <section class="sect">
-      <div class="sect__hd"><h2>New Arrivals</h2><a href="/shop.html?new=1">See all ›</a></div>
-      <div class="pgrid" id="newest"></div>
-    </section>
-
+    <!-- category tiles -->
     <section class="sect" id="cats-sect" style="display:none;">
-      <div class="sect__hd sect__hd--plain"><h2>Shop by category</h2><a href="/shop.html">See all ›</a></div>
-      <div class="pgrid" id="cats" style="background:var(--paper);gap:0;"></div>
+      <div class="sect__hd" style="background:#f0dcc2;justify-content:center;">
+        <!-- flex:0 would collapse the heading to zero width, and the stylesheet's
+             overflow:hidden would then clip the text away completely -->
+        <h2 style="flex:0 1 auto;text-align:center;">All Your Essentials in One Place</h2>
+      </div>
+      <div class="freelinks" id="cats"></div>
     </section>
 
-    <section class="sect">
-      <div class="sect__hd sect__hd--plain"><h2>Recommended for you</h2><a href="/shop.html">See all ›</a></div>
+    <!-- top sellers -->
+    <section class="sect" id="top-sect" style="display:none;">
+      <div class="sect__hd"><h2>Top Sellers</h2><a href="/shop.html">See All ›</a></div>
+      <div id="top"></div>
+    </section>
+
+    <!-- limited stock -->
+    <section class="sect" id="limited-sect" style="display:none;">
+      <div class="sect__hd"><h2>Limited Stock deals <span class="sub">| Going fast</span></h2><a href="/shop.html">See All ›</a></div>
+      <div class="pgrid" id="limited"></div>
+    </section>
+
+    <!-- per-category rows -->
+    <div id="cat-rows"></div>
+
+    <!-- recommended -->
+    <section class="sect" id="reco-sect" style="display:none;">
+      <div class="sect__hd sect__hd--plain"><h2>Recommended for you</h2><a href="/shop.html">See All ›</a></div>
       <div class="pgrid" id="reco"></div>
+    </section>
+
+    <!-- store copy -->
+    <section class="sect">
+      <div class="seo" id="seo"></div>
     </section>
   </main>
 </div>
@@ -57,18 +98,36 @@
 <script src="/supabase.js"></script>
 <script src="/assets/site.js"></script>
 <script>
-const db = window.RG_DB, esc = window.RG_ESC, IMG = window.RG_IMG;
+const db = window.RG_DB, esc = window.RG_ESC, IMG = window.RG_IMG, I = window.RG_ICON;
 const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,created_at,product_images(path,position),product_variants(id,stock)';
+const img1 = p => { const a = (p.product_images||[]).slice().sort((x,y)=>x.position-y.position); return a[0] ? IMG(a[0].path) : null; };
+const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
 
 (async () => {
   await window.RG_CHROME();
   const s = await window.RG_SETTINGS();
+  const store = s.store_name || 'Rex-Giddoty Hubs';
 
-  if (s.hero_heading)    document.getElementById('hero-h').textContent = s.hero_heading;
-  if (s.hero_subheading) document.getElementById('hero-p').textContent = s.hero_subheading;
+  document.getElementById('svc-card').innerHTML = `
+    <a class="svc__item" href="mailto:${esc(s.support_email || 'support@example.com')}">
+      ${I.phone}<div><div class="svc__t">CALL TO ORDER</div><div class="svc__s">${esc(s.support_phone || 'Message us anytime')}</div></div></a>
+    <a class="svc__item" href="/shop.html">
+      ${I.truck}<div><div class="svc__t">Nationwide delivery</div><div class="svc__s">Fast and tracked</div></div></a>
+    <a class="svc__item" href="/shop.html">
+      ${I.shield}<div><div class="svc__t">Pay on confirmation</div><div class="svc__s">Order first, pay after</div></div></a>`;
+
+  document.getElementById('seo').innerHTML = `
+    <h1>${esc(store)} — shop everything in one place</h1>
+    <p>${esc(store)} brings clothes, bags, shoes, jewellery, decor and lifestyle pieces together in a single
+    store, so you can find what you need without hopping between shops. Browse by category, compare prices at a
+    glance and check out in a couple of taps.</p>
+    <h2>Best prices, every day</h2>
+    <p>Watch the <a href="/shop.html?deals=1">deals</a> section for reductions, and
+    <a href="/shop.html?new=1">new arrivals</a> for the latest pieces as they land. Every order is confirmed
+    before dispatch and delivered nationwide.</p>`;
 
   const { data: all } = await db.from('products').select(SEL)
-    .eq('status','published').order('created_at',{ascending:false}).limit(48);
+    .eq('status','published').order('created_at',{ascending:false}).limit(96);
   const list = all || [];
 
   if (!list.length) {
@@ -76,42 +135,164 @@ const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg
       <h2>No products yet</h2>
       <p>Publish a product in operations and it will appear here.</p>
       <a class="btn" href="/ops-login.html">Go to operations</a></div>`;
+    buildSlides([], s);
     return;
   }
 
-  /* hero art comes from the newest piece with a photo — nothing extra to manage */
-  const withImg = list.find(p => (p.product_images || []).length);
-  if (withImg) {
-    const imgs = withImg.product_images.sort((a,b)=>a.position-b.position);
-    const hero = document.getElementById('hero');
-    const im = document.createElement('img');
-    im.src = IMG(imgs[0].path); im.alt = '';
-    hero.insertBefore(im, hero.firstChild);
-    hero.classList.add('hero--img');
+  buildSlides(list, s);
+
+  /* ── category membership ──
+     One query, grouped here, rather than a round trip per category. */
+  const cats = await window.RG_CATS();
+  const { data: pcs } = await db.from('product_categories')
+    .select('product_id,categories(slug)').in('product_id', list.map(p => p.id));
+  const bySlug = new Map();
+  for (const r of (pcs || [])) {
+    const sl = r.categories && r.categories.slug;
+    if (!sl) continue;
+    if (!bySlug.has(sl)) bySlug.set(sl, new Set());
+    bySlug.get(sl).add(r.product_id);
+  }
+  /* Art comes from a product actually in that category; if the category has no
+     photographed product yet we borrow any photo rather than show a grey slab. */
+  const anyArt = (list.map(img1).find(Boolean)) || null;
+  const artFor = slug => {
+    const ids = bySlug.get(slug);
+    const hit = ids && list.find(p => ids.has(p.id) && img1(p));
+    return hit ? img1(hit) : anyArt;
+  };
+
+  if (cats.length) {
+    document.getElementById('thumbs-sect').style.display = '';
+    document.getElementById('thumbs').innerHTML = [
+      { name:'Deals', href:'/shop.html?deals=1', emoji:'🔥', img:null },
+      { name:'New Arrivals', href:'/shop.html?new=1', emoji:'✨', img:null },
+    ].concat(cats.map(c => ({ name:c.name, href:'/shop.html?category='+encodeURIComponent(c.slug),
+                              emoji:'🛍️', img:artFor(c.slug) })))
+     .map(t => `<a class="thumb" href="${t.href}">
+        <div class="thumb__img">${t.img ? `<img src="${esc(t.img)}" alt="" loading="lazy"/>`
+                                        : `<span>${t.emoji}</span>`}</div>
+        <p>${esc(t.name)}</p></a>`).join('');
+
+    document.getElementById('cats-sect').style.display = '';
+    document.getElementById('cats').innerHTML = cats.slice(0,12).map(c => {
+      const a = artFor(c.slug);
+      return `<a class="fl" href="/shop.html?category=${encodeURIComponent(c.slug)}">
+        ${a ? `<img src="${esc(a)}" alt="" loading="lazy"/>` : ''}
+        <span class="fl__cap">${esc(c.name)}</span></a>`;
+    }).join('');
   }
 
+  /* ── six promo tiles from the newest photographed products ── */
+  const shot = list.filter(img1).slice(0, 6);
+  if (shot.length >= 3) {
+    document.getElementById('fl-sect').style.display = '';
+    document.getElementById('freelinks').innerHTML = shot.map(p => `
+      <a class="fl" href="/product.html?slug=${encodeURIComponent(p.slug)}">
+        <img src="${esc(img1(p))}" alt="${esc(p.name)}" loading="lazy"/>
+        <span class="fl__cap">${esc(p.name)}</span></a>`).join('');
+  }
+
+  /* ── flash sales ── */
   const deals = list.filter(p => p.compare_at_minor && p.compare_at_minor > p.price_minor);
   if (deals.length) {
     document.getElementById('flash-sect').style.display = '';
     document.getElementById('flash-title').textContent = s.flash_title || 'Flash Sales';
-    document.getElementById('flash').innerHTML = deals.slice(0,12).map(window.RG_CARD).join('');
+    document.getElementById('flash').innerHTML =
+      window.RG_CRS(deals.slice(0,16).map(window.RG_CARD).join(''));
     startCountdown(s.flash_ends_at);
   }
 
-  document.getElementById('newest').innerHTML = list.slice(0,12).map(window.RG_CARD).join('');
+  /* ── top sellers: best rated, then newest ── */
+  const top = list.slice().sort((a,b) =>
+    (Number(b.rating_avg)||0) - (Number(a.rating_avg)||0) ||
+    (b.rating_count||0) - (a.rating_count||0));
+  document.getElementById('top-sect').style.display = '';
+  document.getElementById('top').innerHTML =
+    window.RG_CRS(top.slice(0,16).map(window.RG_CARD).join(''));
+
+  /* ── limited stock: genuinely low counts only ── */
+  const low = list.filter(p => { const st = stockOf(p); return st > 0 && st <= 10; });
+  if (low.length) {
+    document.getElementById('limited-sect').style.display = '';
+    document.getElementById('limited').innerHTML = low.slice(0,12).map(window.RG_CARD).join('');
+  }
+
+  /* ── one carousel per category ── */
+  const rows = document.getElementById('cat-rows');
+  const tint = ['#fce7bb','#e7f0d9','#dbe9f5','#f6dfe4','#e8e2f3','#fdeadf'];
+  let ti = 0;
+  for (const c of cats) {
+    const ids = bySlug.get(c.slug);
+    if (!ids) continue;
+    const items = list.filter(p => ids.has(p.id)).slice(0, 16);
+    if (items.length < 2) continue;
+
+    const sec = document.createElement('section');
+    sec.className = 'sect';
+    sec.innerHTML = `
+      <div class="sect__hd" style="background:${tint[ti++ % tint.length]};">
+        <h2>${esc(c.name)}</h2>
+        <a href="/shop.html?category=${encodeURIComponent(c.slug)}">See All ›</a>
+      </div>
+      ${window.RG_CRS(items.map(window.RG_CARD).join(''))}`;
+    rows.appendChild(sec);
+  }
+
+  /* ── recommended ── */
+  document.getElementById('reco-sect').style.display = '';
   document.getElementById('reco').innerHTML =
     list.slice().sort(() => Math.random() - .5).slice(0,12).map(window.RG_CARD).join('');
-
-  const cats = await window.RG_CATS();
-  if (cats.length) {
-    document.getElementById('cats-sect').style.display = '';
-    document.getElementById('cats').innerHTML = cats.map(c => `
-      <a class="pcard" href="/shop.html?category=${encodeURIComponent(c.slug)}" style="text-align:center;">
-        <div class="pcard__media" style="border-radius:50%;overflow:hidden;"></div>
-        <div class="pcard__name" style="height:auto;text-align:center;font-weight:500;">${esc(c.name)}</div>
-      </a>`).join('');
-  }
 })();
+
+/* ── hero slider ── */
+function buildSlides(list, s) {
+  const shots = list.filter(img1).slice(0, 4);
+  const slides = shots.length ? shots.map((p,i) => ({
+    img: img1(p),
+    h: i === 0 ? (s.hero_heading || 'Everything you need') : p.name,
+    p: i === 0 ? (s.hero_subheading || 'Delivered across Nigeria') : 'Shop this piece',
+    href: '/product.html?slug=' + encodeURIComponent(p.slug),
+  })) : [{
+    img: null,
+    h: s.hero_heading || 'Everything you need',
+    p: s.hero_subheading || 'Delivered across Nigeria',
+    href: '/shop.html',
+  }];
+
+  const track = document.getElementById('sl-track');
+  track.innerHTML = slides.map(sl => `
+    <div class="slider__slide">
+      ${sl.img ? `<img src="${esc(sl.img)}" alt=""/>` : ''}
+      <div class="slider__cap">
+        <h2>${esc(sl.h)}</h2><p>${esc(sl.p)}</p>
+        <a class="btn" href="${sl.href}">Shop now</a>
+      </div>
+    </div>`).join('');
+
+  const dots = document.getElementById('sl-dots');
+  dots.innerHTML = slides.map((_,i) => `<i class="${i?'':'on'}" data-i="${i}"></i>`).join('');
+  document.getElementById('sl-prev').innerHTML = window.RG_ICON.left;
+  document.getElementById('sl-next').innerHTML = window.RG_ICON.right;
+
+  let at = 0, timer;
+  const go = n => {
+    at = (n + slides.length) % slides.length;
+    track.style.transform = `translateX(-${at * 100}%)`;
+    dots.querySelectorAll('i').forEach((d,i) => d.classList.toggle('on', i === at));
+  };
+  const auto = () => { clearInterval(timer); if (slides.length > 1) timer = setInterval(() => go(at+1), 6000); };
+
+  document.getElementById('sl-prev').onclick = () => { go(at-1); auto(); };
+  document.getElementById('sl-next').onclick = () => { go(at+1); auto(); };
+  dots.querySelectorAll('i').forEach(d => d.onclick = () => { go(Number(d.dataset.i)); auto(); });
+  if (slides.length < 2) {
+    document.getElementById('sl-prev').style.display = 'none';
+    document.getElementById('sl-next').style.display = 'none';
+    dots.style.display = 'none';
+  }
+  auto();
+}
 
 function startCountdown(endsAt) {
   const el = document.getElementById('countdown');
@@ -120,12 +301,12 @@ function startCountdown(endsAt) {
   const end = new Date(endsAt).getTime();
   if (isNaN(end)) { el.style.display = 'none'; return; }
   const tick = () => {
-    let d = Math.max(0, end - Date.now());
+    const d = Math.max(0, end - Date.now());
     if (!d) { el.textContent = 'Ended'; return; }
     const h = String(Math.floor(d/3.6e6)).padStart(2,'0');
     const m = String(Math.floor(d%3.6e6/6e4)).padStart(2,'0');
     const sec = String(Math.floor(d%6e4/1000)).padStart(2,'0');
-    el.innerHTML = `Ends in <b>${h}</b><b>${m}</b><b>${sec}</b>`;
+    el.innerHTML = `Time Left: <b>${h}h</b><b>${m}m</b><b>${sec}s</b>`;
   };
   tick(); setInterval(tick, 1000);
 }

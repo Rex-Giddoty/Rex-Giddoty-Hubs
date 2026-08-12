@@ -1,4 +1,4 @@
-/* Rex-Giddoty Hubs — shared storefront behaviour (marketplace interface).
+/* Rex-Giddoty Hubs — shared storefront behaviour (Jumia-style marketplace).
  *
  * The bag lives in localStorage holding nothing but variant ids and quantities.
  * Prices are re-read for display and recomputed by the database at checkout, so
@@ -82,7 +82,7 @@
   };
   window.RG_BAG = Bag;
 
-  /* ── settings ── */
+  /* ── settings & categories ── */
   let _settings = null;
   window.RG_SETTINGS = async function () {
     if (_settings) return _settings;
@@ -102,13 +102,26 @@
     return _cats;
   };
 
-  const ICON = {
+  /* ── icons ── */
+  const I = {
     account: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
     cart:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2 3h3l2.5 12h11L21 7H6"/></svg>',
     home:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
     grid:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
     menu:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M3 18h18"/></svg>',
+    search:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+    help:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 013.9-1.6c1.6 1 .9 2.6-.3 3.3-.8.5-1.2 1-1.2 1.9"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></svg>',
+    orders:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h14v17l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 9h6M9 13h6"/></svg>',
+    caret:   '<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
+    left:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>',
+    right:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
+    up:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 15l6-6 6 6"/></svg>',
+    phone:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 006 6L16 13l5 2v4a2 2 0 01-2 2A16 16 0 013 5a2 2 0 012-2z"/></svg>',
+    truck:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 6h11v10H2zM13 10h4l4 3v3h-8z"/><circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/></svg>',
+    shield:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+    tag:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12l9-9h8v8l-9 9z"/><circle cx="16.5" cy="7.5" r="1.4"/></svg>',
   };
+  window.RG_ICON = I;
 
   /* ── chrome ── */
   window.RG_CHROME = async function (active) {
@@ -120,25 +133,52 @@
     const entries = cats.map(c => ({ name: c.name, position: c.position,
       href: '/shop.html?category=' + encodeURIComponent(c.slug), slug: c.slug }));
     entries.push({ name: 'New Arrivals', position: 40, href: '/shop.html?new=1', slug: '__new' });
+    entries.push({ name: 'Deals', position: 41, href: '/shop.html?deals=1', slug: '__deals' });
     entries.sort((a, b) => a.position - b.position);
     window.RG_MENU = entries;
 
     const q = new URLSearchParams(location.search).get('q') || '';
     const parts = store.split(' ');
+    const phone = s.support_phone || '';
+    const email = s.support_email || 'support@example.com';
+
     const head = document.querySelector('[data-hdr]');
     if (head) {
       head.innerHTML = `
         ${s.promo_strip ? `<div class="promo">${esc(s.promo_strip)}</div>` : ''}
+        <div class="vbar"><div class="vbar__in">
+          <a href="mailto:${esc(email)}">${I.tag}Sell with us</a>
+          <div class="vbar__mid">${esc(store)}</div>
+          <a href="/shop.html?deals=1">Today's deals</a>
+        </div></div>
         <div class="hdr__main">
-          <button class="burger" data-burger aria-label="Menu">${ICON.menu}</button>
+          <button class="burger" data-burger aria-label="Menu">${I.menu}</button>
           <a class="logo" href="/">${esc(parts[0])}<span>${esc(parts.slice(1).join(' '))}</span></a>
-          <form class="search" action="/shop.html" method="get">
+          <form class="search" action="/shop.html" method="get" role="search">
+            ${I.search}
             <input name="q" placeholder="Search products, brands and categories" value="${esc(q)}" aria-label="Search"/>
             <button type="submit">Search</button>
           </form>
           <div class="hdr__acts">
-            <a class="hact" href="/account.html">${ICON.account}<span class="hact--label">Account</span></a>
-            <a class="hact" href="/bag.html">${ICON.cart}<span class="hact--label">Cart</span>
+            <div class="dpdw">
+              <a class="hact" href="/account.html">${I.account}<span class="hact--label">Account</span>${I.caret}</a>
+              <div class="dpdw__box">
+                <div class="lead"><a class="btn" href="/account.html">Sign in</a></div>
+                <a href="/account.html">${'My account'}</a>
+                <a href="/account.html#orders">Orders</a>
+                <a href="/bag.html">Cart</a>
+              </div>
+            </div>
+            <div class="dpdw">
+              <a class="hact" href="mailto:${esc(email)}">${I.help}<span class="hact--label">Help</span>${I.caret}</a>
+              <div class="dpdw__box">
+                <a href="mailto:${esc(email)}">Contact us</a>
+                ${phone ? `<a href="tel:${esc(phone.replace(/\s/g,''))}">Call ${esc(phone)}</a>` : ''}
+                <a href="/shop.html">How to shop</a>
+                <a href="/shop.html">Delivery &amp; payment</a>
+              </div>
+            </div>
+            <a class="hact" href="/bag.html">${I.cart}<span class="hact--label">Cart</span>
               <span class="cart-badge" data-bag-count style="display:none;">0</span></a>
           </div>
         </div>`;
@@ -148,10 +188,11 @@
       drawer.innerHTML = `<div class="drawer__bg" data-close></div>
         <div class="drawer__panel">
           <div class="hd">${esc(store)}</div>
-          <a href="/">Home</a>
-          ${entries.map(e => `<a href="${e.href}">${esc(e.name)}</a>`).join('')}
-          <a href="/account.html">My account</a>
-          <a href="/bag.html">My cart</a>
+          <a href="/">${I.home}Home</a>
+          ${entries.map(e => `<a href="${e.href}">${I.tag}${esc(e.name)}</a>`).join('')}
+          <a href="/account.html">${I.account}My account</a>
+          <a href="/bag.html">${I.cart}My cart</a>
+          <a href="mailto:${esc(email)}">${I.help}Help</a>
         </div>`;
       document.body.appendChild(drawer);
       head.querySelector('[data-burger]').onclick = () => drawer.classList.add('open');
@@ -161,20 +202,68 @@
     const rail = document.querySelector('[data-rail]');
     if (rail) {
       rail.innerHTML = `<div class="box__hd">Categories</div><div class="rail">` +
-        entries.map(e => `<a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${esc(e.name)}</a>`).join('') +
+        entries.map(e => `<a href="${e.href}" class="${active === e.slug ? 'on' : ''}">${I.tag}${esc(e.name)}</a>`).join('') +
         `</div>`;
     }
 
     const foot = document.querySelector('[data-foot]');
     if (foot) {
       foot.innerHTML = `
+        <div class="foot__news"><div class="in">
+          <div>
+            <div class="logo" style="font-size:22px;">${esc(parts[0])}<span style="color:#fff;">${esc(parts.slice(1).join(' '))}</span></div>
+            <p style="margin:10px 0 0;">Everyday essentials and standout pieces, delivered nationwide.</p>
+          </div>
+          <div>
+            <div class="foot__t">NEW TO ${esc(store.toUpperCase())}?</div>
+            Subscribe to hear about new arrivals and price drops first.
+            <form class="foot__form" data-news>
+              <input type="email" required placeholder="Enter e-mail address" aria-label="E-mail"/>
+              <button type="submit">Subscribe</button>
+            </form>
+          </div>
+        </div></div>
+
         <div class="foot__grid">
-          <div><h4>${esc(store)}</h4><p style="font-size:12.5px;">Everyday essentials and standout pieces, delivered across Nigeria.</p></div>
-          <div><h4>Shop</h4>${entries.map(e => `<a href="${e.href}">${esc(e.name)}</a>`).join('')}</div>
-          <div><h4>Account</h4><a href="/account.html">My account</a><a href="/account.html">Orders</a><a href="/bag.html">Cart</a></div>
-          <div><h4>Help</h4><a href="/shop.html">All products</a><a href="mailto:${esc(s.support_email || 'support@example.com')}">Contact us</a></div>
+          <div><h4>Need help?</h4>
+            <a href="mailto:${esc(email)}">Contact us</a>
+            ${phone ? `<a href="tel:${esc(phone.replace(/\s/g,''))}">${esc(phone)}</a>` : ''}
+            <a href="/shop.html">How to shop</a>
+            <a href="/account.html">Track an order</a>
+          </div>
+          <div><h4>About us</h4>
+            <a href="/">Our store</a>
+            <a href="/shop.html">All products</a>
+            <a href="/shop.html?new=1">New arrivals</a>
+            <a href="/shop.html?deals=1">Deals</a>
+          </div>
+          <div><h4>Shop</h4>${entries.slice(0,6).map(e => `<a href="${e.href}">${esc(e.name)}</a>`).join('')}</div>
+          <div><h4>Account</h4>
+            <a href="/account.html">My account</a>
+            <a href="/account.html#orders">My orders</a>
+            <a href="/bag.html">My cart</a>
+          </div>
         </div>
-        <div class="foot__base">© ${new Date().getFullYear()} ${esc(store)} · Pay on confirmation · Nationwide delivery</div>`;
+
+        <div class="foot__pay">
+          <div><h4 style="color:#fff;font-size:13px;text-transform:uppercase;margin-bottom:11px;">Join us on</h4>
+            <div class="foot__ic">
+              <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 22v-8h3l.5-3H13V9.2c0-.9.3-1.5 1.6-1.5H17V5.1A22 22 0 0014.6 5C12.2 5 10.5 6.5 10.5 9v2H8v3h2.5v8z"/></svg></a>
+              <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></a>
+              <a href="#" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 3h3l-6.6 7.5L21.7 21h-5.9l-4.3-5.6L6.4 21H3.3l7-8L2.6 3h6l3.9 5.2zm-1 16h1.7L8 4.7H6.2z"/></svg></a>
+            </div>
+          </div>
+          <div><h4 style="color:#fff;font-size:13px;text-transform:uppercase;margin-bottom:11px;">Payment methods</h4>
+            <div class="foot__ic">
+              <span>Bank transfer</span><span>Pay on delivery</span><span>Card on request</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="foot__base">© ${new Date().getFullYear()} ${esc(store)} · Payment confirmed before dispatch · Nationwide delivery</div>`;
+
+      const nf = foot.querySelector('[data-news]');
+      if (nf) nf.onsubmit = e => { e.preventDefault(); nf.reset(); window.RG_TOAST('Thanks — you are subscribed'); };
     }
 
     const bar = document.querySelector('[data-tabbar]');
@@ -182,11 +271,13 @@
       const page = location.pathname.replace(/^\//,'') || 'index.html';
       const on = p => page.startsWith(p) ? 'on' : '';
       bar.innerHTML = `
-        <a href="/" class="${page==='index.html'||page===''?'on':''}">${ICON.home}Home</a>
-        <a href="/shop.html" class="${on('shop')}">${ICON.grid}Categories</a>
-        <a href="/account.html" class="${on('account')}">${ICON.account}Account</a>
-        <a href="/bag.html" class="${on('bag')}">${ICON.cart}Cart<span class="cart-badge" data-bag-count style="display:none;">0</span></a>`;
+        <a href="/" class="${page==='index.html'||page===''?'on':''}">${I.home}Home</a>
+        <a href="/shop.html" class="${on('shop')}">${I.grid}Categories</a>
+        <a href="/account.html" class="${on('account')}">${I.account}Account</a>
+        <a href="/bag.html" class="${on('bag')}">${I.cart}Cart<span class="cart-badge" data-bag-count style="display:none;">0</span></a>`;
     }
+
+    mountBackToTop();
     Bag.paint();
   };
 
@@ -196,11 +287,14 @@
     const stock = (p.product_variants || []).reduce((s,v) => s + (v.stock || 0), 0);
     const firstV = (p.product_variants || []).find(v => (v.stock || 0) > 0);
     /* Derive the discount rather than store it, so the badge can never disagree
-       with the prices next to it. */
+       with the prices printed next to it. */
     const off = (p.compare_at_minor && p.compare_at_minor > p.price_minor)
       ? Math.round((1 - p.price_minor / p.compare_at_minor) * 100) : 0;
     const rating = p.rating_avg ? Number(p.rating_avg) : 0;
     const full = Math.round(rating);
+    /* Jumia shows the meter against a nominal batch of 50, which is what makes a
+       low count read as urgent rather than as an arbitrary bar. */
+    const meter = stock > 0 && stock <= 50 ? Math.max(6, Math.round(stock / 50 * 100)) : 0;
 
     return `<div class="pcard">
       <a href="/product.html?slug=${encodeURIComponent(p.slug)}">
@@ -217,7 +311,7 @@
           ${off ? `<span class="pcard__was">${M.fmt(p.compare_at_minor, p.currency)}</span>` : ''}
         </div>
         ${rating ? `<div class="stars"><i>${'★'.repeat(full)}${'☆'.repeat(5-full)}</i>(${p.rating_count || 0})</div>` : ''}
-        ${stock > 0 && stock <= 5 ? `<div class="bar"><span style="width:${Math.max(12, stock*18)}%"></span></div><div class="left-note">${stock} left</div>` : ''}
+        ${meter ? `<div class="left-note">${stock} items left</div><div class="bar"><span style="width:${meter}%"></span></div>` : ''}
       </a>
       <button class="pcard__add" ${firstV ? `data-add="${firstV.id}"` : 'disabled'}>
         ${firstV ? 'Add to cart' : 'Out of stock'}
@@ -225,7 +319,26 @@
     </div>`;
   };
 
-  /* One listener for the whole grid rather than one per card. */
+  /* ── carousel ──
+   * One scroller with snap points; the arrows page it by a whole viewport so a
+   * click always lands on a card boundary rather than mid-image. */
+  window.RG_CRS = function (cards, opts) {
+    const o = opts || {};
+    return `<div class="crs">
+      <button class="crs__nav _p" data-crs="-1" aria-label="Previous">${I.left}</button>
+      <div class="crs__track"${o.id ? ` id="${o.id}"` : ''}>${cards}</div>
+      <button class="crs__nav _n" data-crs="1" aria-label="Next">${I.right}</button>
+    </div>`;
+  };
+
+  document.addEventListener('click', e => {
+    const nav = e.target.closest('[data-crs]');
+    if (!nav) return;
+    const track = nav.parentElement.querySelector('.crs__track');
+    if (track) track.scrollBy({ left: Number(nav.dataset.crs) * track.clientWidth * 0.9, behavior: 'smooth' });
+  });
+
+  /* One listener for every grid rather than one per card. */
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-add]');
     if (!b) return;
@@ -233,6 +346,20 @@
     Bag.add(b.dataset.add, 1);
     window.RG_TOAST('Added to cart');
   });
+
+  /* ── back to top ── */
+  function mountBackToTop() {
+    if (document.querySelector('.b2top')) return;
+    const b = document.createElement('button');
+    b.className = 'b2top';
+    b.setAttribute('aria-label', 'Back to top');
+    b.innerHTML = I.up;
+    b.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.body.appendChild(b);
+    const sync = () => b.classList.toggle('on', window.scrollY > 600);
+    window.addEventListener('scroll', sync, { passive: true });
+    sync();
+  }
 
   let toastTimer;
   window.RG_TOAST = function (msg) {
