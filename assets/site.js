@@ -359,7 +359,9 @@
       drawer.className = 'drawer';
       drawer.innerHTML = `<div class="drawer__bg" data-close></div>
         <div class="drawer__panel">
-          <div class="hd">${esc(store)}</div>
+          <a class="hd" href="/" aria-label="${esc(store)}">
+            <img src="/assets/logo.png" alt="${esc(store)}"/>
+          </a>
           <a href="/">${I.home}Home</a>
           ${entries.map(e => groupHtml(e, true)).join('')}
           ${signedIn

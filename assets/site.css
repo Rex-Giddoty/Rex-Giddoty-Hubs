@@ -612,7 +612,11 @@ textarea.inp{resize:vertical;min-height:74px;}
 .drawer__panel{position:absolute;left:0;top:0;bottom:0;width:82%;max-width:310px;
   background:var(--paper);overflow-y:auto;padding-bottom:24px;animation:slidein .2s ease;}
 @keyframes slidein{from{transform:translateX(-100%)}to{transform:translateX(0)}}
-.drawer__panel .hd{background:var(--brand);color:#fff;font-weight:700;font-size:16px;padding:16px;}
+/* Dark, not brand orange: the logo's wordmark is white and needs something dark
+   behind it — the same reason the sidebar cap and the emails are dark. */
+.drawer__panel .hd{background:#282828;display:block;padding:18px 16px;text-align:center;}
+.drawer__panel .hd img{width:150px;max-width:76%;height:auto;margin:0 auto;}
+.drawer__panel .hd:hover{background:#1f1f21;}
 .drawer__panel a{display:flex;align-items:center;gap:9px;padding:12px 16px;
   border-bottom:1px solid #f2f2f2;font-size:14px;}
 .drawer__panel a svg{width:20px;height:20px;color:var(--mute);flex-shrink:0;}
