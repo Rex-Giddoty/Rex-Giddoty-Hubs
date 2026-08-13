@@ -463,6 +463,44 @@ ul{margin:0;padding:0;list-style:none;}
 .cempty b{display:block;font-size:14px;margin-bottom:6px;color:var(--ink);}
 .cempty span{font-size:12.5px;color:var(--mute);line-height:1.6;}
 
+/* An attachment sits above its bubble rather than inside it: a photo boxed in
+   purple padding reads as a button, and a receipt is the message. */
+.cfile{display:flex;align-items:center;gap:9px;padding:9px 11px;margin-bottom:4px;
+  background:var(--paper);border:1px solid var(--line);border-radius:10px;}
+.cfile:hover{border-color:var(--brand);}
+.cfile svg{width:20px;height:20px;color:var(--brand);flex-shrink:0;}
+.cfile span{min-width:0;display:flex;flex-direction:column;gap:1px;}
+.cfile b{font-size:12.5px;font-weight:500;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cfile i{font-style:normal;font-size:11px;color:var(--mute);}
+.cfile--img{padding:0;border:0;background:none;display:block;}
+/* width:auto so a small photo stays small — stretched to the maximum it reads
+   as a broken image rather than a thumbnail. */
+.cfile--img img{width:auto;max-width:200px;max-height:230px;height:auto;border-radius:10px;
+  border:1px solid var(--line);background:var(--paper);}
+
+.chat__pend{flex-shrink:0;display:flex;align-items:center;gap:9px;
+  padding:9px 11px;border-top:1px solid var(--line);background:var(--beige);}
+/* Same trap as the panel: display on a class outranks the UA's [hidden]. */
+.chat__pend[hidden]{display:none;}
+.chat__pend svg{width:18px;height:18px;color:var(--brand);flex-shrink:0;}
+.chat__pend span{flex:1;min-width:0;display:flex;flex-direction:column;}
+.chat__pend b{font-size:12.5px;font-weight:500;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chat__pend i{font-style:normal;font-size:11px;color:var(--mute);}
+.chat__pend button{background:none;border:0;color:var(--mute);padding:3px;
+  display:grid;place-items:center;flex-shrink:0;}
+.chat__pend button:hover{color:#b3261e;}
+.chat__pend button svg{width:15px;height:15px;color:inherit;}
+
+/* .chat__form button below is class+element, so the paperclip has to be named
+   with the form to outrank it — otherwise it comes out a filled purple send
+   button wearing a clip. */
+.chat__form .chat__clip{background:none;border:0;color:var(--mute);flex-shrink:0;
+  width:36px;height:38px;display:grid;place-items:center;border-radius:50%;}
+.chat__form .chat__clip:hover{color:var(--brand);background:var(--beige);}
+.chat__form .chat__clip svg{width:20px;height:20px;margin:0;}
+
 .chat__form{flex-shrink:0;display:flex;align-items:flex-end;gap:8px;padding:10px;
   border-top:1px solid var(--line);background:var(--paper);}
 .chat__form textarea{flex:1;min-width:0;resize:none;border:1px solid var(--line);
@@ -881,3 +919,6 @@ textarea.inp{resize:vertical;min-height:74px;}
   .pcard{padding:7px;}
   .freelinks{grid-template-columns:repeat(2,1fr);}
 }
+
+.cfile--vid{width:100%;max-width:220px;max-height:280px;border-radius:10px;
+  border:1px solid var(--line);background:#000;display:block;margin-bottom:4px;}

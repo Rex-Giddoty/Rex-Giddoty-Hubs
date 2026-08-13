@@ -488,7 +488,7 @@
           </div>
           <div><h4 style="color:#fff;font-size:13px;text-transform:uppercase;margin-bottom:11px;">Payment methods</h4>
             <div class="foot__ic">
-              <span>Bank transfer</span><span>Pay on delivery</span><span>Card on request</span>
+              <span>Bank transfer</span><span>Card on request</span>
             </div>
           </div>
         </div>
@@ -712,10 +712,69 @@
       + '<path d="M6 6l12 12M18 6L6 18"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'
       + '<path d="M4 12l16-8-6 8 6 8z"/></svg>',
+    clip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">'
+      + '<path d="M20 11.5l-7.8 7.8a4.6 4.6 0 01-6.5-6.5l8.2-8.2a3.1 3.1 0 014.4 4.4l-8.2 8.2a1.5 1.5 0 01-2.2-2.2l7.4-7.4"/></svg>',
+    file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">'
+      + '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/></svg>',
   };
 
+  /* Attachments. The bucket is private, so every file is fetched through a
+     signed URL — one round trip per panel-load, cached for the session. */
+  const FILE_OK  = /^(image\/(jpeg|png|webp|avif|gif|heic)|application\/pdf|video\/(mp4|quicktime|webm|3gpp))$/;
+  const FILE_MAX = 10 * 1024 * 1024;        // photos and documents
+  const VID_MAX  = 25 * 1024 * 1024;        // a short clip
+  const VID_SECS = 60;
+  const fileUrls = new Map();
+
+  /* Length is read from the file itself before anything is uploaded, so a long
+     clip costs the sender nothing but a moment. The server can only police the
+     size, which is why the size ceiling is the one that really holds. */
+  const videoSeconds = file => new Promise(resolve => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    const url = URL.createObjectURL(file);
+    const done = secs => { URL.revokeObjectURL(url); resolve(secs); };
+    v.onloadedmetadata = () => done(v.duration);
+    v.onerror = () => done(null);          // unreadable here; let the size rule decide
+    v.src = url;
+  });
+
+  const fileSize = n => n >= 1048576
+    ? (n / 1048576).toFixed(1) + ' MB'
+    : Math.max(1, Math.round(n / 1024)) + ' KB';
+
+  async function chatSignFiles(root) {
+    const need = [...root.querySelectorAll('[data-file]')]
+      .map(el => el.dataset.file).filter(p => !fileUrls.has(p));
+    if (need.length) {
+      const { data } = await db.storage.from('support-files')
+        .createSignedUrls([...new Set(need)], 3600);
+      (data || []).forEach(r => { if (r.signedUrl) fileUrls.set(r.path, r.signedUrl); });
+    }
+    root.querySelectorAll('[data-file]').forEach(el => {
+      const url = fileUrls.get(el.dataset.file);
+      if (!url) return;
+      if (el.tagName === 'IMG' || el.tagName === 'VIDEO') el.src = url; else el.href = url;
+    });
+  }
+
+  function chatFileHtml(m) {
+    if (!m.file_path) return '';
+    const name = esc(m.file_name || 'Attachment');
+    if ((m.file_type || '').startsWith('image/')) {
+      return `<a class="cfile cfile--img" data-file="${esc(m.file_path)}" target="_blank" rel="noopener">
+                <img data-file="${esc(m.file_path)}" alt="${name}" loading="lazy"/></a>`;
+    }
+    if ((m.file_type || '').startsWith('video/')) {
+      return `<video class="cfile--vid" data-file="${esc(m.file_path)}" controls preload="metadata"
+                playsinline></video>`;
+    }
+    return `<a class="cfile" data-file="${esc(m.file_path)}" target="_blank" rel="noopener">
+              ${CHAT_I.file}<span><b>${name}</b>${m.file_size ? '<i>' + fileSize(m.file_size) + '</i>' : ''}</span></a>`;
+  }
+
   const chat = {
-    el: null, list: null, thread: null, msgs: [], sub: null, open: false, poll: 0, me: null,
+    el: null, list: null, thread: null, msgs: [], sub: null, open: false, poll: 0, me: null, pending: null,
   };
 
   const chatTime = t => new Date(t).toLocaleTimeString('en-NG',
@@ -735,7 +794,8 @@
     chat.list.innerHTML = chat.msgs.length
       ? chat.msgs.map(m => `
           <div class="cmsg cmsg--${m.sender_role === 'staff' ? 'them' : 'me'}">
-            <div class="cmsg__b">${esc(m.body).replace(/\n/g, '<br/>')}</div>
+            ${chatFileHtml(m)}
+            ${m.body ? `<div class="cmsg__b">${esc(m.body).replace(/\n/g, '<br/>')}</div>` : ''}
             <div class="cmsg__t">${m.sender_role === 'staff' ? 'Rex-Giddoty Hubs · ' : ''}${chatTime(m.created_at)}</div>
           </div>`).join('')
       : `<div class="cempty">
@@ -745,6 +805,7 @@
          </div>`;
 
     if (atBottom || chat.msgs.length <= 1) chat.list.scrollTop = chat.list.scrollHeight;
+    chatSignFiles(chat.list);
   }
 
   async function chatLoad() {
@@ -755,7 +816,7 @@
 
     if (!chat.thread) { chat.msgs = []; chatRender(); return; }
     const { data: m } = await db.from('support_messages')
-      .select('id,body,sender_role,created_at')
+      .select('id,body,sender_role,created_at,file_path,file_name,file_type,file_size')
       .eq('thread_id', chat.thread).order('created_at').limit(200);
     chat.msgs = m || [];
     chatRender();
@@ -788,24 +849,91 @@
     await db.rpc('mark_support_read', { p_thread: chat.thread });
   }
 
+  /* Uploaded when it is picked rather than when Send is pressed, so a slow
+     connection does its waiting while the message is still being typed. */
+  async function chatAttach(file) {
+    const isVideo = file.type.startsWith('video/');
+    if (!FILE_OK.test(file.type)) { window.RG_TOAST('Photos, short videos and PDFs only'); return; }
+    if (file.size > (isVideo ? VID_MAX : FILE_MAX)) {
+      window.RG_TOAST(isVideo ? 'That video is over 25MB' : 'That file is over 10MB');
+      return;
+    }
+    if (isVideo) {
+      const secs = await videoSeconds(file);
+      if (secs && secs > VID_SECS + 1) {
+        window.RG_TOAST('Videos need to be under a minute');
+        return;
+      }
+    }
+
+    chat.pending = { name: file.name, size: file.size, type: file.type, path: null };
+    chatPaintPending('Uploading…');
+
+    if (!chat.thread) {
+      const { data, error } = await db.rpc('my_support_thread');
+      if (error) { chat.pending = null; chatPaintPending(); return window.RG_TOAST(error.message); }
+      chat.thread = data;
+      chatWatch();
+    }
+
+    const ext = (file.name.match(/\.[A-Za-z0-9]+$/) || [''])[0].toLowerCase();
+    const path = chat.thread + '/' + (crypto.randomUUID ? crypto.randomUUID() : Date.now()) + ext;
+    const { error } = await db.storage.from('support-files')
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (error) {
+      chat.pending = null; chatPaintPending();
+      return window.RG_TOAST(error.message || 'That did not upload');
+    }
+    chat.pending.path = path;
+    chatPaintPending();
+  }
+
+  function chatPaintPending(note) {
+    const box = chat.el && chat.el.querySelector('[data-chat-pending]');
+    if (!box) return;
+    if (!chat.pending) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = `${CHAT_I.file}
+      <span><b>${esc(chat.pending.name)}</b><i>${note || fileSize(chat.pending.size)}</i></span>
+      <button type="button" data-chat-drop aria-label="Remove">${CHAT_I.close}</button>`;
+    box.querySelector('[data-chat-drop]').onclick = () => { chat.pending = null; chatPaintPending(); };
+  }
+
   async function chatSend(input) {
     const body = input.value.trim();
-    if (!body) return;
+    const file = chat.pending && chat.pending.path ? chat.pending : null;
+    if (!body && !file) return;
+    if (chat.pending && !chat.pending.path) return window.RG_TOAST('Still uploading…');
+
     input.value = '';
     input.style.height = '';
+    chat.pending = null;
+    chatPaintPending();
 
     /* Shown straight away under its own temporary id. If the send fails it is
        taken back out, so the panel never claims to have sent something twice. */
-    const temp = { id: 'tmp-' + Date.now(), body, sender_role: 'customer', created_at: new Date().toISOString() };
+    const temp = {
+      id: 'tmp-' + Date.now(), body, sender_role: 'customer',
+      created_at: new Date().toISOString(),
+      file_path: file ? file.path : null, file_name: file ? file.name : null,
+      file_type: file ? file.type : null, file_size: file ? file.size : null,
+    };
     chat.msgs.push(temp);
     chatRender();
 
-    const { data, error } = await db.rpc('send_support_message', { p_body: body });
+    const { data, error } = await db.rpc('send_support_message', {
+      p_body: body,
+      p_file_path: file ? file.path : null,
+      p_file_name: file ? file.name : null,
+      p_file_type: file ? file.type : null,
+      p_file_size: file ? file.size : null,
+    });
     if (error) {
       chat.msgs = chat.msgs.filter(m => m.id !== temp.id);
       chatRender();
       window.RG_TOAST(error.message || 'That did not send');
       input.value = body;
+      if (file) { chat.pending = file; chatPaintPending(); }
       return;
     }
     if (!chat.thread) { chat.thread = data; chatWatch(); }
@@ -841,7 +969,11 @@
         </div>
         <div class="chat__body" data-chat-list></div>
         ${signedIn ? `
+          <div class="chat__pend" data-chat-pending hidden></div>
           <form class="chat__form" data-chat-form>
+            <input type="file" hidden data-chat-file
+              accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,application/pdf,video/mp4,video/quicktime,video/webm,video/3gpp"/>
+            <button type="button" class="chat__clip" data-chat-pick aria-label="Attach a file">${CHAT_I.clip}</button>
             <textarea rows="1" placeholder="Type a message…" maxlength="4000"
               aria-label="Message" data-chat-input></textarea>
             <button type="submit" aria-label="Send">${CHAT_I.send}</button>
@@ -889,6 +1021,14 @@
     input.oninput = () => {
       input.style.height = 'auto';
       input.style.height = Math.min(110, input.scrollHeight) + 'px';
+    };
+
+    const picker = el.querySelector('[data-chat-file]');
+    el.querySelector('[data-chat-pick]').onclick = () => picker.click();
+    picker.onchange = () => {
+      const f = picker.files && picker.files[0];
+      picker.value = '';          // so the same file can be picked twice running
+      if (f) chatAttach(f);
     };
 
     await chatLoad();

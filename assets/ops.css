@@ -221,3 +221,30 @@ select.inp{color-scheme:dark;}
   .sup__list{max-height:300px;}
   .sup__thread{height:70vh;}
 }
+
+/* attachments */
+.sfile{display:flex;align-items:center;gap:9px;padding:9px 11px;margin-bottom:5px;
+  background:var(--s2);border:1px solid var(--b);border-radius:10px;}
+.sfile:hover{border-color:rgba(255,255,255,.24);}
+.sfile svg{width:19px;height:19px;color:var(--sub);flex-shrink:0;}
+.sfile span{min-width:0;display:flex;flex-direction:column;gap:1px;}
+.sfile b{font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sfile i{font-style:normal;font-size:11px;color:var(--sub);}
+.sfile--img{padding:0;border:0;background:none;display:block;}
+.sfile--img img{width:auto;max-width:230px;max-height:260px;height:auto;border-radius:10px;
+  border:1px solid var(--b);background:var(--s2);display:block;}
+
+.thrpend{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-top:1px solid var(--b);background:var(--s2);flex-shrink:0;}
+/* display on a class outranks the browser's own [hidden] rule. */
+.thrpend[hidden]{display:none;}
+.thrpend svg{width:18px;height:18px;color:var(--sub);flex-shrink:0;}
+.thrpend span{flex:1;min-width:0;display:flex;flex-direction:column;}
+.thrpend b{font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.thrpend i{font-style:normal;font-size:11px;color:var(--sub);}
+
+.thrclip{padding:8px 10px;display:grid;place-items:center;flex-shrink:0;}
+.thrclip svg{width:19px;height:19px;}
+
+.sfile--vid{width:100%;max-width:260px;max-height:300px;border-radius:10px;
+  border:1px solid var(--b);background:#000;display:block;margin-bottom:5px;}
