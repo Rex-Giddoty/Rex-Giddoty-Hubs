@@ -249,6 +249,98 @@ const COLOURS = [
  *
  * One editor serves both, told apart by the id prefix it is handed.
  */
+/* ── size presets ──
+ * Conventional body measurements, not a standard: letter sizes vary by region,
+ * by garment and by brand, so these fill the table in one tap and are then
+ * yours to correct against what you actually stock. All in cm; the toggle
+ * converts.
+ *
+ * Ranges are written with an en dash and survive conversion, because every
+ * number in a cell is converted rather than the cell being parsed as one.
+ */
+const SIZE_PRESETS = [
+  { name: "Women's tops", columns: ['Bust', 'Waist', 'Hip'], rows: [
+      ['XS', '78–82', '60–64', '84–88'],
+      ['S',  '82–86', '64–68', '88–92'],
+      ['M',  '86–92', '68–74', '92–98'],
+      ['L',  '92–98', '74–80', '98–104'],
+      ['XL', '98–106', '80–88', '104–112'],
+      ['XXL','106–114','88–96', '112–120'],
+  ], note: 'Body measurements. Measure over light clothing, tape snug but not tight.' },
+
+  { name: "Men's tops", columns: ['Chest', 'Waist', 'Sleeve'], rows: [
+      ['S',  '88–96',  '76–84',  '60'],
+      ['M',  '96–104', '84–92',  '62'],
+      ['L',  '104–112','92–100', '64'],
+      ['XL', '112–120','100–108','66'],
+      ['XXL','120–128','108–116','68'],
+      ['3XL','128–136','116–124','70'],
+  ], note: 'Body measurements. Measure around the fullest part of the chest.' },
+
+  { name: 'Trousers & jeans', columns: ['Waist', 'Hip', 'Inside leg'], rows: [
+      ['28', '71–74', '89–92',  '76'],
+      ['30', '76–79', '94–97',  '78'],
+      ['32', '81–84', '99–102', '79'],
+      ['34', '86–89', '104–107','81'],
+      ['36', '91–94', '109–112','81'],
+      ['38', '96–99', '114–117','82'],
+  ], note: 'Waist sizes in inches on the label; measurements here are the body in cm.' },
+
+  { name: 'Shoes', columns: ['UK', 'US', 'Foot length'], rows: [
+      ['38', '5',  '6',  '24.0'],
+      ['39', '6',  '7',  '24.5'],
+      ['40', '6.5','7.5','25.5'],
+      ['41', '7.5','8.5','26.0'],
+      ['42', '8',  '9',  '26.5'],
+      ['43', '9',  '10', '27.5'],
+      ['44', '9.5','10.5','28.0'],
+      ['45', '10.5','11.5','28.5'],
+  ], note: 'EU size in the first column. Measure your foot heel to longest toe.' },
+
+  { name: 'Kids (age)', columns: ['Height', 'Chest', 'Waist'], rows: [
+      ['2–3y',  '92–98',   '52–54', '51–52'],
+      ['4–5y',  '104–110', '56–58', '53–54'],
+      ['6–7y',  '116–122', '60–62', '55–57'],
+      ['8–9y',  '128–134', '64–67', '58–60'],
+      ['10–11y','140–146', '69–73', '61–64'],
+  ], note: 'By age, with height as the better guide where they differ.' },
+];
+
+function applyPreset(p, i) {
+  const preset = SIZE_PRESETS[i];
+  const g = guideState(p);
+  if (g.rows.length && !confirm(`Replace the table with the ${preset.name} chart?`)) return;
+  g.kind = 'table';
+  g.units = 'cm';
+  g.columns = preset.columns.slice();
+  g.rows = preset.rows.map(r => r.slice());
+  if (!g.note) g.note = preset.note;
+  renderGuide(p);
+}
+
+/* Converts every number it finds and leaves the rest of the cell alone, so
+   "86–92" and "8.5" and "2–3y" all survive. Rounding differs by direction:
+   centimetres are whole numbers, inches want a decimal to stay useful. */
+const CM_PER_IN = 2.54;
+function convertCells(rows, from, to) {
+  if (from === to) return rows;
+  const f = n => to === 'in' ? (n / CM_PER_IN).toFixed(1).replace(/\.0$/, '')
+                             : String(Math.round(n * CM_PER_IN));
+  return rows.map((r, ri) => r.map((cell, ci) =>
+    /* The first column is the size name — "3XL", "10–11y", "38" — and is not a
+       measurement, so it is never touched. */
+    ci === 0 ? cell
+      : String(cell).replace(/\d+(\.\d+)?/g, m => f(parseFloat(m)))));
+}
+
+function setGuideUnits(p, u) {
+  const g = guideState(p);
+  if (g.units === u) return;
+  g.rows = convertCells(g.rows, g.units, u);
+  g.units = u;
+  renderGuide(p);
+}
+
 const GUIDE = {};                    // prefix → working copy
 
 function guideState(p) {
@@ -303,6 +395,11 @@ function renderGuide(p) {
         hidden onchange="uploadGuideImage('${p}', this)"/>`;
   } else if (g.kind === 'table') {
     body = `
+      <div class="gpresets">
+        <span>Start from</span>
+        ${SIZE_PRESETS.map((x, i) =>
+          `<button type="button" class="chip" onclick="applyPreset('${p}', ${i})">${x.name}</button>`).join('')}
+      </div>
       <div class="gunits">
         Measurements in
         <button type="button" class="chip ${g.units === 'cm' ? 'chip--on' : ''}" onclick="setGuideUnits('${p}','cm')">cm</button>
@@ -335,7 +432,6 @@ function renderGuide(p) {
 }
 
 function setGuideKind(p, k) { guideState(p).kind = k; if (k === 'table' && !GUIDE[p].rows.length) addGuideRow(p); else renderGuide(p); }
-function setGuideUnits(p, u) { guideState(p).units = u; renderGuide(p); }
 function addGuideRow(p) { const g = guideState(p); g.rows.push(new Array(g.columns.length + 1).fill('')); renderGuide(p); }
 function removeGuideRow(p, i) { guideState(p).rows.splice(i, 1); renderGuide(p); }
 function addGuideCol(p) {

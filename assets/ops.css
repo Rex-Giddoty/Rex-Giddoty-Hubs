@@ -315,3 +315,7 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
   border-radius:8px;padding:6px 12px;font-size:12.5px;cursor:pointer;}
 .gtab--on{color:var(--text);border-color:var(--accent);}
 .gunits{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--sub);margin-bottom:10px;}
+
+/* preset charts above the size-guide table */
+.gpresets{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.gpresets span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);}

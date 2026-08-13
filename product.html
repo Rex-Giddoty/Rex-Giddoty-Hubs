@@ -118,39 +118,73 @@ function colourSpec(p) {
   return names.length ? 'Colour: ' + names.join(', ') : '';
 }
 
-/* A guide is either a chart somebody drew or measurements somebody typed. */
+/* A guide is either a chart somebody drew or measurements somebody typed.
+   A typed one gets a cm/inch switch, because a shopper with a tape measure has
+   whichever one they have and should not be doing the arithmetic. */
+const CM_PER_IN = 2.54;
+let _guide = null, _gunits = null;
+
+/* Converts every number it finds and leaves the rest alone, so "86–92" and
+   "8.5" and "2–3y" all survive. The size column is a name, never a
+   measurement, so it is not touched. */
+function convertRow(row, from, to) {
+  if (from === to) return row;
+  const f = n => to === 'in' ? (n / CM_PER_IN).toFixed(1).replace(/\.0$/, '')
+                             : String(Math.round(n * CM_PER_IN));
+  return row.map((cell, i) => i === 0 ? cell
+    : String(cell).replace(/\d+(\.\d+)?/g, m => f(parseFloat(m))));
+}
+
 function paintGuide(guide, name) {
   const body = document.getElementById('guide-body');
   document.getElementById('guide-title').textContent = 'Size guide — ' + name;
+  _guide = guide;
 
   if (guide.kind === 'image' && guide.image_path) {
-    body.innerHTML = `<img class="gchart" src="${esc(IMG(guide.image_path))}" alt="Size guide"/>`;
-  } else if (guide.kind === 'table' && (guide.rows || []).length) {
-    const unit = guide.units ? ' (' + esc(guide.units) + ')' : '';
-    body.innerHTML = '<div class="gscroll"><table class="gtable">'
-      + '<thead><tr><th>Size</th>'
-      + (guide.columns || []).map(c => '<th>' + esc(c) + unit + '</th>').join('')
-      + '</tr></thead><tbody>'
-      + guide.rows.map(r => '<tr>' + r.map((cell, i) =>
-          i === 0 ? '<th>' + esc(cell) + '</th>' : '<td>' + esc(cell || '—') + '</td>').join('') + '</tr>').join('')
-      + '</tbody></table></div>';
-  } else {
-    return;                         // nothing usable, so no link is offered
+    body.innerHTML = `<img class="gchart" src="${esc(IMG(guide.image_path))}" alt="Size guide"/>`
+      + (guide.note ? `<p class="gnote">${esc(guide.note)}</p>` : '');
+    document.getElementById('guide-open').style.display = '';
+    return placeGuideLink();
   }
-  if (guide.note) {
-    body.insertAdjacentHTML('beforeend', '<p class="gnote">' + esc(guide.note) + '</p>');
-  }
+  if (!(guide.kind === 'table' && (guide.rows || []).length)) return;
 
+  _gunits = guide.units || 'cm';
+  drawGuideTable();
+  document.getElementById('guide-open').style.display = '';
+  placeGuideLink();
+}
+
+function drawGuideTable() {
+  const g = _guide;
+  const rows = g.rows.map(r => convertRow(r, g.units || 'cm', _gunits));
+  const unit = ' (' + _gunits + ')';
+  const btn = u => `<button class="gunit ${_gunits === u ? 'on' : ''}"
+    onclick="setGuideUnit('${u}')">${u === 'cm' ? 'cm' : 'inches'}</button>`;
+
+  document.getElementById('guide-body').innerHTML =
+      `<div class="gunits">${btn('cm')}${btn('in')}</div>`
+    + '<div class="gscroll"><table class="gtable"><thead><tr><th>Size</th>'
+    + (g.columns || []).map(c => '<th>' + esc(c) + unit + '</th>').join('')
+    + '</tr></thead><tbody>'
+    + rows.map(r => '<tr>' + r.map((cell, i) =>
+        i === 0 ? '<th>' + esc(cell) + '</th>' : '<td>' + esc(cell || '—') + '</td>').join('') + '</tr>').join('')
+    + '</tbody></table></div>'
+    + (g.note ? '<p class="gnote">' + esc(g.note) + '</p>' : '');
+}
+
+/* Always converted from what was stored, never from what is on screen, so
+   switching back and forth cannot drift the numbers. */
+function setGuideUnit(u) { _gunits = u; drawGuideTable(); }
+
+function placeGuideLink() {
   const link = document.getElementById('guide-open');
-  link.style.display = '';
   /* The link lives beside the size row, which hides itself for a one-size item
      — so a guide on such an item gets its own place to be opened from. */
   if (document.getElementById('opt-wrap').style.display === 'none') {
     document.getElementById('col-wrap').insertAdjacentElement('afterend', link);
     link.classList.add('guidelink--solo');
   }
-}
-const slug = new URLSearchParams(location.search).get('slug');
+}const slug = new URLSearchParams(location.search).get('slug');
 let _p = null, _v = null, _qty = 1;
 
 (async () => {
