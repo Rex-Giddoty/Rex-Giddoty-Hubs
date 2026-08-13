@@ -29,6 +29,7 @@
         <option value="name">Name A–Z</option>
       </select>
       <div class="chips" id="subcats" style="display:none;"></div>
+      <div class="swatches" id="colfilter" style="display:none;flex-basis:100%;"></div>
     </div>
 
     <div class="sect" style="margin-top:8px;">
@@ -49,7 +50,17 @@ const db = window.RG_DB, esc = window.RG_ESC;
 const P = new URLSearchParams(location.search);
 const catSlug = P.get('category'), isNew = P.get('new') === '1',
       isDeals = P.get('deals') === '1', q = (P.get('q') || '').trim();
-const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,brand,rating_avg,rating_count,created_at,product_images(path,position),product_variants(id,stock)';
+const SWATCH = {
+  black:'#1b1b1b', white:'#ffffff', 'off-white':'#f2ece1', grey:'#8b8b90', gray:'#8b8b90',
+  brown:'#6b4423', tan:'#c19a6b', sand:'#dfcfb0', red:'#c62828', wine:'#6d1b2e',
+  pink:'#e59bb7', orange:'#e07b25', yellow:'#e3b829', green:'#2f7d46', blue:'#1f4e9c',
+  navy:'#1b2a4a', purple:'#9030d0', gold:'#c9a227', silver:'#c0c4c9',
+  multicolour:'linear-gradient(135deg,#c62828,#e3b829,#2f7d46,#1f4e9c)',
+};
+const swatchFor = c => SWATCH[String(c || '').trim().toLowerCase()]
+  || 'linear-gradient(135deg,#c9c9c9,#9a9a9a)';
+
+const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,brand,rating_avg,rating_count,created_at,product_images(path,position,color),product_variants(id,stock,color)';
 let _items = [];
 
 (async () => {
@@ -105,11 +116,11 @@ let _items = [];
   } else {
     query = db.from('products').select(SEL).eq('status','published');
   }
-  /* Search across name, brand, description and colour — ilike keeps it simple and the
+  /* Search across name, brand and description — ilike keeps it simple and the
      catalogue is small enough that a full-text index would be premature. */
   if (q) {
     const safe = q.replace(/[%,()]/g, ' ');
-    query = query.or(`name.ilike.%${safe}%,brand.ilike.%${safe}%,description.ilike.%${safe}%,color.ilike.%${safe}%`);
+    query = query.or(`name.ilike.%${safe}%,brand.ilike.%${safe}%,description.ilike.%${safe}%`);
   }
 
   const { data, error } = await query.limit(200);
@@ -119,8 +130,37 @@ let _items = [];
   }
   _items = data || [];
   if (isDeals) _items = _items.filter(p => p.compare_at_minor && p.compare_at_minor > p.price_minor);
+  paintColourFilter();
   render();
 })();
+
+/* Only the colours actually on this shelf, so the row never offers a colour
+   that would return nothing. Hidden entirely when nothing here has one. */
+let _colour = '';
+
+function paintColourFilter() {
+  const found = [];
+  for (const p of _items) {
+    for (const v of (p.product_variants || [])) {
+      if (v.color && !found.includes(v.color)) found.push(v.color);
+    }
+  }
+  found.sort((a, b) => a.localeCompare(b));
+  const box = document.getElementById('colfilter');
+  if (found.length < 2) { box.style.display = 'none'; return; }
+
+  box.style.display = '';
+  box.innerHTML = ['', ...found].map(c =>
+    '<button class="swatchbtn ' + (c === _colour ? 'on' : '') + '" data-c="' + esc(c) + '">'
+    + (c ? '<i style="background:' + swatchFor(c) + '"></i>' : '')
+    + (c ? esc(c) : 'All colours') + '</button>').join('');
+
+  box.querySelectorAll('button').forEach(b => b.onclick = () => {
+    _colour = b.dataset.c;
+    paintColourFilter();
+    render();
+  });
+}
 
 function setHead(t, s) {
   document.getElementById('title').textContent = t;
@@ -133,7 +173,10 @@ function render() {
   const sort = document.getElementById('sort').value;
   const off = p => (p.compare_at_minor && p.compare_at_minor > p.price_minor)
     ? 1 - p.price_minor / p.compare_at_minor : 0;
-  const list = _items.slice().sort((a,b) => {
+  const shown = _colour
+    ? _items.filter(p => (p.product_variants || []).some(v => v.color === _colour))
+    : _items;
+  const list = shown.slice().sort((a,b) => {
     if (sort === 'low')  return a.price_minor - b.price_minor;
     if (sort === 'high') return b.price_minor - a.price_minor;
     if (sort === 'name') return a.name.localeCompare(b.name);

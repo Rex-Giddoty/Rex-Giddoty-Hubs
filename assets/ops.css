@@ -264,3 +264,47 @@ select.inp{color-scheme:dark;}
    against the dark console. */
 .chip i{width:14px;height:14px;border-radius:50%;flex-shrink:0;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);}
+
+/* ── colour × size stock grid, and the size-guide editor ── */
+.gridwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;
+  border:1px solid var(--b);border-radius:10px;}
+.stockgrid{width:100%;min-width:0;border-collapse:separate;border-spacing:0;}
+.stockgrid th,.stockgrid td{padding:8px 9px;border-bottom:1px solid var(--b);
+  border-right:1px solid var(--b);vertical-align:middle;white-space:nowrap;}
+.stockgrid tr:last-child th,.stockgrid tr:last-child td{border-bottom:0;}
+.stockgrid th:last-child,.stockgrid td:last-child{border-right:0;}
+.stockgrid thead th{background:var(--s2);font-size:11px;text-transform:none;letter-spacing:0;}
+/* The colour column stays put while the sizes scroll sideways — without it you
+   lose track of which row you are typing into. */
+.stockgrid .sticky{position:sticky;left:0;z-index:2;background:var(--s1);
+  min-width:132px;text-align:left;font-weight:500;}
+.stockgrid thead .sticky{background:var(--s2);}
+/* Stacked, not side by side: a header cell holds the size and its price
+   override, and inline they fight for the same line. */
+.inp--mini{padding:5px 8px;font-size:12.5px;min-width:96px;display:block;}
+.stockgrid thead th .inp--mini + .inp--mini{margin-top:5px;}
+.inp--cell{padding:6px 8px;font-size:13px;width:70px;text-align:center;}
+.linkx{background:none;border:0;color:var(--sub);font-size:10.5px;cursor:pointer;
+  padding:2px 0 0;text-decoration:underline;display:block;}
+.linkx:hover{color:var(--red);}
+.swatch{display:inline-block;width:13px;height:13px;border-radius:50%;
+  margin-right:6px;vertical-align:middle;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);}
+
+/* media grouped by colour */
+.uprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;
+  padding:9px 11px;background:var(--s2);border:1px solid var(--b);border-radius:9px;}
+.uprow__l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);}
+.uprow .chips{margin-top:0;}
+.mgroup + .mgroup{margin-top:14px;padding-top:14px;border-top:1px solid var(--b);}
+.mgroup__h{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:12.5px;}
+.mgroup__h .muted{margin-left:2px;}
+.mgroup__on{margin-left:auto;font-size:10.5px;color:var(--green);
+  text-transform:uppercase;letter-spacing:.06em;}
+figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);color:#fff;
+  font-size:8.5px;font-weight:700;letter-spacing:.06em;padding:2px 5px;border-radius:3px;}
+
+.gtabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.gtab{background:var(--s2);border:1px solid var(--b);color:var(--sub);
+  border-radius:8px;padding:6px 12px;font-size:12.5px;cursor:pointer;}
+.gtab--on{color:var(--text);border-color:var(--accent);}
+.gunits{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--sub);margin-bottom:10px;}

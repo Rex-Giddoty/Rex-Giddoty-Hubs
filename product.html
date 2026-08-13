@@ -33,8 +33,17 @@
         </div>
         <div class="note" id="p-stock" style="margin-top:6px;"></div>
 
+        <div id="col-wrap" style="display:none;margin-top:14px;">
+          <div style="font-size:13px;font-weight:600;">Colour</div>
+          <div class="swatches" id="cols"></div>
+        </div>
+
         <div id="opt-wrap" style="display:none;margin-top:14px;">
-          <div style="font-size:13px;font-weight:600;" id="opt-label">Size</div>
+          <div class="optrow">
+            <div style="font-size:13px;font-weight:600;" id="opt-label">Size</div>
+            <button class="guidelink" id="guide-open" style="display:none;"
+              onclick="document.getElementById('guide-modal').classList.add('on')">Size guide</button>
+          </div>
           <div class="opt" id="opts"></div>
         </div>
 
@@ -70,6 +79,16 @@
   </section>
 </div>
 
+<div class="gmodal" id="guide-modal" onclick="if(event.target===this)this.classList.remove('on')">
+  <div class="gmodal__card">
+    <div class="gmodal__h">
+      <b id="guide-title">Size guide</b>
+      <button onclick="document.getElementById('guide-modal').classList.remove('on')" aria-label="Close">✕</button>
+    </div>
+    <div id="guide-body"></div>
+  </div>
+</div>
+
 <footer class="foot" data-foot></footer>
 <nav class="tabbar" data-tabbar></nav>
 
@@ -78,6 +97,59 @@
 <script src="/assets/site.js"></script>
 <script>
 const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG;
+
+/* The same palette the ops editor offers, so a colour tapped there shows the
+   same dot here. Anything typed by hand gets a neutral one rather than nothing. */
+const SWATCH = {
+  black:'#1b1b1b', white:'#ffffff', 'off-white':'#f2ece1', grey:'#8b8b90', gray:'#8b8b90',
+  brown:'#6b4423', tan:'#c19a6b', sand:'#dfcfb0', red:'#c62828', wine:'#6d1b2e',
+  pink:'#e59bb7', orange:'#e07b25', yellow:'#e3b829', green:'#2f7d46', blue:'#1f4e9c',
+  navy:'#1b2a4a', purple:'#9030d0', gold:'#c9a227', silver:'#c0c4c9',
+  multicolour:'linear-gradient(135deg,#c62828,#e3b829,#2f7d46,#1f4e9c)',
+};
+const swatchFor = c => SWATCH[String(c || '').trim().toLowerCase()]
+  || 'linear-gradient(135deg,#c9c9c9,#9a9a9a)';
+
+/* The specifications block still names the colours, read off the variants
+   rather than a field of their own — one source of truth. */
+function colourSpec(p) {
+  const names = [...new Set((p.product_variants || [])
+    .filter(v => v.is_active && v.color).map(v => v.color))];
+  return names.length ? 'Colour: ' + names.join(', ') : '';
+}
+
+/* A guide is either a chart somebody drew or measurements somebody typed. */
+function paintGuide(guide, name) {
+  const body = document.getElementById('guide-body');
+  document.getElementById('guide-title').textContent = 'Size guide — ' + name;
+
+  if (guide.kind === 'image' && guide.image_path) {
+    body.innerHTML = `<img class="gchart" src="${esc(IMG(guide.image_path))}" alt="Size guide"/>`;
+  } else if (guide.kind === 'table' && (guide.rows || []).length) {
+    const unit = guide.units ? ' (' + esc(guide.units) + ')' : '';
+    body.innerHTML = '<div class="gscroll"><table class="gtable">'
+      + '<thead><tr><th>Size</th>'
+      + (guide.columns || []).map(c => '<th>' + esc(c) + unit + '</th>').join('')
+      + '</tr></thead><tbody>'
+      + guide.rows.map(r => '<tr>' + r.map((cell, i) =>
+          i === 0 ? '<th>' + esc(cell) + '</th>' : '<td>' + esc(cell || '—') + '</td>').join('') + '</tr>').join('')
+      + '</tbody></table></div>';
+  } else {
+    return;                         // nothing usable, so no link is offered
+  }
+  if (guide.note) {
+    body.insertAdjacentHTML('beforeend', '<p class="gnote">' + esc(guide.note) + '</p>');
+  }
+
+  const link = document.getElementById('guide-open');
+  link.style.display = '';
+  /* The link lives beside the size row, which hides itself for a one-size item
+     — so a guide on such an item gets its own place to be opened from. */
+  if (document.getElementById('opt-wrap').style.display === 'none') {
+    document.getElementById('col-wrap').insertAdjacentElement('afterend', link);
+    link.classList.add('guidelink--solo');
+  }
+}
 const slug = new URLSearchParams(location.search).get('slug');
 let _p = null, _v = null, _qty = 1;
 
@@ -87,7 +159,7 @@ let _p = null, _v = null, _qty = 1;
   if (!slug) return notFound();
 
   const { data: p } = await db.from('products')
-    .select('id,slug,name,subtitle,description,details,material,color,brand,badge,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,product_images(path,position),product_variants(id,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug))')
+    .select('id,slug,name,subtitle,description,details,material,brand,badge,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,size_guide,product_images(path,position,color),product_variants(id,color,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug,size_guide))')
     .eq('slug', slug).eq('status','published').maybeSingle();
   if (!p) return notFound();
 
@@ -102,6 +174,7 @@ let _p = null, _v = null, _qty = 1;
   const isVid = window.RG_IS_VIDEO;
   const media = (p.product_images || []).sort((a,b)=>a.position-b.position);
   const big = document.getElementById('gal-big');
+  let _shown = media;
 
   /* #t=0.1 makes the browser seek a hundredth of the way in and paint that
      frame. Without it a video waiting to be played is a black rectangle. */
@@ -111,23 +184,6 @@ let _p = null, _v = null, _qty = 1;
       : `<img id="big-img" src="${esc(IMG(m.path))}" alt="${esc(p.name)}"/>`;
   };
 
-  if (media.length) showBig(media[0]);
-  else big.innerHTML = '<div class="skeleton" style="width:100%;height:100%;"></div>';
-
-  document.getElementById('gal-thumbs').innerHTML = media.length > 1
-    ? media.map((m,i) => isVid(m.path)
-        ? `<span class="gal__vid ${i?'':'on'}" data-i="${i}">
-             <video src="${esc(IMG(m.path))}#t=0.1" muted preload="metadata"></video>
-             <b>▶</b></span>`
-        : `<img src="${esc(IMG(m.path))}" class="${i?'':'on'}" data-i="${i}" alt=""/>`).join('')
-    : '';
-
-  document.querySelectorAll('.gal__thumbs [data-i]').forEach(t => t.onclick = () => {
-    showBig(media[Number(t.dataset.i)]);
-    document.querySelectorAll('.gal__thumbs [data-i]').forEach(x => x.classList.remove('on'));
-    t.classList.add('on');
-  });
-
   const cat = (p.product_categories || [])[0]?.categories;
   document.getElementById('p-brand').textContent = p.brand || (cat ? cat.name : '');
   document.getElementById('p-name').textContent = p.name;
@@ -136,7 +192,7 @@ let _p = null, _v = null, _qty = 1;
   const dbox = document.getElementById('details-box');
   const spec = [
     p.material ? 'Material: ' + p.material : '',
-    p.color ? 'Colour: ' + p.color : '',
+    colourSpec(p),
     p.details || '',
   ].filter(Boolean).join('\n\n');
   if (spec) document.getElementById('p-details').textContent = spec;
@@ -155,25 +211,105 @@ let _p = null, _v = null, _qty = 1;
     (free ? `, free on orders over ${M.fmt(free, p.currency)}.` : '.') +
     '\n\n' + (s.payment_instructions || 'Payment is confirmed before dispatch.');
 
+  /* ── colour and size ──
+   * A variant is a (colour, size) pair. The colour picks the photographs and
+   * narrows the sizes; the size picks the variant that goes in the cart.
+   * A colour of null is "Default" — the item that does not come in colours, and
+   * the only option for everything that predates this. */
   const vs = (p.product_variants || []).filter(v => v.is_active).sort((a,b)=>a.position-b.position);
-  const meaningful = vs.length > 1 || (vs[0] && String(vs[0].option_value).toLowerCase() !== 'one size');
-  if (meaningful) {
-    document.getElementById('opt-wrap').style.display = '';
-    document.getElementById('opt-label').textContent = vs[0]?.option_name || 'Size';
-    document.getElementById('opts').innerHTML = vs.map(v =>
-      `<button data-v="${v.id}" ${v.stock<=0?'disabled':''} aria-pressed="false">${esc(v.option_value)}</button>`).join('');
-    document.querySelectorAll('#opts button').forEach(b => b.onclick = () => {
-      document.querySelectorAll('#opts button').forEach(x => x.setAttribute('aria-pressed','false'));
-      b.setAttribute('aria-pressed','true');
-      pick(vs.find(v => v.id === b.dataset.v));
+
+  const colours = [];
+  for (const v of vs) {
+    const c = v.color || '';
+    if (!colours.some(x => x === c)) colours.push(c);
+  }
+  /* Only worth showing when there is a choice to make. An item that is Default
+     and nothing else looks exactly as it did before colours existed. */
+  const hasColours = colours.filter(c => c !== '').length > 0;
+  let _colour = hasColours
+    ? (colours.find(c => vs.some(v => (v.color || '') === c && v.stock > 0)) ?? colours[0])
+    : '';
+
+  const sizesFor = c => vs.filter(v => (v.color || '') === c);
+
+  function paintColours() {
+    const wrap = document.getElementById('col-wrap');
+    if (!hasColours) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    document.getElementById('cols').innerHTML = colours.map(c => {
+      const left = sizesFor(c).reduce((n, v) => n + (v.stock || 0), 0);
+      const label = c === '' ? 'Default' : c;
+      return `<button class="swatchbtn ${c === _colour ? 'on' : ''}" data-c="${esc(c)}"
+        ${left <= 0 ? 'disabled' : ''} aria-pressed="${c === _colour}" title="${esc(label)}">
+        <i style="background:${swatchFor(c)}"></i>${esc(label)}</button>`;
+    }).join('');
+    document.querySelectorAll('#cols button').forEach(b => b.onclick = () => {
+      _colour = b.dataset.c;
+      paintColours(); paintSizes(); paintGallery();
     });
   }
-  const inStock = vs.find(v => v.stock > 0);
-  pick(inStock || vs[0] || null);
-  if (inStock && meaningful) {
-    const b = document.querySelector(`#opts button[data-v="${inStock.id}"]`);
-    if (b) b.setAttribute('aria-pressed','true');
+
+  function paintSizes() {
+    const mine = sizesFor(_colour);
+    /* "One Size" on its own is not a choice, so it is not offered as one. */
+    const meaningful = mine.length > 1
+      || (mine[0] && String(mine[0].option_value).toLowerCase() !== 'one size');
+    const wrap = document.getElementById('opt-wrap');
+    wrap.style.display = meaningful ? '' : 'none';
+
+    if (meaningful) {
+      document.getElementById('opt-label').textContent = mine[0]?.option_name || 'Size';
+      document.getElementById('opts').innerHTML = mine.map(v =>
+        `<button data-v="${v.id}" ${v.stock <= 0 ? 'disabled' : ''} aria-pressed="false">${esc(v.option_value)}</button>`).join('');
+      document.querySelectorAll('#opts button').forEach(b => b.onclick = () => {
+        document.querySelectorAll('#opts button').forEach(x => x.setAttribute('aria-pressed','false'));
+        b.setAttribute('aria-pressed','true');
+        pick(mine.find(v => v.id === b.dataset.v));
+      });
+    }
+    const inStock = mine.find(v => v.stock > 0);
+    pick(inStock || mine[0] || null);
+    if (inStock && meaningful) {
+      const b = document.querySelector(`#opts button[data-v="${inStock.id}"]`);
+      if (b) b.setAttribute('aria-pressed','true');
+    }
   }
+
+  /* Photographs of the chosen colour, plus the item's general photography.
+     A colour with no pictures of its own therefore still shows something. */
+  function mediaFor(c) {
+    const own = media.filter(m => (m.color || '') === c && c !== '');
+    const general = media.filter(m => !(m.color || ''));
+    return own.length ? own.concat(general) : (general.length ? general : media);
+  }
+
+  function paintGallery() {
+    const list = hasColours ? mediaFor(_colour) : media;
+    _shown = list;
+    if (list.length) showBig(list[0]);
+    else big.innerHTML = '<div class="skeleton" style="width:100%;height:100%;"></div>';
+
+    document.getElementById('gal-thumbs').innerHTML = list.length > 1
+      ? list.map((m,i) => isVid(m.path)
+          ? `<span class="gal__vid ${i?'':'on'}" data-i="${i}">
+               <video src="${esc(IMG(m.path))}#t=0.1" muted preload="metadata"></video>
+               <b>▶</b></span>`
+          : `<img src="${esc(IMG(m.path))}" class="${i?'':'on'}" data-i="${i}" alt=""/>`).join('')
+      : '';
+
+    document.querySelectorAll('.gal__thumbs [data-i]').forEach(t => t.onclick = () => {
+      showBig(_shown[Number(t.dataset.i)]);
+      document.querySelectorAll('.gal__thumbs [data-i]').forEach(x => x.classList.remove('on'));
+      t.classList.add('on');
+    });
+  }
+
+  paintColours(); paintSizes(); paintGallery();
+
+  /* ── size guide ── */
+  const guide = p.size_guide || (p.product_categories || [])
+    .map(pc => pc.categories && pc.categories.size_guide).find(Boolean);
+  if (guide) paintGuide(guide, p.name);
 
   const { data: more } = await db.from('products')
     .select('id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,product_images(path,position),product_variants(id,stock)')

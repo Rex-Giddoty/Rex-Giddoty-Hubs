@@ -186,7 +186,7 @@
         <input type="file" id="p-image-file" accept="image/*" multiple style="display:none;" onchange="uploadImages(this)"/>
       </div>
       <div class="full">
-        <label class="f">Sizes &amp; stock</label>
+        <label class="f">Colour, size &amp; stock</label>
         <div id="p-variants"></div>
         <button class="btn btn--sm" onclick="addVariantRow()" style="margin-top:4px;">+ Add size</button>
       </div>
@@ -355,7 +355,7 @@ function renderCategories() {
 /* ── products ── */
 async function loadProducts() {
   const { data, error } = await db.from('products')
-    .select('*, product_images(id,path,position), product_variants(id,option_name,option_value,price_minor,stock,position), product_categories(category_id)')
+    .select('*, product_images(id,path,position,color), product_variants(id,color,option_name,option_value,price_minor,stock,position), product_categories(category_id)')
     .order('created_at', { ascending: false });
   if (error) return toast(error.message, true);
   _products = (data || []).map(p => ({
@@ -473,14 +473,15 @@ async function uploadImages(input) {
 function renderVariants() {
   document.getElementById('p-variants').innerHTML = _pVariants.map((v, i) => `
     <div class="variant">
-      <input class="inp" style="max-width:110px;" value="${esc(v.option_name || 'Size')}" oninput="_pVariants[${i}].option_name=this.value" placeholder="Size"/>
+      <input class="inp" style="max-width:110px;" value="${esc(v.color || '')}" oninput="_pVariants[${i}].color=this.value" placeholder="Colour"/>
+      <input class="inp" style="max-width:100px;" value="${esc(v.option_name || 'Size')}" oninput="_pVariants[${i}].option_name=this.value" placeholder="Size"/>
       <input class="inp" value="${esc(v.option_value || '')}" oninput="_pVariants[${i}].option_value=this.value" placeholder="One Size"/>
       <input class="inp" style="max-width:96px;" type="number" min="0" value="${v.stock ?? 0}" oninput="_pVariants[${i}].stock=parseInt(this.value||'0',10)" placeholder="Stock"/>
       <input class="inp" style="max-width:120px;" inputmode="decimal" value="${v.price_minor != null ? M.toMajor(v.price_minor) : ''}" oninput="_pVariants[${i}]._price=this.value" placeholder="Price override"/>
       <button class="btn btn--sm btn--danger" onclick="_pVariants.splice(${i},1);renderVariants();">×</button>
     </div>`).join('');
 }
-function addVariantRow(){ _pVariants.push({ option_name:'Size', option_value:'', stock:0, price_minor:null }); renderVariants(); }
+function addVariantRow(){ _pVariants.push({ color:'', option_name:'Size', option_value:'', stock:0, price_minor:null }); renderVariants(); }
 
 async function saveProduct() {
   const name = document.getElementById('p-name').value.trim();
@@ -537,6 +538,7 @@ async function saveProduct() {
     const v = _pVariants[i];
     const body = {
       product_id: pid,
+      color: String(v.color || '').trim() || null,
       option_name: (v.option_name || 'Size').trim() || 'Size',
       option_value: (v.option_value || 'One Size').trim() || 'One Size',
       stock: Math.max(0, parseInt(v.stock || 0, 10)),

@@ -49,6 +49,13 @@
             it is cropped to fill, so keep the subject near the middle.
           </div>
         </div>
+        <div class="full"><label class="f">Size guide</label>
+          <div id="c-guide"></div>
+          <div class="muted" style="font-size:12px;margin-top:6px;">
+            Every item in this category shows this, unless the item carries one
+            of its own.
+          </div>
+        </div>
         <div class="full"><label class="f">Description</label><textarea class="inp" id="c-description"></textarea></div>
         <div><label class="f">Position</label><input class="inp" id="c-position" type="number" value="0"/></div>
         <div><label class="f">Visible</label>
@@ -90,11 +97,17 @@
     <div class="card">
       <h3 style="margin-bottom:6px;">Photos &amp; video</h3>
       <div class="muted" style="font-size:12px;margin-bottom:12px;">
-        The first photo is the one shoppers see in listings. You can add one or
-        more short clips too — up to a minute, 25 MB — and they play on the
-        product page beside the photos.
+        Pick the colour first, then upload — the photos are filed under it and
+        the shopper sees them when they choose that colour. <b>Default</b> is the
+        item's general photography, shown whatever they pick. The first photo of
+        all is the one that appears in listings. Short clips work too, up to a
+        minute and 25 MB.
       </div>
-      <div class="gal" id="i-images"></div>
+      <div class="uprow">
+        <span class="uprow__l">Uploading for</span>
+        <div class="chips" id="i-up-colour"></div>
+      </div>
+      <div id="i-images"></div>
       <input type="file" id="i-image-file" multiple hidden onchange="uploadImages(this)"
         accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/quicktime,video/webm,video/3gpp"/>
       <div class="stat" style="margin:14px 0 0;" id="i-stats"></div>
@@ -112,14 +125,6 @@
           <div class="full"><label class="f">Description</label><textarea class="inp" id="i-description" rows="4"></textarea></div>
           <div class="full"><label class="f">Material</label>
             <input class="inp" id="i-material" placeholder="e.g. 100% cotton, full-grain leather"/></div>
-          <div class="full"><label class="f">Colour</label>
-            <input class="inp" id="i-color" placeholder="e.g. Black, Sand, Wine" oninput="renderColourChips()"/>
-            <div class="chips" id="i-color-chips"></div>
-            <div class="muted" style="font-size:12px;margin-top:5px;">
-              Free text, so name the colour the way you would to a customer.
-              Separate several with commas if the item comes in more than one.
-            </div>
-          </div>
           <div class="full"><label class="f">Specifications</label>
             <textarea class="inp" id="i-details" rows="3" placeholder="Care, dimensions, what is in the box…"></textarea></div>
         </div>
@@ -141,6 +146,16 @@
         <div class="muted" style="font-size:12px;margin-top:8px;" id="i-off-note"></div>
       </div>
 
+      <!-- size guide -->
+      <div class="card" style="margin-bottom:14px;">
+        <h3 style="margin-bottom:6px;">Size guide</h3>
+        <div class="muted" style="font-size:12px;margin-bottom:12px;">
+          Leave this on <b>None</b> and the item shows whatever guide its category
+          has. Set one here and it wins for this item alone.
+        </div>
+        <div id="i-guide"></div>
+      </div>
+
       <!-- sizes and stock -->
       <div class="card">
         <div class="head" style="margin-bottom:6px;">
@@ -148,19 +163,21 @@
           <span class="count" id="i-stock-note"></span>
         </div>
         <div class="muted" style="font-size:12px;margin-bottom:12px;">
-          Every item needs at least one row. Use “One Size” if it does not come in sizes.
-          Stock is how many you hold; the storefront shows “N items left”.
+          One row per colour, one column per size, and the number in each cell is
+          how many of that exact pairing you hold. Leave it on <b>Default</b> alone
+          if the item does not come in colours. Use “One Size” if it does not come
+          in sizes. A pairing left at zero shows as sold out rather than
+          disappearing.
         </div>
-        <div class="srow" style="margin-bottom:6px;">
-          <div class="lbl">Label</div><div class="lbl">Size</div>
-          <div class="lbl">In stock</div><div class="lbl">Price override</div><div></div>
-        </div>
-        <div class="sizes" id="i-sizes"></div>
+        <div class="gridwrap"><table class="stockgrid" id="i-grid"></table></div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
           <button class="btn btn--sm" onclick="addSize()">+ Add size</button>
           <button class="btn btn--sm" onclick="addSizeSet(['S','M','L','XL'])">+ S M L XL</button>
           <button class="btn btn--sm" onclick="addSizeSet(['38','39','40','41','42','43','44','45'])">+ Shoe sizes</button>
+          <div class="spacer"></div>
+          <button class="btn btn--sm" onclick="addColour()">+ Add colour</button>
         </div>
+        <div class="chips" id="i-colour-chips" style="margin-top:12px;"></div>
         <div class="grid" style="margin-top:16px;">
           <div><label class="f">Warn me when stock drops to</label>
             <input class="inp" id="i-low" type="number" min="0" value="5"/></div>
@@ -199,9 +216,170 @@ const videoSeconds = file => new Promise(resolve => {
   v.src = url;
 });
 
+/* Declared up here, ahead of the boot sequence: the category paints its own
+   size guide as it loads, and a const cannot be read before the line that
+   creates it however far away the caller is. */
+const DEFAULT_COLOUR = '';                    // '' here, null in the database
+
+/* JSON rather than a joined string: a colour called "Red M" and a size
+   called "" must not land on the same key as "Red" and "M". */
+const cellKey = (colour, size) => JSON.stringify([colour || '', String(size)]);
+/* Quotes a value for an inline onclick attribute: a colour named O'Brien would
+   otherwise close the string it is sitting in. */
+const q = s => String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+/* The colours this shop reaches for most, offered as one tap each. */
+const COLOURS = [
+  ['Black', '#1b1b1b'], ['White', '#ffffff'], ['Off-white', '#f2ece1'],
+  ['Grey', '#8b8b90'],  ['Brown', '#6b4423'], ['Tan', '#c19a6b'],
+  ['Sand', '#dfcfb0'],  ['Red', '#c62828'],   ['Wine', '#6d1b2e'],
+  ['Pink', '#e59bb7'],  ['Orange', '#e07b25'],['Yellow', '#e3b829'],
+  ['Green', '#2f7d46'], ['Blue', '#1f4e9c'],  ['Navy', '#1b2a4a'],
+  ['Purple', '#9030d0'],['Gold', '#c9a227'],  ['Silver', '#c0c4c9'],
+  ['Multicolour', 'linear-gradient(135deg,#c62828,#e3b829,#2f7d46,#1f4e9c)'],
+];
+
+/* ── size guides ──
+ * Set on the category and inherited by everything under it; an item that
+ * disagrees carries its own and its own wins. Two shapes, because shops have
+ * either a chart image already made or a set of measurements to type:
+ *
+ *   { kind:'image', image_path, note }
+ *   { kind:'table', units, columns:[…], rows:[[…]], note }
+ *
+ * One editor serves both, told apart by the id prefix it is handed.
+ */
+const GUIDE = {};                    // prefix → working copy
+
+function guideState(p) {
+  if (!GUIDE[p]) GUIDE[p] = { kind: 'none', units: 'cm', columns: ['Chest', 'Length'], rows: [], note: '', image_path: null };
+  return GUIDE[p];
+}
+
+function loadGuide(p, value) {
+  const g = value && typeof value === 'object' ? value : null;
+  GUIDE[p] = {
+    kind: g?.kind || 'none',
+    units: g?.units || 'cm',
+    columns: Array.isArray(g?.columns) && g.columns.length ? g.columns.slice() : ['Chest', 'Length'],
+    rows: Array.isArray(g?.rows) ? g.rows.map(r => r.slice()) : [],
+    note: g?.note || '',
+    image_path: g?.image_path || null,
+  };
+  renderGuide(p);
+}
+
+/* null rather than an empty shell when nothing has been set, so "no guide"
+   and "an empty guide" cannot be told apart in the database either. */
+function readGuide(p) {
+  const g = guideState(p);
+  if (g.kind === 'image') {
+    return g.image_path ? { kind: 'image', image_path: g.image_path, note: g.note || '' } : null;
+  }
+  if (g.kind === 'table') {
+    const rows = g.rows.filter(r => r.some(cell => String(cell || '').trim()));
+    return rows.length
+      ? { kind: 'table', units: g.units, columns: g.columns.map(c => String(c).trim() || '—'), rows, note: g.note || '' }
+      : null;
+  }
+  return null;
+}
+
+function renderGuide(p) {
+  const box = document.getElementById(p + '-guide');
+  if (!box) return;
+  const g = guideState(p);
+  const tab = k => `<button type="button" class="gtab ${g.kind === k ? 'gtab--on' : ''}"
+    onclick="setGuideKind('${p}','${k}')">${k === 'none' ? 'None' : k === 'table' ? 'Typed table' : 'Chart image'}</button>`;
+
+  let body = '';
+  if (g.kind === 'image') {
+    body = `<div class="imgs">
+        ${g.image_path ? `<figure><img src="${esc(IMG(g.image_path))}" alt=""/>
+          <button class="x" onclick="clearGuideImage('${p}')">×</button></figure>` : ''}
+        <div class="drop" onclick="document.getElementById('${p}-guide-file').click()">+</div>
+      </div>
+      <input type="file" id="${p}-guide-file" accept="image/jpeg,image/png,image/webp,image/avif"
+        hidden onchange="uploadGuideImage('${p}', this)"/>`;
+  } else if (g.kind === 'table') {
+    body = `
+      <div class="gunits">
+        Measurements in
+        <button type="button" class="chip ${g.units === 'cm' ? 'chip--on' : ''}" onclick="setGuideUnits('${p}','cm')">cm</button>
+        <button type="button" class="chip ${g.units === 'in' ? 'chip--on' : ''}" onclick="setGuideUnits('${p}','in')">inches</button>
+      </div>
+      <div class="gridwrap"><table class="stockgrid">
+        <thead><tr><th class="sticky">Size</th>
+          ${g.columns.map((c, i) => `<th><input class="inp inp--mini" value="${esc(c)}"
+            placeholder="Chest" oninput="GUIDE['${p}'].columns[${i}]=this.value"/>
+            <button class="linkx" onclick="removeGuideCol('${p}',${i})">Remove</button></th>`).join('')}
+          <th></th></tr></thead>
+        <tbody>${g.rows.map((r, ri) => `<tr>
+          <th class="sticky"><input class="inp inp--mini" value="${esc(r[0] || '')}" placeholder="M"
+            oninput="GUIDE['${p}'].rows[${ri}][0]=this.value"/></th>
+          ${g.columns.map((_, ci) => `<td><input class="inp inp--cell" value="${esc(r[ci + 1] || '')}"
+            placeholder="—" oninput="GUIDE['${p}'].rows[${ri}][${ci + 1}]=this.value"/></td>`).join('')}
+          <td><button class="btn btn--sm btn--danger" onclick="removeGuideRow('${p}',${ri})">×</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn--sm" onclick="addGuideRow('${p}')">+ Add size row</button>
+        <button class="btn btn--sm" onclick="addGuideCol('${p}')">+ Add measurement</button>
+      </div>`;
+  }
+
+  box.innerHTML = `<div class="gtabs">${tab('none')}${tab('table')}${tab('image')}</div>
+    ${body}
+    ${g.kind === 'none' ? '' : `<input class="inp" style="margin-top:10px;" placeholder="Note — e.g. measured flat, allow 2cm"
+      value="${esc(g.note)}" oninput="GUIDE['${p}'].note=this.value"/>`}`;
+}
+
+function setGuideKind(p, k) { guideState(p).kind = k; if (k === 'table' && !GUIDE[p].rows.length) addGuideRow(p); else renderGuide(p); }
+function setGuideUnits(p, u) { guideState(p).units = u; renderGuide(p); }
+function addGuideRow(p) { const g = guideState(p); g.rows.push(new Array(g.columns.length + 1).fill('')); renderGuide(p); }
+function removeGuideRow(p, i) { guideState(p).rows.splice(i, 1); renderGuide(p); }
+function addGuideCol(p) {
+  const g = guideState(p);
+  g.columns.push('');
+  g.rows.forEach(r => r.push(''));
+  renderGuide(p);
+}
+function removeGuideCol(p, i) {
+  const g = guideState(p);
+  g.columns.splice(i, 1);
+  g.rows.forEach(r => r.splice(i + 1, 1));
+  renderGuide(p);
+}
+function clearGuideImage(p) { guideState(p).image_path = null; renderGuide(p); }
+
+async function uploadGuideImage(p, input) {
+  const file = (input.files || [])[0];
+  input.value = '';
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) return toast('Image is over 10 MB', true);
+  window.RG_BUSY.show('Uploading', true);
+  const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-50);
+  const path = `size-guides/${Date.now()}-${safe}`;
+  const { error } = await window.RG_UPLOAD('product-images', path, file,
+    f => window.RG_BUSY.pct(f * 100, file.name));
+  if (error) { window.RG_BUSY.hide(); return toast(error.message, true); }
+  await window.RG_BUSY.done();
+  guideState(p).image_path = path;
+  renderGuide(p);
+  toast('Chart added — remember to save');
+}
+
+/* Thin names for the two places that use it, so the call sites read plainly. */
+const loadSizeGuide = v => loadGuide('i', v);
+const readSizeGuide = () => readGuide('i');
+
+
 const CAT_ID = new URLSearchParams(location.search).get('id') || null;
 let _cat = null, _cats = [], _items = [], _settings = {};
 let _item = null, _images = [], _sizes = [], _catImage = null;
+/* Colours the item comes in (Default is implicit and always present), and the
+   stock for every colour × size pairing, keyed so a rename can carry it. */
+let _colours = [], _stock = new Map();
 
 let _toastT;
 function toast(msg, bad) {
@@ -251,6 +429,7 @@ function paintCategory() {
   /* Items can only be filed once the category exists to file them under. */
   document.getElementById('add-item-btn').disabled = isNew;
 
+  loadGuide('c', _cat?.size_guide);
   _catImage = _cat?.image_path || null;
   renderCatImage();
 
@@ -299,6 +478,7 @@ async function saveCategory() {
     name,
     slug: slugify(document.getElementById('c-slug').value || name),
     image_path: _catImage,
+    size_guide: readGuide('c'),
     description: document.getElementById('c-description').value.trim() || null,
     position: parseInt(document.getElementById('c-position').value || '0', 10),
     is_active: document.getElementById('c-active').value === 'true',
@@ -343,7 +523,7 @@ const stockOf = p => (p.product_variants || []).reduce((s, v) => s + (v.stock ||
 async function loadItems() {
   if (!_cat) { renderItems(); return; }
   const { data, error } = await db.from('products')
-    .select('*, product_images(id,path,position), product_variants(id,option_name,option_value,price_minor,stock,position), product_categories!inner(category_id)')
+    .select('*, product_images(id,path,position,color), product_variants(id,color,option_name,option_value,price_minor,stock,position), product_categories!inner(category_id)')
     .eq('product_categories.category_id', _cat.id)
     .order('created_at', { ascending: false });
   if (error) return toast(error.message, true);
@@ -405,9 +585,26 @@ function openItem(id) {
   if (!_cat) return toast('Save the category first', true);
   _item = id ? _items.find(p => p.id === id) : null;
   _images = _item ? (_item.product_images || []).slice().sort((a,b) => a.position - b.position)
-                      .map(im => ({ path: im.path })) : [];
-  _sizes = _item ? (_item.product_variants || []).slice().sort((a,b) => a.position - b.position)
-                     .map(v => ({ ...v })) : [{ option_name:'Size', option_value:'One Size', stock:0, price_minor:null }];
+                      .map(im => ({ path: im.path, color: im.color || null })) : [];
+
+  /* Variants arrive flat. Colours and sizes are the two axes read back out of
+     them, and each variant becomes one cell — keeping its id, so a cart holding
+     it survives the save. */
+  const vs = _item ? (_item.product_variants || []).slice().sort((a,b) => a.position - b.position) : [];
+  _colours = [];
+  _sizes = [];
+  _stock = new Map();
+  for (const v of vs) {
+    const c = v.color || '';
+    if (c && !_colours.includes(c)) _colours.push(c);
+    if (!_sizes.some(z => z.option_value === v.option_value)) {
+      _sizes.push({ option_name: v.option_name || 'Size', option_value: v.option_value,
+                    price_minor: v.price_minor ?? null });
+    }
+    _stock.set(cellKey(c, v.option_value), { id: v.id, stock: v.stock ?? 0 });
+  }
+  if (!_sizes.length) _sizes = [{ option_name: 'Size', option_value: 'One Size', price_minor: null }];
+  _upColour = DEFAULT_COLOUR;
 
   document.getElementById('item-title').textContent = _item ? _item.name : 'New item';
   document.getElementById('i-name').value        = _item?.name || '';
@@ -416,8 +613,6 @@ function openItem(id) {
   document.getElementById('i-subtitle').value    = _item?.subtitle || '';
   document.getElementById('i-description').value = _item?.description || '';
   document.getElementById('i-material').value    = _item?.material || '';
-  document.getElementById('i-color').value       = _item?.color || '';
-  renderColourChips();
   document.getElementById('i-details').value     = _item?.details || '';
   document.getElementById('i-price').value       = _item ? M.toMajor(_item.price_minor) : '';
   document.getElementById('i-compare').value     = _item?.compare_at_minor ? M.toMajor(_item.compare_at_minor) : '';
@@ -426,7 +621,8 @@ function openItem(id) {
   document.getElementById('i-low').value         = _item?.low_stock_at ?? 5;
   document.getElementById('i-delete').style.display = _item ? '' : 'none';
 
-  renderImages(); renderSizes();
+  loadSizeGuide(_item?.size_guide);
+  renderGrid(); renderUploadColours(); renderImages();
   show('item');
 }
 
@@ -438,21 +634,61 @@ function syncSlug() {
 }
 document.getElementById('i-slug').addEventListener('input', e => { e.target.dataset.touched = '1'; });
 
-function renderImages() {
-  /* MAIN marks the first photograph, not the first row: a clip cannot be the
-     card thumbnail, so calling it the main image would be a lie. */
-  const firstPhoto = _images.findIndex(im => !isVideo(im.path));
-  document.getElementById('i-images').innerHTML =
-    _images.map((im, i) => `<figure>
-      ${isVideo(im.path)
-        ? `<video src="${esc(IMG(im.path))}#t=0.1" muted preload="metadata"></video><span class="vtag">VIDEO</span>`
-        : `<img src="${esc(IMG(im.path))}" alt=""/>`}
-      <button class="x" onclick="removeImage(${i})" title="Remove">×</button>
-      ${i === firstPhoto ? '<span class="main">MAIN</span>' : ''}
-    </figure>`).join('') +
-    `<div class="drop" onclick="document.getElementById('i-image-file').click()">+</div>`;
+/* Which colour the next upload belongs to. Picked before the file dialog opens,
+   because tagging afterwards is a step people skip. */
+let _upColour = DEFAULT_COLOUR;
+
+function renderUploadColours() {
+  const box = document.getElementById('i-up-colour');
+  if (!box) return;
+  const all = [DEFAULT_COLOUR, ..._colours];
+  if (!all.includes(_upColour)) _upColour = DEFAULT_COLOUR;
+  box.innerHTML = all.map(c => `
+    <button type="button" class="chip ${c === _upColour ? 'chip--on' : ''}"
+      onclick="pickUploadColour('${q(c)}')">
+      ${c === DEFAULT_COLOUR ? '' : `<i style="background:${swatchFor(c)}"></i>`}
+      ${c === DEFAULT_COLOUR ? 'Default' : esc(c)}</button>`).join('')
+    + (_colours.length ? '' :
+       '<span class="muted" style="font-size:11.5px;align-self:center;">Add a colour below to file photos under it</span>');
 }
-function removeImage(i){ _images.splice(i, 1); renderImages(); }
+function pickUploadColour(c) { _upColour = c; renderUploadColours(); }
+
+function renderImages() {
+  /* Grouped by colour rather than listed flat: the whole point of tagging is
+     being able to see at a glance that Red has three photos and Black has one.
+     MAIN marks the first photograph a shopper meets, which is the first one
+     that is not a video. */
+  const groups = [DEFAULT_COLOUR, ..._colours]
+    .map(c => [c, _images.filter(im => (im.color || '') === c)])
+    .filter(([c, list]) => list.length || c === _upColour || c === DEFAULT_COLOUR);
+
+  const firstPhoto = _images.find(im => !isVideo(im.path));
+
+  document.getElementById('i-images').innerHTML = groups.map(([c, list]) => `
+    <div class="mgroup">
+      <div class="mgroup__h">
+        ${c === DEFAULT_COLOUR ? '' : `<span class="swatch" style="background:${swatchFor(c)}"></span>`}
+        <b>${c === DEFAULT_COLOUR ? 'Default' : esc(c)}</b>
+        <span class="muted">${list.length || 'none'}</span>
+        ${c === _upColour ? '<span class="mgroup__on">uploading here</span>' : ''}
+      </div>
+      <div class="imgs">
+        ${list.map(im => {
+          const i = _images.indexOf(im);
+          return `<figure>
+            ${isVideo(im.path)
+              ? `<video src="${esc(IMG(im.path))}#t=0.1" muted preload="metadata"></video><span class="vtag">VIDEO</span>`
+              : `<img src="${esc(IMG(im.path))}" alt=""/>`}
+            <button class="x" onclick="removeImage(${i})" title="Remove">×</button>
+            ${im === firstPhoto ? '<span class="main">MAIN</span>' : ''}
+          </figure>`;
+        }).join('')}
+        <div class="drop" onclick="pickUploadColour('${q(c)}');document.getElementById('i-image-file').click()">+</div>
+      </div>
+    </div>`).join('');
+}
+function removeImage(i) { _images.splice(i, 1); renderImages(); stockNote(); }
+
 
 async function uploadImages(input) {
   const files = Array.from(input.files || []);
@@ -485,7 +721,7 @@ async function uploadImages(input) {
     sent += file.size;
     window.RG_BUSY.pct(sent / total * 100, file.name);
     if (error) { toast(error.message, true); continue; }
-    _images.push({ path });
+    _images.push({ path, color: _upColour || null });
   }
   await window.RG_BUSY.done();
   renderImages();
@@ -494,80 +730,157 @@ async function uploadImages(input) {
 
 /* The colours this shop actually sells, offered as one tap each. The field
    stays free text underneath — these are a shortcut, not the vocabulary. */
-const COLOURS = [
-  ['Black', '#1b1b1b'], ['White', '#ffffff'], ['Off-white', '#f2ece1'],
-  ['Grey', '#8b8b90'],  ['Brown', '#6b4423'], ['Tan', '#c19a6b'],
-  ['Sand', '#dfcfb0'],  ['Red', '#c62828'],   ['Wine', '#6d1b2e'],
-  ['Pink', '#e59bb7'],  ['Orange', '#e07b25'],['Yellow', '#e3b829'],
-  ['Green', '#2f7d46'], ['Blue', '#1f4e9c'],  ['Navy', '#1b2a4a'],
-  ['Purple', '#9030d0'],['Gold', '#c9a227'],  ['Silver', '#c0c4c9'],
-  ['Multicolour', 'linear-gradient(135deg,#c62828,#e3b829,#2f7d46,#1f4e9c)'],
-];
+/* ── colours, sizes and the stock between them ──
+ * A variant is a (colour, size) pair with its own stock, so the editor is a
+ * grid: colours down the side, sizes across the top, a number in every cell.
+ *
+ * "Default" is the row for an item that does not come in colours — it is the
+ * null colour, always present, and cannot be removed. An item with only that
+ * row behaves exactly as items did before any of this.
+ *
+ * Existing rows keep their id, so a cart pointing at a variant keeps pointing
+ * at the same one; only genuinely new pairings are inserted.
+ */
 
-function renderColourChips() {
-  const picked = colourList();
-  document.getElementById('i-color-chips').innerHTML = COLOURS.map(([name, swatch]) => `
-    <button type="button" class="chip ${picked.includes(name.toLowerCase()) ? 'chip--on' : ''}"
-      onclick="toggleColour('${name}')">
-      <i style="background:${swatch};"></i>${name}</button>`).join('');
-}
 
-const colourList = () => document.getElementById('i-color').value
-  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+function renderGrid() {
+  const grid = document.getElementById('i-grid');
+  if (!_sizes.length) {
+    grid.innerHTML = '<tbody><tr><td class="empty">Add a size to start — “One Size” if it has none.</td></tr></tbody>';
+    stockNote();
+    return;
+  }
+  const colours = [DEFAULT_COLOUR, ..._colours];
 
-/* Tapping a chip adds or removes that one word, leaving anything typed by hand
-   alone — so "Black, custom teal" survives a tap on Sand. */
-function toggleColour(name) {
-  const box = document.getElementById('i-color');
-  const parts = box.value.split(',').map(s => s.trim()).filter(Boolean);
-  const at = parts.findIndex(p => p.toLowerCase() === name.toLowerCase());
-  if (at >= 0) parts.splice(at, 1); else parts.push(name);
-  box.value = parts.join(', ');
-  renderColourChips();
-}
-
-function renderSizes() {
-  document.getElementById('i-sizes').innerHTML = _sizes.map((v, i) => `
-    <div class="srow">
-      <input class="inp" value="${esc(v.option_name || 'Size')}" placeholder="Size"
-        oninput="_sizes[${i}].option_name=this.value"/>
-      <input class="inp" value="${esc(v.option_value || '')}" placeholder="M"
-        oninput="_sizes[${i}].option_value=this.value"/>
-      <input class="inp" type="number" min="0" value="${v.stock ?? 0}" placeholder="0"
-        oninput="_sizes[${i}].stock=parseInt(this.value||'0',10);stockNote();"/>
-      <input class="inp" inputmode="decimal" placeholder="—"
-        value="${v.price_minor != null ? M.toMajor(v.price_minor) : ''}"
+  const head = '<thead><tr><th class="sticky">Colour</th>' + _sizes.map((z, i) => `
+    <th>
+      <input class="inp inp--mini" value="${esc(z.option_value || '')}" placeholder="M"
+        oninput="_sizes[${i}].option_value=this.value;stockNote();"/>
+      <input class="inp inp--mini" inputmode="decimal" placeholder="price —"
+        value="${z.price_minor != null ? M.toMajor(z.price_minor) : ''}"
         oninput="_sizes[${i}]._price=this.value"/>
-      <button class="btn btn--sm btn--danger rm" onclick="_sizes.splice(${i},1);renderSizes();">×</button>
-    </div>`).join('');
+      <button class="linkx" onclick="removeSize(${i})">Remove</button>
+    </th>`).join('') + '<th></th></tr></thead>';
+
+  const body = '<tbody>' + colours.map((c, ci) => {
+    const isDefault = c === DEFAULT_COLOUR;
+    return `<tr>
+      <th class="sticky">
+        ${isDefault
+          ? '<b>Default</b><div class="muted" style="font-size:11px;">No colour</div>'
+          : `<span class="swatch" style="background:${swatchFor(c)}"></span>
+             <input class="inp inp--mini" value="${esc(c)}" placeholder="Colour"
+               oninput="renameColour(${ci - 1}, this.value)"/>`}
+      </th>
+      ${_sizes.map(z => `<td>
+        <input class="inp inp--cell" type="number" min="0" value="${stockAt(c, z.option_value)}"
+          oninput="setStock('${q(c)}', '${q(z.option_value)}', this.value)"/>
+      </td>`).join('')}
+      <td>${isDefault ? '' : `<button class="btn btn--sm btn--danger" onclick="removeColour(${ci - 1})">×</button>`}</td>
+    </tr>`;
+  }).join('') + '</tbody>';
+
+  grid.innerHTML = head + body;
   stockNote();
 }
-function addSize(){ _sizes.push({ option_name:'Size', option_value:'', stock:0, price_minor:null }); renderSizes(); }
+
+const swatchFor = name => {
+  const hit = COLOURS.find(([n]) => n.toLowerCase() === String(name).trim().toLowerCase());
+  return hit ? hit[1] : 'linear-gradient(135deg,#5a5a60,#8b8b90)';
+};
+
+function stockAt(colour, size) {
+  const cell = _stock.get(cellKey(colour, size));
+  return cell ? (cell.stock ?? 0) : 0;
+}
+function setStock(colour, size, value) {
+  const key = cellKey(colour, size);
+  const cell = _stock.get(key) || {};
+  cell.stock = Math.max(0, parseInt(value || '0', 10) || 0);
+  _stock.set(key, cell);
+  stockNote();
+}
+
+function addSize() { _sizes.push({ option_name: 'Size', option_value: '', price_minor: null }); renderGrid(); }
+function removeSize(i) { _sizes.splice(i, 1); renderGrid(); }
 function addSizeSet(vals) {
   /* Skip sizes already on the item rather than creating duplicates. */
   const have = new Set(_sizes.map(v => String(v.option_value).trim().toLowerCase()));
   for (const val of vals) {
     if (have.has(val.toLowerCase())) continue;
-    _sizes.push({ option_name:'Size', option_value:val, stock:0, price_minor:null });
+    _sizes.push({ option_name: 'Size', option_value: val, price_minor: null });
   }
-  renderSizes();
+  renderGrid();
+}
+
+function addColour(name) {
+  const n = String(name || '').trim();
+  if (n && _colours.some(c => c.toLowerCase() === n.toLowerCase())) return;
+  _colours.push(n);
+  renderGrid(); renderUploadColours(); renderImages();
+}
+
+/* The stock and the photographs are keyed by the name, so renaming carries
+   both across rather than orphaning them under a name nobody can see. */
+function renameColour(i, value) {
+  const old = _colours[i];
+  _colours[i] = value;
+  for (const z of _sizes) {
+    const from = cellKey(old, z.option_value), to = cellKey(value, z.option_value);
+    if (_stock.has(from)) { _stock.set(to, _stock.get(from)); _stock.delete(from); }
+  }
+  _images.forEach(im => { if ((im.color || '') === old) im.color = value || null; });
+  if (_upColour === old) _upColour = value;
+  renderUploadColours(); renderImages(); stockNote();
+}
+
+function removeColour(i) {
+  const gone = _colours[i];
+  if (_images.some(im => (im.color || '') === gone)
+      && !confirm(`Remove ${gone || 'this colour'}? Its photos stay on the item as general photography.`)) return;
+  _colours.splice(i, 1);
+  for (const z of _sizes) _stock.delete(cellKey(gone, z.option_value));
+  _images.forEach(im => { if ((im.color || '') === gone) im.color = null; });
+  if (_upColour === gone) _upColour = DEFAULT_COLOUR;
+  renderGrid(); renderUploadColours(); renderImages();
+}
+
+/* Quick-add chips for the colours a shop reaches for most. The list stays open
+   underneath — a colour typed by hand is as real as one tapped here. */
+function renderColourChips() {
+  document.getElementById('i-colour-chips').innerHTML = COLOURS.map(([name, swatch]) => {
+    const on = _colours.some(c => c.toLowerCase() === name.toLowerCase());
+    return `<button type="button" class="chip ${on ? 'chip--on' : ''}" onclick="toggleColour('${q(name)}')">
+      <i style="background:${swatch};"></i>${name}</button>`;
+  }).join('');
+}
+function toggleColour(name) {
+  const at = _colours.findIndex(c => c.toLowerCase() === name.toLowerCase());
+  if (at >= 0) removeColour(at); else addColour(name);
 }
 
 function stockNote() {
-  const total = _sizes.reduce((s, v) => s + (parseInt(v.stock, 10) || 0), 0);
+  let total = 0;
+  for (const z of _sizes) {
+    for (const c of [DEFAULT_COLOUR, ..._colours]) total += stockAt(c, z.option_value);
+  }
   const low = parseInt(document.getElementById('i-low').value || '5', 10);
   const el = document.getElementById('i-stock-note');
+  const pairs = _sizes.length * (1 + _colours.length);
   el.textContent = total === 0 ? 'Out of stock'
-    : `${total} in stock across ${_sizes.length} size${_sizes.length === 1 ? '' : 's'}`;
+    : `${total} in stock across ${pairs} pairing${pairs === 1 ? '' : 's'}`;
   el.style.color = total === 0 ? 'var(--red)' : (total <= low ? 'var(--amber)' : '');
 
   document.getElementById('i-stats').innerHTML = `
     <div class="${total === 0 ? 'bad' : (total <= low ? 'warn' : '')}"><b>${total}</b><span>Units left</span></div>
     <div><b>${_sizes.length}</b><span>Sizes</span></div>
+    ${_colours.length ? `<div><b>${_colours.length}</b><span>Colours</span></div>` : ''}
     <div><b>${_images.filter(im => !isVideo(im.path)).length}</b><span>Photos</span></div>
     ${_images.some(im => isVideo(im.path))
       ? `<div><b>${_images.filter(im => isVideo(im.path)).length}</b><span>Video</span></div>` : ''}`;
+  renderColourChips();
 }
+
 document.getElementById('i-low').addEventListener('input', stockNote);
 
 ['i-price','i-compare'].forEach(id => document.getElementById(id).addEventListener('input', () => {
@@ -587,6 +900,27 @@ async function saveItem() {
 
   const sizes = _sizes.filter(v => String(v.option_value || '').trim());
   if (!sizes.length) return toast('Add at least one size (use “One Size” if it has none)', true);
+  if (_colours.some(c => !String(c).trim())) return toast('Give every colour a name, or remove it', true);
+
+  /* Every colour × size pairing is a variant. Default is one of the colours,
+     which is what lets an item with no colours stay exactly as it was. */
+  const colours = [DEFAULT_COLOUR, ..._colours.map(c => c.trim())];
+  const combos = [];
+  for (const c of colours) {
+    for (let i = 0; i < sizes.length; i++) {
+      const z = sizes[i];
+      const cell = _stock.get(cellKey(c, z.option_value)) || {};
+      combos.push({
+        id: cell.id || null,
+        color: c || null,
+        option_name: (z.option_name || 'Size').trim() || 'Size',
+        option_value: String(z.option_value).trim(),
+        stock: Math.max(0, parseInt(cell.stock || 0, 10)),
+        price_minor: z._price !== undefined ? (M.toMinor(z._price) || null) : (z.price_minor ?? null),
+        position: i,
+      });
+    }
+  }
 
   const compare = M.toMinor(document.getElementById('i-compare').value) || null;
   const row = {
@@ -595,7 +929,7 @@ async function saveItem() {
     subtitle:    document.getElementById('i-subtitle').value.trim() || null,
     description: document.getElementById('i-description').value.trim() || null,
     material:    document.getElementById('i-material').value.trim() || null,
-    color:       document.getElementById('i-color').value.trim() || null,
+    size_guide:  readSizeGuide(),
     details:     document.getElementById('i-details').value.trim() || null,
     brand:       document.getElementById('i-brand').value.trim() || null,
     badge:       document.getElementById('i-badge').value.trim() || null,
@@ -628,36 +962,34 @@ async function saveItem() {
   await db.from('product_images').delete().eq('product_id', pid);
   if (_images.length) {
     const { error } = await db.from('product_images')
-      .insert(_images.map((im, i) => ({ product_id: pid, path: im.path, position: i })));
+      .insert(_images.map((im, i) => ({
+        product_id: pid, path: im.path, color: im.color || null, position: i })));
     if (error) return stop(error.message);
   }
   BUSY.pct(40, 'Photos and video linked');
 
   /* Sizes are updated in place where they already exist, so carts holding a
      variant keep pointing at the same row. */
-  const keep = sizes.filter(v => v.id).map(v => v.id);
+  /* Pairings that no longer exist go first, and only then are the survivors
+     written — otherwise renaming a colour trips the uniqueness of the pair. */
+  const keep = combos.filter(v => v.id).map(v => v.id);
   let del = db.from('product_variants').delete().eq('product_id', pid);
   if (keep.length) del = del.not('id', 'in', `(${keep.join(',')})`);
   await del;
-  BUSY.pct(55, 'Sizes tidied');
+  BUSY.pct(55, 'Old pairings cleared');
 
-  for (let i = 0; i < sizes.length; i++) {
-    const v = sizes[i];
+  for (let i = 0; i < combos.length; i++) {
+    const v = combos[i];
     const body = {
-      product_id: pid,
-      option_name: (v.option_name || 'Size').trim() || 'Size',
-      option_value: String(v.option_value).trim(),
-      stock: Math.max(0, parseInt(v.stock || 0, 10)),
-      price_minor: v._price !== undefined ? (M.toMinor(v._price) || null) : (v.price_minor ?? null),
-      position: i,
+      product_id: pid, color: v.color,
+      option_name: v.option_name, option_value: v.option_value,
+      stock: v.stock, price_minor: v.price_minor, position: v.position,
     };
     const { error } = v.id
       ? await db.from('product_variants').update(body).eq('id', v.id)
       : await db.from('product_variants').insert(body);
     if (error) return stop(error.message);
-    /* Sizes are a loop of their own, so they get a slice of the bar to move
-       through rather than one jump at the end. */
-    BUSY.pct(55 + 25 * ((i + 1) / sizes.length), `Size ${i + 1} of ${sizes.length}`);
+    BUSY.pct(55 + 25 * ((i + 1) / combos.length), `Pairing ${i + 1} of ${combos.length}`);
   }
 
   /* Keep it in this category without disturbing any others it belongs to. */
@@ -671,8 +1003,9 @@ async function saveItem() {
   if (_item) {
     document.getElementById('item-title').textContent = _item.name;
     document.getElementById('i-delete').style.display = '';
-    _sizes = (_item.product_variants || []).slice().sort((a,b) => a.position - b.position).map(v => ({ ...v }));
-    renderSizes();
+    /* Re-read so freshly inserted pairings carry their new ids, and a second
+       save updates them rather than inserting duplicates. */
+    openItem(_item.id);
   }
   await BUSY.done();
   toast('Item saved');
