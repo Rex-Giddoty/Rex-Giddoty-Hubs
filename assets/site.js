@@ -373,15 +373,6 @@
                 <a href="/bag.html">Cart</a>
               </div>
             </div>
-            <div class="dpdw">
-              <a class="hact" href="mailto:${esc(email)}">${I.help}<span class="hact--label">Help</span>${I.caret}</a>
-              <div class="dpdw__box">
-                <a href="mailto:${esc(email)}">Contact us</a>
-                ${phone ? `<a href="tel:${esc(phone.replace(/\s/g,''))}">Call ${esc(phone)}</a>` : ''}
-                <a href="/help.html">How to shop</a>
-                <a href="/help.html#delivery">Delivery &amp; payment</a>
-              </div>
-            </div>
             <a class="hact" href="/bag.html">${I.cart}<span class="hact--label">Cart</span>
               <span class="cart-badge" data-bag-count style="display:none;">0</span></a>
           </div>

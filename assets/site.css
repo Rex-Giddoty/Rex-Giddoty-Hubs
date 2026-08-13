@@ -1015,10 +1015,46 @@ textarea.inp{resize:vertical;min-height:74px;}
    statistic, which is the whole point of showing it. */
 .sold:empty{display:none;}
 .sold{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;
-  color:var(--ink);margin-top:3px;}
+  color:var(--brand);margin-top:3px;}
 .sold span{font-size:13px;line-height:1;}
 .pcard .sold{font-size:11.5px;margin-top:3px;}
 /* On the product page it sits under the quantity row, where a shopper has
    already decided to buy and a nudge lands. */
 #p-sold{margin-top:11px;font-size:14px;}
 #p-sold span{font-size:16px;}
+
+/* ───────────────────── reviews ───────────────────── */
+
+.revbox{background:var(--paper);padding:16px;}
+#rev-head{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute);}
+#rev-head b{font-size:19px;font-weight:700;color:var(--ink);}
+.rev-stars{font-style:normal;color:#f9a825;letter-spacing:1px;}
+
+.rev{border-top:1px solid var(--line);padding:13px 0;}
+.rev:first-child{border-top:0;}
+.rev--mine{background:#faf6fe;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:4px;}
+.rev__top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;}
+.rev__top b{font-weight:600;color:var(--ink);}
+.rev__ok{color:#186a3a;background:#e9f6ed;border-radius:10px;padding:1px 8px;font-size:11px;}
+.rev__mine{color:var(--brand);background:var(--beige);border-radius:10px;padding:1px 8px;font-size:11px;}
+.rev__date{margin-left:auto;color:var(--mute);}
+.rev p{margin:7px 0 0;font-size:13.5px;line-height:1.6;color:var(--ink-2);}
+.rev-none,.rev-note{font-size:13px;color:var(--mute);margin:0;line-height:1.6;}
+.rev-note a{color:var(--brand);font-weight:600;}
+.rev-err{background:#fdeceb;color:#b3261e;font-size:12.5px;padding:8px 11px;border-radius:4px;margin-top:9px;}
+
+.revform{border:1px solid var(--line);border-radius:var(--rad);padding:14px;margin-bottom:16px;}
+.revform__t{font-weight:600;font-size:14px;margin-bottom:9px;}
+/* Big enough to be tapped with a thumb, which is how most of these arrive. */
+.revform__stars{display:flex;gap:3px;margin-bottom:10px;}
+.revform__stars button{background:none;border:0;padding:2px;font-size:27px;line-height:1;color:#d8d8d8;}
+.revform__stars button.on{color:#f9a825;}
+.revform textarea{width:100%;border:1px solid var(--line);border-radius:var(--rad);
+  padding:10px 12px;font-size:13.5px;line-height:1.5;resize:vertical;outline:0;font-family:inherit;}
+.revform textarea:focus{border-color:var(--brand);}
+.revform__row{display:flex;align-items:center;gap:14px;margin-top:11px;}
+.revform__del{background:none;border:0;padding:0;color:#b3261e;font-size:12.5px;text-decoration:underline;}
+
+.ord__rev{display:inline-block;margin:2px 0 8px 96px;font-size:12.5px;
+  color:var(--brand);font-weight:500;}
+.ord__rev:hover{text-decoration:underline;}

@@ -18,6 +18,7 @@
     <button class="tab" data-page="orders">Orders</button>
     <button class="tab" data-page="customers">Customers</button>
     <button class="tab" data-page="support">Support<span class="tab__dot" id="support-dot" style="display:none;"></span></button>
+    <button class="tab" data-page="reviews">Reviews<span class="tab__dot" id="reviews-dot" style="display:none;"></span></button>
     <button class="tab" data-page="settings">Settings</button>
   </div>
   <div class="who" id="who"></div>
@@ -114,6 +115,21 @@
       <div class="empty">Pick a conversation on the left.</div>
     </div>
   </div>
+</div>
+
+<!-- REVIEWS -->
+<div class="page" id="page-reviews">
+  <div class="head">
+    <h2>Reviews</h2><span class="count" id="reviews-count"></span>
+    <div class="spacer"></div>
+    <select class="inp" id="review-filter" style="max-width:170px;" onchange="renderReviews()">
+      <option value="">All</option>
+      <option value="visible">Live</option>
+      <option value="low">1 and 2 stars</option>
+      <option value="hidden">Hidden</option>
+    </select>
+  </div>
+  <div class="card"><div id="reviews-body"></div></div>
 </div>
 
 <!-- SETTINGS -->
@@ -269,7 +285,7 @@ async function signOut(){ await db.auth.signOut(); location.href = '/ops-login.h
   }
 
   await Promise.all([loadSettings(), loadCategories(), loadProducts(), loadOrders(),
-                     loadCustomers(), loadThreads()]);
+                     loadCustomers(), loadThreads(), loadReviews()]);
   watchSupport();
 })();
 
@@ -991,6 +1007,73 @@ function watchSupport() {
   /* Realtime can drop quietly on a laptop that has been asleep; this is the
      floor under it rather than the mechanism. */
   setInterval(() => { if (document.visibilityState === 'visible') loadThreads(); }, 30000);
+}
+
+/* ── reviews ──
+ * Read-only except for hiding: the shop does not edit what a customer wrote,
+ * it decides whether it is shown. Hiding also takes the review back out of the
+ * item's star average, which the database does on its own.
+ */
+let _reviews = [];
+
+async function loadReviews() {
+  const { data, error } = await db.rpc('admin_list_reviews');
+  if (error) return toast(error.message, true);
+  _reviews = data || [];
+  renderReviews();
+  const hidden = _reviews.filter(r => !r.is_visible).length;
+  document.getElementById('reviews-dot').style.display =
+    _reviews.some(r => r.rating <= 2 && r.is_visible) ? '' : 'none';
+  return hidden;
+}
+
+function renderReviews() {
+  const f = document.getElementById('review-filter').value;
+  let list = _reviews;
+  if (f === 'low')     list = list.filter(r => r.rating <= 2);
+  if (f === 'hidden')  list = list.filter(r => !r.is_visible);
+  if (f === 'visible') list = list.filter(r => r.is_visible);
+
+  const avg = _reviews.length
+    ? (_reviews.filter(r => r.is_visible).reduce((s, r) => s + r.rating, 0)
+       / Math.max(1, _reviews.filter(r => r.is_visible).length)) : 0;
+  document.getElementById('reviews-count').textContent =
+    _reviews.length + ' total' + (avg ? ` · ${avg.toFixed(1)} average` : '');
+
+  const box = document.getElementById('reviews-body');
+  if (!list.length) {
+    box.innerHTML = `<div class="empty">${_reviews.length ? 'Nothing under this filter.' : 'No reviews yet.'}</div>`;
+    return;
+  }
+  const when = t => new Date(t).toLocaleDateString('en-NG',
+    { day: 'numeric', month: 'short', year: 'numeric' });
+
+  box.innerHTML = `<table><thead><tr>
+      <th>Item</th><th>Rating</th><th class="hide-sm">Review</th>
+      <th class="hide-sm">Customer</th><th>Status</th><th></th>
+    </tr></thead><tbody>` +
+    list.map(r => `<tr>
+      <td><a href="/product.html?slug=${encodeURIComponent(r.product_slug)}" target="_blank"
+        style="text-decoration:underline;">${esc(r.product_name)}</a>
+        <div class="muted">${esc(when(r.created_at))}</div></td>
+      <td style="white-space:nowrap;color:#f0b429;">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</td>
+      <td class="hide-sm muted" style="max-width:340px;white-space:normal;">${esc(r.body || '—')}</td>
+      <td class="hide-sm muted">${esc(r.author || '')}<div>${esc(r.email || '')}</div></td>
+      <td>${r.is_visible ? '<span class="pill pill--live">Live</span>'
+                         : '<span class="pill pill--draft">Hidden</span>'}</td>
+      <td style="text-align:right;">
+        <button class="btn btn--sm" onclick="toggleReview('${r.id}', ${!r.is_visible})">
+          ${r.is_visible ? 'Hide' : 'Show'}</button></td>
+    </tr>`).join('') + '</tbody></table>';
+}
+
+async function toggleReview(id, visible) {
+  const { error } = await db.rpc('admin_set_review_visible', { p_review: id, p_visible: visible });
+  if (error) return toast(error.message, true);
+  await loadReviews();
+  /* The star average moved with it, so the products list is stale now. */
+  await loadProducts();
+  toast(visible ? 'Review shown' : 'Review hidden');
 }
 
 /* ── orders ── */

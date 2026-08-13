@@ -201,7 +201,7 @@ const PILL = {
 };
 async function loadOrders() {
   const { data, error } = await db.from('orders')
-    .select('id,order_number,status,payment_status,currency,total_minor,placed_at,order_items(id,product_name,option_label,quantity,line_total_minor,image_path)')
+    .select('id,order_number,status,payment_status,currency,total_minor,placed_at,order_items(id,product_id,product_name,option_label,quantity,line_total_minor,image_path,products(slug))')
     .order('placed_at', { ascending: false });
 
   const box = document.getElementById('orders-body');
@@ -228,7 +228,10 @@ async function loadOrders() {
             <span class="nm">${esc(it.product_name)}${it.option_label ? ' · ' + esc(it.option_label) : ''}
               <span class="note">× ${it.quantity}</span></span>
             <span>${M.fmt(it.line_total_minor, o.currency)}</span>
-          </div>`).join('')}
+          </div>
+          ${o.status === 'delivered' && it.products?.slug
+            ? `<a class="ord__rev" href="/product.html?slug=${encodeURIComponent(it.products.slug)}#rev-sect">★ Review this item</a>`
+            : ''}`).join('')}
         <div class="addr__acts" style="margin-top:10px;">
           <a class="btn btn--ghost" style="padding:7px 13px;font-size:13px;"
             href="/order.html?n=${encodeURIComponent(o.order_number)}">View order</a>

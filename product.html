@@ -76,6 +76,14 @@
     </aside>
   </main>
 
+  <section class="sect" id="rev-sect">
+    <div class="sect__hd sect__hd--plain"><h2>Reviews</h2><div id="rev-head"></div></div>
+    <div class="revbox">
+      <div id="rev-form"></div>
+      <div id="rev-list"></div>
+    </div>
+  </section>
+
   <section class="sect" id="more-sect" style="display:none;">
     <div class="sect__hd sect__hd--plain"><h2>You may also like</h2><a href="/shop.html">See all ›</a></div>
     <div class="pgrid" id="more"></div>
@@ -119,6 +127,137 @@ function colourSpec(p) {
   const names = [...new Set((p.product_variants || [])
     .filter(v => v.is_active && v.color).map(v => v.color))];
   return names.length ? 'Colour: ' + names.join(', ') : '';
+}
+
+/* ── reviews ──
+ * Read by anyone, written only by someone with an order line for the item.
+ * The rule lives in the database; this page asks whether it applies so it can
+ * show the right thing, and never depends on the answer for safety.
+ */
+let _canReview = false, _myReview = null;
+
+const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+const reviewWhen = t => new Date(t).toLocaleDateString('en-NG',
+  { day: 'numeric', month: 'short', year: 'numeric' });
+
+async function loadReviews() {
+  const { data } = await db.rpc('product_reviews_public', { p_product: _p.id });
+  const list = data || [];
+  _myReview = list.find(r => r.mine) || null;
+
+  const box = document.getElementById('rev-list');
+  const head = document.getElementById('rev-head');
+
+  if (!list.length) {
+    head.textContent = 'No reviews yet';
+    box.innerHTML = '<p class="rev-none">Be the first to say how it turned out.</p>';
+  } else {
+    const avg = list.reduce((s, r) => s + r.rating, 0) / list.length;
+    head.innerHTML = `<b>${avg.toFixed(1)}</b> <i class="rev-stars">${stars(Math.round(avg))}</i>
+      <span>${list.length} review${list.length === 1 ? '' : 's'}</span>`;
+    box.innerHTML = list.map(r => `
+      <div class="rev ${r.mine ? 'rev--mine' : ''}">
+        <div class="rev__top">
+          <i class="rev-stars">${stars(r.rating)}</i>
+          <b>${esc(r.author)}</b>
+          ${r.verified ? '<span class="rev__ok">Verified purchase</span>' : ''}
+          ${r.mine ? '<span class="rev__mine">Yours</span>' : ''}
+          <span class="rev__date">${esc(reviewWhen(r.created_at))}</span>
+        </div>
+        ${r.body ? `<p>${esc(r.body).replace(/\n/g, '<br/>')}</p>` : ''}
+      </div>`).join('');
+  }
+
+  paintReviewForm();
+}
+
+/* Four states, and each says plainly why it is the one being shown: write one,
+   edit the one you left, sign in, or buy it first. */
+async function paintReviewForm() {
+  const box = document.getElementById('rev-form');
+  let session = null;
+  try { ({ data: { session } } = await db.auth.getSession()); } catch (_) {}
+  const signedIn = !!(session && session.user && !session.user.is_anonymous);
+
+  if (!signedIn) {
+    box.innerHTML = `<p class="rev-note">
+      <a href="/login.html?next=${encodeURIComponent(location.pathname + location.search)}">Sign in</a>
+      to leave a review for something you have bought.</p>`;
+    return;
+  }
+
+  if (!_canReview) {
+    const { data } = await db.rpc('can_review', { p_product: _p.id });
+    _canReview = !!data;
+  }
+  if (!_canReview) {
+    box.innerHTML = '<p class="rev-note">Reviews come from people who have bought the item, so there is nothing to write here yet.</p>';
+    return;
+  }
+
+  const r = _myReview;
+  box.innerHTML = `
+    <div class="revform">
+      <div class="revform__t">${r ? 'Your review' : 'Write a review'}</div>
+      <div class="revform__stars" id="rev-pick">
+        ${[1,2,3,4,5].map(n => `<button type="button" data-n="${n}"
+          class="${r && r.rating >= n ? 'on' : ''}" aria-label="${n} star${n===1?'':'s'}">★</button>`).join('')}
+      </div>
+      <textarea id="rev-body" rows="3" maxlength="2000"
+        placeholder="How did it turn out? Fit, quality, delivery — whatever would have helped you.">${r ? esc(r.body || '') : ''}</textarea>
+      <div id="rev-msg"></div>
+      <div class="revform__row">
+        <button class="btn" id="rev-send">${r ? 'Update review' : 'Post review'}</button>
+        ${r ? '<button class="revform__del" id="rev-del">Delete</button>' : ''}
+      </div>
+    </div>`;
+
+  let picked = r ? r.rating : 0;
+  const paintStars = () => document.querySelectorAll('#rev-pick button')
+    .forEach(b => b.classList.toggle('on', Number(b.dataset.n) <= picked));
+  document.querySelectorAll('#rev-pick button').forEach(b => {
+    b.onclick = () => { picked = Number(b.dataset.n); paintStars(); };
+  });
+
+  document.getElementById('rev-send').onclick = async () => {
+    const msg = document.getElementById('rev-msg');
+    if (!picked) { msg.innerHTML = '<div class="rev-err">Choose a rating first.</div>'; return; }
+    const btn = document.getElementById('rev-send');
+    btn.disabled = true;
+    const { error } = await db.rpc('submit_review', {
+      p_product: _p.id, p_rating: picked,
+      p_body: document.getElementById('rev-body').value,
+    });
+    btn.disabled = false;
+    if (error) { msg.innerHTML = `<div class="rev-err">${esc(error.message)}</div>`; return; }
+    window.RG_TOAST('Thank you — your review is up');
+    await loadReviews();
+    await refreshStars();
+  };
+
+  const del = document.getElementById('rev-del');
+  if (del) del.onclick = async () => {
+    if (!confirm('Delete your review?')) return;
+    const { error } = await db.rpc('delete_my_review', { p_product: _p.id });
+    if (error) return window.RG_TOAST(error.message);
+    _myReview = null;
+    await loadReviews();
+    await refreshStars();
+  };
+}
+
+/* The stars at the top are the same figure the reviews add up to, so they are
+   re-read rather than recalculated here. */
+async function refreshStars() {
+  const { data } = await db.from('products')
+    .select('rating_avg,rating_count').eq('id', _p.id).maybeSingle();
+  if (!data) return;
+  _p.rating_avg = data.rating_avg;
+  _p.rating_count = data.rating_count;
+  const el = document.getElementById('p-stars');
+  el.innerHTML = data.rating_avg
+    ? `<i>${stars(Math.round(Number(data.rating_avg)))}</i> ${Number(data.rating_avg).toFixed(1)} (${data.rating_count || 0} review${data.rating_count === 1 ? '' : 's'})`
+    : '';
 }
 
 /* ── the size guide a shopper sees ──
@@ -398,7 +537,7 @@ let _p = null, _v = null, _qty = 1, _lastSize = null;
   if (p.rating_avg) {
     const full = Math.round(Number(p.rating_avg));
     document.getElementById('p-stars').innerHTML =
-      `<i>${'★'.repeat(full)}${'☆'.repeat(5-full)}</i> ${Number(p.rating_avg).toFixed(1)} (${p.rating_count||0} reviews)`;
+      `<i>${'★'.repeat(full)}${'☆'.repeat(5-full)}</i> ${Number(p.rating_avg).toFixed(1)} (${p.rating_count||0} review${p.rating_count===1?'':'s'})`;
   }
 
   const flat = parseInt(s.shipping_flat_minor || '0', 10);
@@ -512,6 +651,8 @@ let _p = null, _v = null, _qty = 1, _lastSize = null;
   const guide = p.size_guide || (p.product_categories || [])
     .map(pc => pc.categories && pc.categories.size_guide).find(Boolean);
   if (guide) { paintGuide(guide, p.name); paintSizeFacts(_lastSize); }
+
+  loadReviews();
 
   const { data: more } = await db.from('products')
     .select('id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,sold_count,product_images(path,position),product_variants(id,stock,price_minor)')
