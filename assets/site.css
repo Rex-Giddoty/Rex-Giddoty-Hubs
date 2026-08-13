@@ -980,3 +980,21 @@ textarea.inp{resize:vertical;min-height:74px;}
 .gunit:hover{border-color:#c9c9c9;}
 .gunit.on{border-color:var(--brand);color:var(--brand);font-weight:600;
   box-shadow:inset 0 0 0 1px var(--brand);}
+
+/* size guide: two tables, and the find-my-size box */
+.gtwrap + .gtwrap{margin-top:16px;}
+.gttitle{font-size:13px;font-weight:600;margin-bottom:7px;color:var(--ink);}
+.gtable tr.hit th,.gtable tr.hit td{background:var(--beige);font-weight:600;color:var(--brand);}
+
+.grec{background:#faf6fe;border:1px solid #e6d6f7;border-radius:8px;padding:13px 14px;margin-bottom:16px;}
+.grec > b{display:block;font-size:13.5px;margin-bottom:9px;}
+.grec__row{display:flex;gap:10px;flex-wrap:wrap;}
+.grec__row label{flex:1;min-width:120px;font-size:12px;color:var(--ink-2);}
+.grec__row label span{color:var(--mute);}
+.grec__row input{width:100%;margin-top:4px;border:1px solid var(--line);border-radius:4px;
+  padding:8px 10px;font-size:14px;background:var(--paper);outline:0;}
+.grec__row input:focus{border-color:var(--brand);}
+.grec__out{margin-top:10px;font-size:12.5px;color:var(--mute);line-height:1.5;}
+.grec__out--hit{color:var(--ink);}
+.grec__out--hit b{color:var(--brand);font-size:14px;}
+.grec__out--miss{color:#a35a00;}

@@ -118,63 +118,161 @@ function colourSpec(p) {
   return names.length ? 'Colour: ' + names.join(', ') : '';
 }
 
-/* A guide is either a chart somebody drew or measurements somebody typed.
-   A typed one gets a cm/inch switch, because a shopper with a tape measure has
-   whichever one they have and should not be doing the arithmetic. */
-const CM_PER_IN = 2.54;
+/* ── the size guide a shopper sees ──
+ * Two tables where the shop has set them — what the garment measures, and what
+ * body it suits — a cm/inch switch, and, when the body table names heights and
+ * weights, a box that picks the size for you.
+ *
+ * The recommendation is nothing cleverer than matching your numbers against
+ * the shop's own ranges. No model of how bodies are built is involved, which
+ * is why it only appears when those ranges exist.
+ */
+const CM_PER_IN = 2.54, KG_PER_LB = 0.45359237;
 let _guide = null, _gunits = null;
 
+const guideTables = g => Array.isArray(g?.tables) && g.tables.length
+  ? g.tables
+  : (Array.isArray(g?.rows) && g.rows.length
+      ? [{ title: 'Measurements', columns: g.columns || [], rows: g.rows }]
+      : []);
+
+const isWeightCol = name => /weight|kg|lb/i.test(String(name || ''));
+
 /* Converts every number it finds and leaves the rest alone, so "86–92" and
-   "8.5" and "2–3y" all survive. The size column is a name, never a
-   measurement, so it is not touched. */
-function convertRow(row, from, to) {
-  if (from === to) return row;
-  const f = n => to === 'in' ? (n / CM_PER_IN).toFixed(1).replace(/\.0$/, '')
-                             : String(Math.round(n * CM_PER_IN));
-  return row.map((cell, i) => i === 0 ? cell
-    : String(cell).replace(/\d+(\.\d+)?/g, m => f(parseFloat(m))));
+   "8.5" and "2–3y" all survive. The size column is a name, not a measurement. */
+function convertTable(t, from, to) {
+  if (from === to) return t;
+  const f = (n, weight) => {
+    if (weight) return to === 'in' ? String(Math.round(n / KG_PER_LB)) : String(Math.round(n * KG_PER_LB));
+    return to === 'in' ? (n / CM_PER_IN).toFixed(1).replace(/\.0$/, '') : String(Math.round(n * CM_PER_IN));
+  };
+  return { ...t, rows: t.rows.map(r => r.map((cell, ci) => ci === 0 ? cell
+    : String(cell).replace(/\d+(\.\d+)?/g, m => f(parseFloat(m), isWeightCol(t.columns[ci - 1]))))) };
 }
 
 function paintGuide(guide, name) {
-  const body = document.getElementById('guide-body');
   document.getElementById('guide-title').textContent = 'Size guide — ' + name;
   _guide = guide;
 
   if (guide.kind === 'image' && guide.image_path) {
-    body.innerHTML = `<img class="gchart" src="${esc(IMG(guide.image_path))}" alt="Size guide"/>`
+    document.getElementById('guide-body').innerHTML =
+      `<img class="gchart" src="${esc(IMG(guide.image_path))}" alt="Size guide"/>`
       + (guide.note ? `<p class="gnote">${esc(guide.note)}</p>` : '');
-    document.getElementById('guide-open').style.display = '';
-    return placeGuideLink();
+  } else if (guideTables(guide).length) {
+    _gunits = guide.units || 'cm';
+    drawGuide();
+  } else {
+    return;                              // nothing usable, so no link is offered
   }
-  if (!(guide.kind === 'table' && (guide.rows || []).length)) return;
-
-  _gunits = guide.units || 'cm';
-  drawGuideTable();
   document.getElementById('guide-open').style.display = '';
   placeGuideLink();
 }
 
-function drawGuideTable() {
+/* Always rebuilt from what was stored, never from what is on screen, so
+   switching units back and forth cannot drift the numbers. */
+function drawGuide() {
   const g = _guide;
-  const rows = g.rows.map(r => convertRow(r, g.units || 'cm', _gunits));
-  const unit = ' (' + _gunits + ')';
+  const base = g.units || 'cm';
+  const tables = guideTables(g).map(t => convertTable(t, base, _gunits));
+  const lenU = _gunits, wgtU = _gunits === 'in' ? 'lb' : 'kg';
   const btn = u => `<button class="gunit ${_gunits === u ? 'on' : ''}"
-    onclick="setGuideUnit('${u}')">${u === 'cm' ? 'cm' : 'inches'}</button>`;
+    onclick="setGuideUnit('${u}')">${u === 'cm' ? 'cm / kg' : 'inches / lb'}</button>`;
 
   document.getElementById('guide-body').innerHTML =
       `<div class="gunits">${btn('cm')}${btn('in')}</div>`
-    + '<div class="gscroll"><table class="gtable"><thead><tr><th>Size</th>'
-    + (g.columns || []).map(c => '<th>' + esc(c) + unit + '</th>').join('')
-    + '</tr></thead><tbody>'
-    + rows.map(r => '<tr>' + r.map((cell, i) =>
-        i === 0 ? '<th>' + esc(cell) + '</th>' : '<td>' + esc(cell || '—') + '</td>').join('') + '</tr>').join('')
-    + '</tbody></table></div>'
-    + (g.note ? '<p class="gnote">' + esc(g.note) + '</p>' : '');
+    + recommenderHtml(tables)
+    + tables.map(t => `
+        <div class="gtwrap">
+          <div class="gttitle">${esc(t.title || 'Measurements')}</div>
+          <div class="gscroll"><table class="gtable">
+            <thead><tr><th>Size</th>${(t.columns || []).map(c =>
+              `<th>${esc(c)} <i>(${isWeightCol(c) ? wgtU : lenU})</i></th>`).join('')}</tr></thead>
+            <tbody>${t.rows.map(r => `<tr data-size="${esc(r[0])}">${r.map((cell, i) =>
+              i === 0 ? `<th>${esc(cell)}</th>` : `<td>${esc(cell || '—')}</td>`).join('')}</tr>`).join('')}
+            </tbody></table></div>
+        </div>`).join('')
+    + (g.note ? `<p class="gnote">${esc(g.note)}</p>` : '');
 }
 
-/* Always converted from what was stored, never from what is on screen, so
-   switching back and forth cannot drift the numbers. */
-function setGuideUnit(u) { _gunits = u; drawGuideTable(); }
+function setGuideUnit(u) { _gunits = u; drawGuide(); }
+
+/* ── find my size ── */
+const colIndex = (t, re) => (t.columns || []).findIndex(c => re.test(String(c)));
+
+function recommenderHtml(tables) {
+  const t = tables.find(x => colIndex(x, /height/i) >= 0 && colIndex(x, /weight/i) >= 0);
+  if (!t) return '';
+  const lenU = _gunits === 'in' ? 'in' : 'cm', wgtU = _gunits === 'in' ? 'lb' : 'kg';
+  return `<div class="grec">
+      <b>Find my size</b>
+      <div class="grec__row">
+        <label>Height <span>(${lenU})</span><input id="rec-h" inputmode="decimal" oninput="recommend()"/></label>
+        <label>Weight <span>(${wgtU})</span><input id="rec-w" inputmode="decimal" oninput="recommend()"/></label>
+      </div>
+      <div class="grec__out" id="rec-out">Enter both and we will point at a row below.</div>
+    </div>`;
+}
+
+/* A range is written "160–168"; a single number means that size and no other.
+   Anything unparseable simply does not match, which is the safe way to fail. */
+function readRange(cell) {
+  const nums = String(cell).match(/\d+(\.\d+)?/g);
+  if (!nums || !nums.length) return null;
+  const lo = parseFloat(nums[0]);
+  return { lo, hi: nums.length > 1 ? parseFloat(nums[1]) : lo };
+}
+
+/* How far outside a range a number falls, measured in range-widths so height in
+   centimetres and weight in kilogrammes can be compared to each other. Inside
+   the range is nothing at all. */
+function miss(cell, value) {
+  const r = readRange(cell);
+  if (!r) return Infinity;
+  if (value >= r.lo - 0.001 && value <= r.hi + 0.001) return 0;
+  const span = Math.max(r.hi - r.lo, 1);
+  return (value < r.lo ? r.lo - value : value - r.hi) / span;
+}
+
+function recommend() {
+  const out = document.getElementById('rec-out');
+  const h = parseFloat((document.getElementById('rec-h') || {}).value);
+  const w = parseFloat((document.getElementById('rec-w') || {}).value);
+  document.querySelectorAll('.gtable tr.hit').forEach(r => r.classList.remove('hit'));
+  if (!(h > 0) || !(w > 0)) {
+    out.textContent = 'Enter both and we will point at a row below.';
+    out.className = 'grec__out';
+    return;
+  }
+
+  const tables = guideTables(_guide).map(t => convertTable(t, _guide.units || 'cm', _gunits));
+  const t = tables.find(x => colIndex(x, /height/i) >= 0 && colIndex(x, /weight/i) >= 0);
+  const hi = colIndex(t, /height/i) + 1, wi = colIndex(t, /weight/i) + 1;
+
+  /* One score per row rather than a list of anything that half-matched: a
+     shopper asking which size to buy wants an answer, not five. */
+  const scored = t.rows
+    .map(r => ({ name: r[0], score: miss(r[hi], h) + miss(r[wi], w) }))
+    .filter(x => Number.isFinite(x.score))
+    .sort((a, b) => a.score - b.score);
+
+  if (!scored.length || scored[0].score > 2) {
+    out.textContent = 'Nothing here is close to those measurements — message us and we will check for you.';
+    out.className = 'grec__out grec__out--miss';
+    return;
+  }
+
+  const best = scored[0].score;
+  const names = [...new Set(scored.filter(x => x.score === best).map(x => x.name))];
+  out.innerHTML = best === 0
+    ? `Try <b>${esc(names.join(' or '))}</b>.`
+    : `Closest is <b>${esc(names.join(' or '))}</b> — you are between sizes, so size up if you like a looser fit.`;
+  out.className = 'grec__out grec__out--hit';
+
+  /* The suggestion points at the table rather than replacing it: seeing why is
+     worth more than being told. */
+  names.forEach(n => document.querySelectorAll(`.gtable tr[data-size="${CSS.escape(n)}"]`)
+    .forEach(r => r.classList.add('hit')));
+}
 
 function placeGuideLink() {
   const link = document.getElementById('guide-open');

@@ -319,3 +319,12 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
 /* preset charts above the size-guide table */
 .gpresets{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
 .gpresets span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);}
+
+/* one block per guide table */
+.gtblock{margin-top:14px;}
+.gtblock__h{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.gtblock__h .inp--mini{max-width:220px;}
+.gtblock__h .linkx{margin-left:auto;}
+.grec{margin-top:12px;padding:9px 12px;border-radius:8px;font-size:12px;line-height:1.55;
+  background:var(--s2);border:1px solid var(--b);color:var(--sub);}
+.grec--on{color:var(--green);border-color:rgba(62,207,142,.3);}

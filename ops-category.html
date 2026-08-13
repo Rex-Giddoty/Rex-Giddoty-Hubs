@@ -49,13 +49,6 @@
             it is cropped to fill, so keep the subject near the middle.
           </div>
         </div>
-        <div class="full"><label class="f">Size guide</label>
-          <div id="c-guide"></div>
-          <div class="muted" style="font-size:12px;margin-top:6px;">
-            Every item in this category shows this, unless the item carries one
-            of its own.
-          </div>
-        </div>
         <div class="full"><label class="f">Description</label><textarea class="inp" id="c-description"></textarea></div>
         <div><label class="f">Position</label><input class="inp" id="c-position" type="number" value="0"/></div>
         <div><label class="f">Visible</label>
@@ -77,6 +70,18 @@
       <div class="stat" id="cat-stats"></div>
       <div class="items" id="items"></div>
     </div>
+  </div>
+
+  <!-- size guide, full width: the tables need the room -->
+  <div class="card" style="margin-top:16px;">
+    <h3 style="margin-bottom:6px;">Size guide</h3>
+    <div class="muted" style="font-size:12px;margin-bottom:12px;">
+      Every item in this category shows this, unless the item carries one of its
+      own. Give the body table a <b>Height</b> and a <b>Weight</b> column and
+      shoppers also get a “Find my size” box.
+    </div>
+    <div id="c-guide"></div>
+    <div class="row-actions"><button class="btn btn--primary" onclick="saveCategory()">Save size guide</button></div>
   </div>
 </div>
 
@@ -250,101 +255,153 @@ const COLOURS = [
  * One editor serves both, told apart by the id prefix it is handed.
  */
 /* ── size presets ──
- * Conventional body measurements, not a standard: letter sizes vary by region,
- * by garment and by brand, so these fill the table in one tap and are then
- * yours to correct against what you actually stock. All in cm; the toggle
- * converts.
+ * Conventional measurements, not a standard: letter sizes differ by region, by
+ * garment and by brand, so these fill the tables in one tap and are then yours
+ * to correct against what you actually stock.
  *
- * Ranges are written with an en dash and survive conversion, because every
- * number in a cell is converted rather than the cell being parsed as one.
+ * Each carries two tables the way a Temu listing does — what the garment
+ * measures, and what body it suits — and the body table names a height and a
+ * weight range per size, which is what lets the product page recommend one.
+ *
+ * Lengths in cm, weights in kg. Ranges survive the unit toggle because every
+ * number in a cell is converted on its own.
  */
 const SIZE_PRESETS = [
-  { name: "Women's tops", columns: ['Bust', 'Waist', 'Hip'], rows: [
-      ['XS', '78–82', '60–64', '84–88'],
-      ['S',  '82–86', '64–68', '88–92'],
-      ['M',  '86–92', '68–74', '92–98'],
-      ['L',  '92–98', '74–80', '98–104'],
-      ['XL', '98–106', '80–88', '104–112'],
-      ['XXL','106–114','88–96', '112–120'],
-  ], note: 'Body measurements. Measure over light clothing, tape snug but not tight.' },
+  { name: "Women's tops",
+    note: 'Garment measured flat. Body measurements taken over light clothing.',
+    tables: [
+      { title: 'Product measurements', columns: ['Bust', 'Length', 'Shoulder'], rows: [
+        ['XS', '84', '60', '35'], ['S', '88', '62', '36'], ['M', '94', '64', '38'],
+        ['L', '100', '66', '40'], ['XL', '108', '68', '42'], ['XXL', '116', '70', '44'] ] },
+      { title: 'Body reference', columns: ['Bust', 'Waist', 'Height', 'Weight'], rows: [
+        ['XS', '78–82',  '60–64', '150–158', '40–46'],
+        ['S',  '82–86',  '64–68', '155–163', '45–52'],
+        ['M',  '86–92',  '68–74', '160–168', '51–59'],
+        ['L',  '92–98',  '74–80', '165–172', '58–67'],
+        ['XL', '98–106', '80–88', '168–176', '66–77'],
+        ['XXL','106–114','88–96', '170–180', '76–88'] ] },
+    ] },
 
-  { name: "Men's tops", columns: ['Chest', 'Waist', 'Sleeve'], rows: [
-      ['S',  '88–96',  '76–84',  '60'],
-      ['M',  '96–104', '84–92',  '62'],
-      ['L',  '104–112','92–100', '64'],
-      ['XL', '112–120','100–108','66'],
-      ['XXL','120–128','108–116','68'],
-      ['3XL','128–136','116–124','70'],
-  ], note: 'Body measurements. Measure around the fullest part of the chest.' },
+  { name: "Men's tops",
+    note: 'Garment measured flat. Measure the chest at its fullest point.',
+    tables: [
+      { title: 'Product measurements', columns: ['Chest', 'Length', 'Sleeve'], rows: [
+        ['S', '100', '68', '60'], ['M', '108', '70', '62'], ['L', '116', '72', '64'],
+        ['XL', '124', '74', '66'], ['XXL', '132', '76', '68'], ['3XL', '140', '78', '70'] ] },
+      { title: 'Body reference', columns: ['Chest', 'Waist', 'Height', 'Weight'], rows: [
+        ['S',  '88–96',  '76–84',  '160–168', '55–63'],
+        ['M',  '96–104', '84–92',  '166–174', '62–72'],
+        ['L',  '104–112','92–100', '172–180', '71–82'],
+        ['XL', '112–120','100–108','176–184', '81–93'],
+        ['XXL','120–128','108–116','180–188', '92–105'],
+        ['3XL','128–136','116–124','182–192', '104–120'] ] },
+    ] },
 
-  { name: 'Trousers & jeans', columns: ['Waist', 'Hip', 'Inside leg'], rows: [
-      ['28', '71–74', '89–92',  '76'],
-      ['30', '76–79', '94–97',  '78'],
-      ['32', '81–84', '99–102', '79'],
-      ['34', '86–89', '104–107','81'],
-      ['36', '91–94', '109–112','81'],
-      ['38', '96–99', '114–117','82'],
-  ], note: 'Waist sizes in inches on the label; measurements here are the body in cm.' },
+  { name: 'Trousers & jeans',
+    note: 'Waist size on the label is in inches; the measurements here are the body.',
+    tables: [
+      { title: 'Product measurements', columns: ['Waist', 'Hip', 'Inside leg'], rows: [
+        ['28', '72', '92', '76'], ['30', '77', '97', '78'], ['32', '82', '102', '79'],
+        ['34', '87', '107', '81'], ['36', '92', '112', '81'], ['38', '97', '117', '82'] ] },
+      { title: 'Body reference', columns: ['Waist', 'Hip', 'Height', 'Weight'], rows: [
+        ['28', '71–74', '89–92',  '160–170', '52–58'],
+        ['30', '76–79', '94–97',  '165–175', '58–65'],
+        ['32', '81–84', '99–102', '170–178', '64–73'],
+        ['34', '86–89', '104–107','173–182', '72–82'],
+        ['36', '91–94', '109–112','176–185', '81–92'],
+        ['38', '96–99', '114–117','178–188', '91–103'] ] },
+    ] },
 
-  { name: 'Shoes', columns: ['UK', 'US', 'Foot length'], rows: [
-      ['38', '5',  '6',  '24.0'],
-      ['39', '6',  '7',  '24.5'],
-      ['40', '6.5','7.5','25.5'],
-      ['41', '7.5','8.5','26.0'],
-      ['42', '8',  '9',  '26.5'],
-      ['43', '9',  '10', '27.5'],
-      ['44', '9.5','10.5','28.0'],
-      ['45', '10.5','11.5','28.5'],
-  ], note: 'EU size in the first column. Measure your foot heel to longest toe.' },
+  { name: 'Shoes',
+    note: 'EU size in the first column. Measure the foot heel to longest toe.',
+    tables: [
+      { title: 'Size conversion', columns: ['UK', 'US', 'Foot length'], rows: [
+        ['38', '5', '6', '24.0'], ['39', '6', '7', '24.5'], ['40', '6.5', '7.5', '25.5'],
+        ['41', '7.5', '8.5', '26.0'], ['42', '8', '9', '26.5'], ['43', '9', '10', '27.5'],
+        ['44', '9.5', '10.5', '28.0'], ['45', '10.5', '11.5', '28.5'] ] },
+    ] },
 
-  { name: 'Kids (age)', columns: ['Height', 'Chest', 'Waist'], rows: [
-      ['2–3y',  '92–98',   '52–54', '51–52'],
-      ['4–5y',  '104–110', '56–58', '53–54'],
-      ['6–7y',  '116–122', '60–62', '55–57'],
-      ['8–9y',  '128–134', '64–67', '58–60'],
-      ['10–11y','140–146', '69–73', '61–64'],
-  ], note: 'By age, with height as the better guide where they differ.' },
+  { name: 'Kids (age)',
+    note: 'By age, with height the better guide wherever the two disagree.',
+    tables: [
+      { title: 'Body reference', columns: ['Chest', 'Waist', 'Height', 'Weight'], rows: [
+        ['2–3y',  '52–54', '51–52', '92–98',   '13–15'],
+        ['4–5y',  '56–58', '53–54', '104–110', '16–19'],
+        ['6–7y',  '60–62', '55–57', '116–122', '20–24'],
+        ['8–9y',  '64–67', '58–60', '128–134', '25–31'],
+        ['10–11y','69–73', '61–64', '140–146', '32–40'] ] },
+    ] },
 ];
 
 function applyPreset(p, i) {
   const preset = SIZE_PRESETS[i];
   const g = guideState(p);
-  if (g.rows.length && !confirm(`Replace the table with the ${preset.name} chart?`)) return;
+  if (g.tables.some(t => t.rows.length) && !confirm(`Replace the tables with the ${preset.name} chart?`)) return;
   g.kind = 'table';
   g.units = 'cm';
-  g.columns = preset.columns.slice();
-  g.rows = preset.rows.map(r => r.slice());
+  g.tables = preset.tables.map(t => ({
+    title: t.title, columns: t.columns.slice(), rows: t.rows.map(r => r.slice()),
+  }));
   if (!g.note) g.note = preset.note;
   renderGuide(p);
 }
 
-/* Converts every number it finds and leaves the rest of the cell alone, so
-   "86–92" and "8.5" and "2–3y" all survive. Rounding differs by direction:
-   centimetres are whole numbers, inches want a decimal to stay useful. */
-const CM_PER_IN = 2.54;
-function convertCells(rows, from, to) {
-  if (from === to) return rows;
-  const f = n => to === 'in' ? (n / CM_PER_IN).toFixed(1).replace(/\.0$/, '')
-                             : String(Math.round(n * CM_PER_IN));
-  return rows.map((r, ri) => r.map((cell, ci) =>
-    /* The first column is the size name — "3XL", "10–11y", "38" — and is not a
-       measurement, so it is never touched. */
-    ci === 0 ? cell
-      : String(cell).replace(/\d+(\.\d+)?/g, m => f(parseFloat(m)))));
+/* Lengths convert cm ⇄ in; a column called Weight converts kg ⇄ lb instead.
+   Every number in a cell is converted on its own, so "86–92" and "8.5" and
+   "2–3y" all survive, and the first column is a size name and never touched. */
+const CM_PER_IN = 2.54, KG_PER_LB = 0.45359237;
+const isWeightCol = name => /weight|kg|lb/i.test(String(name || ''));
+
+function convertTable(t, from, to) {
+  if (from === to) return t;
+  const f = (n, weight) => {
+    if (weight) return to === 'in' ? String(Math.round(n / KG_PER_LB)) : String(Math.round(n * KG_PER_LB));
+    return to === 'in' ? (n / CM_PER_IN).toFixed(1).replace(/\.0$/, '') : String(Math.round(n * CM_PER_IN));
+  };
+  return {
+    ...t,
+    rows: t.rows.map(r => r.map((cell, ci) => ci === 0 ? cell
+      : String(cell).replace(/\d+(\.\d+)?/g, m => f(parseFloat(m), isWeightCol(t.columns[ci - 1]))))),
+  };
 }
 
 function setGuideUnits(p, u) {
   const g = guideState(p);
   if (g.units === u) return;
-  g.rows = convertCells(g.rows, g.units, u);
+  g.tables = g.tables.map(t => convertTable(t, g.units, u));
   g.units = u;
   renderGuide(p);
 }
 
+/* ── size guides ──
+ * Two tables, the way a Temu listing does it:
+ *
+ *   Product measurements — the garment itself, laid flat
+ *   Body reference       — the wearer, so a shopper can match themselves to it
+ *
+ * When the body table carries Height and Weight columns, the product page can
+ * also recommend a size: the shopper's numbers are matched against the shop's
+ * own ranges, never against a guess about how bodies are built.
+ *
+ *   { kind:'table', units:'cm',
+ *     tables:[ { title:'Product measurements', columns:[…], rows:[[…]] },
+ *              { title:'Body reference',       columns:[…], rows:[[…]] } ],
+ *     note:'…' }
+ *   { kind:'image', image_path:'…', note:'…' }
+ *
+ * Guides saved before this carried one table at the top level; readGuideTables
+ * accepts that shape so nothing already set has to be retyped.
+ */
 const GUIDE = {};                    // prefix → working copy
 
+const guideTables = g => Array.isArray(g?.tables) && g.tables.length
+  ? g.tables
+  : (Array.isArray(g?.rows) && g.rows.length
+      ? [{ title: 'Measurements', columns: g.columns || [], rows: g.rows }]
+      : []);
+
 function guideState(p) {
-  if (!GUIDE[p]) GUIDE[p] = { kind: 'none', units: 'cm', columns: ['Chest', 'Length'], rows: [], note: '', image_path: null };
+  if (!GUIDE[p]) GUIDE[p] = { kind: 'none', units: 'cm', tables: [], note: '', image_path: null };
   return GUIDE[p];
 }
 
@@ -353,26 +410,33 @@ function loadGuide(p, value) {
   GUIDE[p] = {
     kind: g?.kind || 'none',
     units: g?.units || 'cm',
-    columns: Array.isArray(g?.columns) && g.columns.length ? g.columns.slice() : ['Chest', 'Length'],
-    rows: Array.isArray(g?.rows) ? g.rows.map(r => r.slice()) : [],
+    tables: guideTables(g).map(t => ({
+      title: t.title || 'Measurements',
+      columns: (t.columns || []).slice(),
+      rows: (t.rows || []).map(r => r.slice()),
+    })),
     note: g?.note || '',
     image_path: g?.image_path || null,
   };
   renderGuide(p);
 }
 
-/* null rather than an empty shell when nothing has been set, so "no guide"
-   and "an empty guide" cannot be told apart in the database either. */
+/* null rather than an empty shell when nothing has been set, so "no guide" and
+   "an empty guide" cannot be told apart in the database either. */
 function readGuide(p) {
   const g = guideState(p);
   if (g.kind === 'image') {
     return g.image_path ? { kind: 'image', image_path: g.image_path, note: g.note || '' } : null;
   }
   if (g.kind === 'table') {
-    const rows = g.rows.filter(r => r.some(cell => String(cell || '').trim()));
-    return rows.length
-      ? { kind: 'table', units: g.units, columns: g.columns.map(c => String(c).trim() || '—'), rows, note: g.note || '' }
-      : null;
+    const tables = g.tables
+      .map(t => ({
+        title: String(t.title || 'Measurements').trim() || 'Measurements',
+        columns: t.columns.map(c => String(c).trim() || '—'),
+        rows: t.rows.filter(r => r.some(cell => String(cell || '').trim())),
+      }))
+      .filter(t => t.rows.length);
+    return tables.length ? { kind: 'table', units: g.units, tables, note: g.note || '' } : null;
   }
   return null;
 }
@@ -382,7 +446,7 @@ function renderGuide(p) {
   if (!box) return;
   const g = guideState(p);
   const tab = k => `<button type="button" class="gtab ${g.kind === k ? 'gtab--on' : ''}"
-    onclick="setGuideKind('${p}','${k}')">${k === 'none' ? 'None' : k === 'table' ? 'Typed table' : 'Chart image'}</button>`;
+    onclick="setGuideKind('${p}','${k}')">${k === 'none' ? 'None' : k === 'table' ? 'Typed tables' : 'Chart image'}</button>`;
 
   let body = '';
   if (g.kind === 'image') {
@@ -404,25 +468,13 @@ function renderGuide(p) {
         Measurements in
         <button type="button" class="chip ${g.units === 'cm' ? 'chip--on' : ''}" onclick="setGuideUnits('${p}','cm')">cm</button>
         <button type="button" class="chip ${g.units === 'in' ? 'chip--on' : ''}" onclick="setGuideUnits('${p}','in')">inches</button>
+        <span class="muted" style="margin-left:auto;font-size:11.5px;">Weight columns switch kg ⇄ lb</span>
       </div>
-      <div class="gridwrap"><table class="stockgrid">
-        <thead><tr><th class="sticky">Size</th>
-          ${g.columns.map((c, i) => `<th><input class="inp inp--mini" value="${esc(c)}"
-            placeholder="Chest" oninput="GUIDE['${p}'].columns[${i}]=this.value"/>
-            <button class="linkx" onclick="removeGuideCol('${p}',${i})">Remove</button></th>`).join('')}
-          <th></th></tr></thead>
-        <tbody>${g.rows.map((r, ri) => `<tr>
-          <th class="sticky"><input class="inp inp--mini" value="${esc(r[0] || '')}" placeholder="M"
-            oninput="GUIDE['${p}'].rows[${ri}][0]=this.value"/></th>
-          ${g.columns.map((_, ci) => `<td><input class="inp inp--cell" value="${esc(r[ci + 1] || '')}"
-            placeholder="—" oninput="GUIDE['${p}'].rows[${ri}][${ci + 1}]=this.value"/></td>`).join('')}
-          <td><button class="btn btn--sm btn--danger" onclick="removeGuideRow('${p}',${ri})">×</button></td>
-        </tr>`).join('')}</tbody>
-      </table></div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <button class="btn btn--sm" onclick="addGuideRow('${p}')">+ Add size row</button>
-        <button class="btn btn--sm" onclick="addGuideCol('${p}')">+ Add measurement</button>
-      </div>`;
+      ${g.tables.map((t, ti) => guideTableHtml(p, t, ti)).join('')}
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn--sm" onclick="addGuideTable('${p}')">+ Add another table</button>
+      </div>
+      ${recommenderNote(g)}`;
   }
 
   box.innerHTML = `<div class="gtabs">${tab('none')}${tab('table')}${tab('image')}</div>
@@ -431,19 +483,75 @@ function renderGuide(p) {
       value="${esc(g.note)}" oninput="GUIDE['${p}'].note=this.value"/>`}`;
 }
 
-function setGuideKind(p, k) { guideState(p).kind = k; if (k === 'table' && !GUIDE[p].rows.length) addGuideRow(p); else renderGuide(p); }
-function addGuideRow(p) { const g = guideState(p); g.rows.push(new Array(g.columns.length + 1).fill('')); renderGuide(p); }
-function removeGuideRow(p, i) { guideState(p).rows.splice(i, 1); renderGuide(p); }
-function addGuideCol(p) {
+function guideTableHtml(p, t, ti) {
+  return `<div class="gtblock">
+    <div class="gtblock__h">
+      <input class="inp inp--mini" value="${esc(t.title)}" placeholder="Table name"
+        oninput="GUIDE['${p}'].tables[${ti}].title=this.value"/>
+      ${GUIDE[p].tables.length > 1
+        ? `<button class="linkx" onclick="removeGuideTable('${p}',${ti})">Remove table</button>` : ''}
+    </div>
+    <div class="gridwrap"><table class="stockgrid">
+      <thead><tr><th class="sticky">Size</th>
+        ${t.columns.map((c, i) => `<th><input class="inp inp--mini" value="${esc(c)}"
+          placeholder="Chest" oninput="GUIDE['${p}'].tables[${ti}].columns[${i}]=this.value"/>
+          <button class="linkx" onclick="removeGuideCol('${p}',${ti},${i})">Remove</button></th>`).join('')}
+        <th></th></tr></thead>
+      <tbody>${t.rows.map((r, ri) => `<tr>
+        <th class="sticky"><input class="inp inp--mini" value="${esc(r[0] || '')}" placeholder="M"
+          oninput="GUIDE['${p}'].tables[${ti}].rows[${ri}][0]=this.value"/></th>
+        ${t.columns.map((_, ci) => `<td><input class="inp inp--cell" value="${esc(r[ci + 1] || '')}"
+          placeholder="—" oninput="GUIDE['${p}'].tables[${ti}].rows[${ri}][${ci + 1}]=this.value"/></td>`).join('')}
+        <td><button class="btn btn--sm btn--danger" onclick="removeGuideRow('${p}',${ti},${ri})">×</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    <div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;">
+      <button class="btn btn--sm" onclick="addGuideRow('${p}',${ti})">+ Add size row</button>
+      <button class="btn btn--sm" onclick="addGuideCol('${p}',${ti})">+ Add measurement</button>
+    </div>
+  </div>`;
+}
+
+/* The recommender is offered by the product page only when the shop has said
+   which heights and weights each size suits. Saying so here saves anyone
+   wondering why it did not appear. */
+function recommenderNote(g) {
+  const has = w => g.tables.some(t => t.columns.some(c => new RegExp(w, 'i').test(c)));
+  const h = has('height'), w = has('weight');
+  return `<div class="grec ${h && w ? 'grec--on' : ''}">${h && w
+    ? '✓ Shoppers get a “Find my size” box — a Height and a Weight column is all it needs.'
+    : 'Add a <b>Height</b> and a <b>Weight</b> column and shoppers also get a “Find my size” box, matched against these rows.'}</div>`;
+}
+
+function setGuideKind(p, k) {
   const g = guideState(p);
-  g.columns.push('');
-  g.rows.forEach(r => r.push(''));
+  g.kind = k;
+  if (k === 'table' && !g.tables.length) addGuideTable(p); else renderGuide(p);
+}
+function addGuideTable(p) {
+  const g = guideState(p);
+  g.tables.push(g.tables.length
+    ? { title: 'Body reference', columns: ['Height', 'Weight'], rows: [['', '', '']] }
+    : { title: 'Product measurements', columns: ['Chest', 'Length'], rows: [['', '', '']] });
   renderGuide(p);
 }
-function removeGuideCol(p, i) {
-  const g = guideState(p);
-  g.columns.splice(i, 1);
-  g.rows.forEach(r => r.splice(i + 1, 1));
+function removeGuideTable(p, ti) { guideState(p).tables.splice(ti, 1); renderGuide(p); }
+function addGuideRow(p, ti) {
+  const t = guideState(p).tables[ti];
+  t.rows.push(new Array(t.columns.length + 1).fill(''));
+  renderGuide(p);
+}
+function removeGuideRow(p, ti, ri) { guideState(p).tables[ti].rows.splice(ri, 1); renderGuide(p); }
+function addGuideCol(p, ti) {
+  const t = guideState(p).tables[ti];
+  t.columns.push('');
+  t.rows.forEach(r => r.push(''));
+  renderGuide(p);
+}
+function removeGuideCol(p, ti, i) {
+  const t = guideState(p).tables[ti];
+  t.columns.splice(i, 1);
+  t.rows.forEach(r => r.splice(i + 1, 1));
   renderGuide(p);
 }
 function clearGuideImage(p) { guideState(p).image_path = null; renderGuide(p); }
