@@ -2,22 +2,20 @@
   {
     "_comment": [
       "Digital Asset Links. This is what tells Android that the app signed with",
-      "the fingerprint below is allowed to show rexgiddotyhubs.shop without a",
-      "browser address bar across the top.",
+      "the fingerprint below may show rexgiddotyhubs.shop without a browser",
+      "address bar across the top.",
       "",
-      "PLACEHOLDER — the app is not built yet. Replace sha256_cert_fingerprints",
-      "with the value from the package PWABuilder produces (it ships its own",
-      "assetlinks.json in the zip; copy the fingerprint out of it), and set",
-      "package_name to the one you chose there.",
-      "",
-      "Until that is done this file changes nothing, and the site is unaffected."
+      "The fingerprint is the upload key PWABuilder generated on 13 Aug 2026.",
+      "If this app is ever put on Google Play, Play re-signs it with a key of",
+      "its own — add that fingerprint to the same array rather than replacing",
+      "this one, or the sideloaded copies stop verifying."
     ],
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
       "package_name": "shop.rexgiddotyhubs.twa",
       "sha256_cert_fingerprints": [
-        "REPLACE:WITH:THE:SHA256:OF:YOUR:SIGNING:KEY"
+        "DB:86:94:44:4B:82:C6:D3:52:3E:8A:C0:D2:A6:8D:9F:E2:56:63:D9:20:E2:53:D2:30:3A:62:69:30:04:36:AE"
       ]
     }
   }
