@@ -398,24 +398,131 @@
         </div>`;
       document.body.appendChild(drawer);
 
-      /* Closing waits for the slide-out to finish before the panel is hidden;
-         removing .open outright would make it disappear mid-animation. */
-      let closeTimer;
-      const openDrawer = () => {
-        clearTimeout(closeTimer);
-        drawer.classList.remove('closing');
-        drawer.classList.add('open');
+      /* ── the drawer, and the thumb that drags it ──
+       * .on puts it in the document, .open decides where it sits, and a
+       * transition carries it between the two. During a drag the position is
+       * set by hand and every transition is off, so the panel tracks the finger
+       * instead of easing behind it.
+       */
+      let hideTimer;
+      const setOpen = want => {
+        clearTimeout(hideTimer);
+        if (want) {
+          drawer.classList.add('on');
+          /* The panel has to exist at its closed position for one frame or the
+             browser has nothing to transition from and it simply appears. */
+          void drawer.offsetWidth;
+          drawer.classList.remove('closing');
+          drawer.classList.add('open');
+        } else {
+          if (!drawer.classList.contains('on')) return;
+          drawer.classList.add('closing');
+          drawer.classList.remove('open');
+          hideTimer = setTimeout(() => drawer.classList.remove('on', 'closing'), 320);
+        }
       };
-      const closeDrawer = () => {
-        if (!drawer.classList.contains('open')) return;
-        drawer.classList.remove('open');
-        drawer.classList.add('closing');
-        clearTimeout(closeTimer);
-        closeTimer = setTimeout(() => drawer.classList.remove('closing'), 300);
-      };
+      const openDrawer = () => setOpen(true);
+      const closeDrawer = () => setOpen(false);
+
       head.querySelector('[data-burger]').onclick = openDrawer;
       drawer.querySelector('[data-close]').onclick = closeDrawer;
       document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+      /* A strip down the left edge is the only place an opening swipe may begin.
+         Anywhere else and it would fight the product rows, which scroll
+         sideways on the same axis. */
+      const edge = document.querySelector('.edge') || document.createElement('div');
+      edge.className = 'edge';
+      if (!edge.isConnected) document.body.appendChild(edge);
+
+      const panel = drawer.querySelector('.drawer__panel');
+      const veil = drawer.querySelector('.drawer__bg');
+      const SLOP = 8;                    // pixels before the axis is decided
+      const TAKE = 0.4;                  // how far across counts as "let it open"
+      const FLICK = 0.45;                // px per ms that counts as a flick
+
+      let live = false, axis = null, fromOpen = false;
+      let x0 = 0, y0 = 0, w = 280, lastX = 0, lastT = 0, vel = 0, moved = false;
+
+      /* 0 is shut, 1 is open. Everything the gesture does is expressed in this. */
+      const place = f => {
+        panel.style.transform = `translate3d(${(f - 1) * 100}%,0,0)`;
+        veil.style.opacity = String(f);
+      };
+      const release = () => {
+        panel.style.transform = '';
+        veil.style.opacity = '';
+        drawer.classList.remove('dragging');
+      };
+
+      const start = e => {
+        if (e.touches.length !== 1) return;
+        const t = e.touches[0];
+        fromOpen = drawer.classList.contains('open');
+        /* Opening starts at the edge; closing starts anywhere on the drawer. */
+        if (!fromOpen && e.currentTarget !== edge) return;
+        live = true; axis = null; moved = false;
+        x0 = lastX = t.clientX; y0 = t.clientY;
+        lastT = e.timeStamp; vel = 0;
+        w = panel.getBoundingClientRect().width || 280;
+      };
+
+      const move = e => {
+        if (!live || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        const dx = t.clientX - x0, dy = t.clientY - y0;
+
+        if (!axis) {
+          if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) return;
+          /* Whichever way the first few pixels went is the way this gesture is
+             going. A vertical one is the menu or the page scrolling, and is let
+             go of entirely. */
+          axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+          if (axis === 'y') { live = false; return; }
+          clearTimeout(hideTimer);
+          drawer.classList.add('on', 'dragging');
+          drawer.classList.remove('closing');
+        }
+
+        moved = true;
+        e.preventDefault();                       // the page stays where it is
+
+        const dt = Math.max(1, e.timeStamp - lastT);
+        vel = (t.clientX - lastX) / dt;
+        lastX = t.clientX; lastT = e.timeStamp;
+
+        const raw = fromOpen ? w + dx : dx;
+        place(Math.max(0, Math.min(1, raw / w)));
+      };
+
+      const end = () => {
+        if (!live) return;
+        live = false;
+        if (axis !== 'x' || !moved) return;
+
+        const f = Math.max(0, Math.min(1, (fromOpen ? w + (lastX - x0) : lastX - x0) / w));
+        /* A flick beats the halfway line: a short fast push should open it even
+           though the finger never got far. */
+        const want = vel > FLICK ? true : vel < -FLICK ? false : f > TAKE;
+
+        release();
+        setOpen(want);
+        /* A drag that ends on the backdrop would otherwise be followed by its
+           click, shutting what was just opened. */
+        if (want) {
+          const eat = ev => { ev.stopPropagation(); ev.preventDefault(); };
+          drawer.addEventListener('click', eat, { capture: true, once: true });
+          setTimeout(() => drawer.removeEventListener('click', eat, true), 350);
+        }
+      };
+
+      for (const el of [edge, drawer]) {
+        el.addEventListener('touchstart', start, { passive: true });
+        el.addEventListener('touchmove', move, { passive: false });
+        el.addEventListener('touchend', end, { passive: true });
+        el.addEventListener('touchcancel', () => { if (live) { live = false; release(); setOpen(fromOpen); } },
+          { passive: true });
+      }
     }
 
     const rail = document.querySelector('[data-rail]');

@@ -830,32 +830,42 @@ textarea.inp{resize:vertical;min-height:74px;}
 
 /* ───────────────────── drawer ───────────────────── */
 
+/* The drawer is driven by transform rather than by keyframes, because a finger
+   dragging it needs the position set live and a keyframe cannot be interrupted
+   halfway. .on decides whether it is in the document at all; .open decides
+   where it sits; .dragging hands the position over to the gesture and turns
+   every transition off so nothing eases against the thumb. */
 .drawer{position:fixed;inset:0;z-index:120;display:none;}
-.drawer.open,.drawer.closing{display:block;}
-.drawer__bg{position:absolute;inset:0;background:rgba(0,0,0,.45);}
+.drawer.on{display:block;}
+.drawer__bg{position:absolute;inset:0;background:rgba(0,0,0,.45);
+  opacity:0;transition:opacity .3s ease;}
 .drawer__panel{position:absolute;left:0;top:0;bottom:0;width:82%;max-width:310px;
   background:var(--paper);overflow-y:auto;padding-bottom:24px;
-  box-shadow:0 0 40px rgba(0,0,0,.28);will-change:transform;}
+  box-shadow:0 0 40px rgba(0,0,0,.28);will-change:transform;
+  transform:translate3d(-100%,0,0);
+  /* Decelerating into place rather than stopping dead is most of what makes it
+     feel smooth. The way back is quicker and sharper, the way a door shuts. */
+  transition:transform .38s cubic-bezier(.22,.61,.36,1);}
 
-/* Opening and closing are both animated. The easing decelerates into place
-   rather than stopping dead, which is most of what makes it feel smooth;
-   the backdrop fades alongside so the panel does not appear to drag a
-   hard-edged shadow behind it. */
-.drawer.open    .drawer__panel{animation:drawer-in  .38s cubic-bezier(.22,.61,.36,1) both;}
-.drawer.open    .drawer__bg   {animation:veil-in    .38s ease both;}
-.drawer.closing .drawer__panel{animation:drawer-out .30s cubic-bezier(.55,.06,.68,.19) both;}
-.drawer.closing .drawer__bg   {animation:veil-out   .30s ease both;}
+.drawer.open .drawer__panel{transform:translate3d(0,0,0);}
+.drawer.open .drawer__bg{opacity:1;}
+.drawer.closing .drawer__panel{transition-duration:.3s;
+  transition-timing-function:cubic-bezier(.55,.06,.68,.19);}
 
-@keyframes drawer-in {from{transform:translateX(-100%)} to{transform:translateX(0)}}
-@keyframes drawer-out{from{transform:translateX(0)}     to{transform:translateX(-100%)}}
-@keyframes veil-in   {from{opacity:0} to{opacity:1}}
-@keyframes veil-out  {from{opacity:1} to{opacity:0}}
+.drawer.dragging .drawer__panel,.drawer.dragging .drawer__bg{transition:none;}
+/* A finger on the drawer must not also scroll the page behind it. */
+.drawer.dragging{touch-action:none;}
+
+/* The strip the opening swipe comes from. Invisible, and out of the way the
+   moment the drawer is open or the pointer is a mouse. */
+.edge{position:fixed;left:0;top:0;bottom:0;width:22px;z-index:110;
+  display:none;touch-action:pan-y;}
+@media (hover:none){.edge{display:block;}}
+.drawer.on ~ .edge{display:none;}
 
 /* Someone who has asked for less motion gets none of it. */
 @media (prefers-reduced-motion:reduce){
-  .drawer.open .drawer__panel,.drawer.open .drawer__bg,
-  .drawer.closing .drawer__panel,.drawer.closing .drawer__bg{animation:none;}
-  .drawer.closing{display:none;}
+  .drawer__panel,.drawer__bg{transition:none;}
 }
 /* Dark, not brand orange: the logo's wordmark is white and needs something dark
    behind it — the same reason the sidebar cap and the emails are dark. */
