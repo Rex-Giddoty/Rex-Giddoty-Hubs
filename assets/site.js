@@ -21,6 +21,13 @@
   const SITE = 'https://rexgiddotyhubs.shop';
   window.RG_SITE = SITE;
 
+  /* Product media is a mix of photographs and the occasional short clip. Which
+     one a row is comes from its extension, which is safe because the uploader
+     is what writes the name. One definition, used by the cards, the product
+     page and the ops editor alike. */
+  const IS_VID = /\.(mp4|mov|m4v|webm|3gp)$/i;
+  window.RG_IS_VIDEO = path => IS_VID.test(String(path || ''));
+
   function tag(sel, make) {
     let el = document.head.querySelector(sel);
     if (!el) { el = make(); document.head.appendChild(el); }
@@ -114,7 +121,8 @@
       for (const it of items) {
         const v = (data || []).find(x => x.id === it.variant_id);
         if (!v || !v.is_active || !v.products || v.products.status !== 'published') continue;
-        const imgs = (v.products.product_images || []).sort((a,b) => a.position - b.position);
+        const imgs = (v.products.product_images || []).sort((a,b) => a.position - b.position)
+          .filter(im => !window.RG_IS_VIDEO(im.path));   // the cart line wants a still
         const unit = v.price_minor != null ? v.price_minor : v.products.price_minor;
         const qty  = Math.min(it.quantity, Math.max(0, v.stock));
         out.push({
@@ -526,7 +534,10 @@
 
   /* ── product card ── */
   window.RG_CARD = function (p) {
-    const imgs  = (p.product_images || []).sort((a,b) => a.position - b.position);
+    /* Videos are filtered out rather than played here: forty autoplaying clips
+       in a grid is a different website. The card shows the first photograph. */
+    const imgs  = (p.product_images || []).sort((a,b) => a.position - b.position)
+                    .filter(im => !window.RG_IS_VIDEO(im.path));
     const stock = (p.product_variants || []).reduce((s,v) => s + (v.stock || 0), 0);
     const firstV = (p.product_variants || []).find(v => (v.stock || 0) > 0);
     /* Derive the discount rather than store it, so the badge can never disagree

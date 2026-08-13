@@ -748,11 +748,20 @@ textarea.inp{resize:vertical;min-height:74px;}
 .gal__big{width:100%;max-width:100%;aspect-ratio:1/1;background:#fff;
   border:1px solid var(--line);border-radius:var(--rad);overflow:hidden;}
 .gal__big img{width:100%;height:100%;object-fit:contain;}
+/* A clip fills the same square as a photograph, on black so letterboxing reads
+   as part of the player rather than as a broken image. */
+.gal__big video{width:100%;height:100%;object-fit:contain;background:#000;display:block;}
 .gal__thumbs{display:flex;gap:7px;margin-top:9px;overflow-x:auto;scrollbar-width:none;}
 .gal__thumbs::-webkit-scrollbar{display:none;}
 .gal__thumbs img{flex:0 0 62px;width:62px;height:62px;object-fit:contain;
   border:1px solid var(--line);border-radius:3px;cursor:pointer;background:#fff;}
 .gal__thumbs img.on{border-color:var(--brand);}
+.gal__vid{position:relative;flex:0 0 62px;width:62px;height:62px;cursor:pointer;
+  border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000;display:block;}
+.gal__vid.on{border-color:var(--brand);}
+.gal__vid video{width:100%;height:100%;object-fit:cover;display:block;}
+.gal__vid b{position:absolute;inset:0;display:grid;place-items:center;
+  color:#fff;font-size:17px;text-shadow:0 1px 4px rgba(0,0,0,.7);pointer-events:none;}
 
 .price-now{font-size:26px;font-weight:700;}
 .price-was{font-size:14px;color:var(--mute);text-decoration:line-through;margin-left:8px;}

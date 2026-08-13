@@ -96,15 +96,35 @@ let _p = null, _v = null, _qty = 1;
   window.RG_SEO(document.title);   /* title is only known once the product loads */
   document.getElementById('pdp').style.display = '';
 
-  const imgs = (p.product_images || []).sort((a,b)=>a.position-b.position);
+  /* Media is photographs and, sometimes, a short clip. Whichever comes first in
+     position order opens the gallery, but a video never opens muted-and-playing
+     — it waits for the shopper to press it. */
+  const isVid = window.RG_IS_VIDEO;
+  const media = (p.product_images || []).sort((a,b)=>a.position-b.position);
   const big = document.getElementById('gal-big');
-  big.innerHTML = imgs.length ? `<img id="big-img" src="${esc(IMG(imgs[0].path))}" alt="${esc(p.name)}"/>`
-                              : '<div class="skeleton" style="width:100%;height:100%;"></div>';
-  document.getElementById('gal-thumbs').innerHTML = imgs.length > 1
-    ? imgs.map((im,i) => `<img src="${esc(IMG(im.path))}" class="${i?'':'on'}" data-src="${esc(IMG(im.path))}" alt=""/>`).join('') : '';
-  document.querySelectorAll('.gal__thumbs img').forEach(t => t.onclick = () => {
-    document.getElementById('big-img').src = t.dataset.src;
-    document.querySelectorAll('.gal__thumbs img').forEach(x => x.classList.remove('on'));
+
+  /* #t=0.1 makes the browser seek a hundredth of the way in and paint that
+     frame. Without it a video waiting to be played is a black rectangle. */
+  const showBig = m => {
+    big.innerHTML = isVid(m.path)
+      ? `<video id="big-img" src="${esc(IMG(m.path))}#t=0.1" controls playsinline preload="metadata"></video>`
+      : `<img id="big-img" src="${esc(IMG(m.path))}" alt="${esc(p.name)}"/>`;
+  };
+
+  if (media.length) showBig(media[0]);
+  else big.innerHTML = '<div class="skeleton" style="width:100%;height:100%;"></div>';
+
+  document.getElementById('gal-thumbs').innerHTML = media.length > 1
+    ? media.map((m,i) => isVid(m.path)
+        ? `<span class="gal__vid ${i?'':'on'}" data-i="${i}">
+             <video src="${esc(IMG(m.path))}#t=0.1" muted preload="metadata"></video>
+             <b>▶</b></span>`
+        : `<img src="${esc(IMG(m.path))}" class="${i?'':'on'}" data-i="${i}" alt=""/>`).join('')
+    : '';
+
+  document.querySelectorAll('.gal__thumbs [data-i]').forEach(t => t.onclick = () => {
+    showBig(media[Number(t.dataset.i)]);
+    document.querySelectorAll('.gal__thumbs [data-i]').forEach(x => x.classList.remove('on'));
     t.classList.add('on');
   });
 

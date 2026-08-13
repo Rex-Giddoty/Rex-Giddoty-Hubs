@@ -88,10 +88,15 @@
   <div class="split">
     <!-- photos -->
     <div class="card">
-      <h3 style="margin-bottom:6px;">Photos</h3>
-      <div class="muted" style="font-size:12px;margin-bottom:12px;">The first photo is the one shoppers see in listings.</div>
+      <h3 style="margin-bottom:6px;">Photos &amp; video</h3>
+      <div class="muted" style="font-size:12px;margin-bottom:12px;">
+        The first photo is the one shoppers see in listings. You can add one or
+        more short clips too — up to a minute, 25 MB — and they play on the
+        product page beside the photos.
+      </div>
       <div class="gal" id="i-images"></div>
-      <input type="file" id="i-image-file" accept="image/*" multiple hidden onchange="uploadImages(this)"/>
+      <input type="file" id="i-image-file" multiple hidden onchange="uploadImages(this)"
+        accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/quicktime,video/webm,video/3gpp"/>
       <div class="stat" style="margin:14px 0 0;" id="i-stats"></div>
     </div>
 
@@ -168,6 +173,23 @@ const esc = s => String(s == null ? '' : s)
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const slugify = s => String(s).toLowerCase().trim()
   .replace(/['’]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+
+/* This page does not load site.js, so it carries its own copy of the rule the
+   storefront uses: a product's media is photographs plus the occasional clip,
+   told apart by extension because the uploader writes the name. */
+const isVideo = path => /\.(mp4|mov|m4v|webm|3gp)$/i.test(String(path || ''));
+
+/* Read before uploading, so a long clip is refused in a moment rather than
+   after 20MB has gone up the wire. */
+const videoSeconds = file => new Promise(resolve => {
+  const v = document.createElement('video');
+  v.preload = 'metadata';
+  const url = URL.createObjectURL(file);
+  const done = secs => { URL.revokeObjectURL(url); resolve(secs); };
+  v.onloadedmetadata = () => done(v.duration);
+  v.onerror = () => done(null);
+  v.src = url;
+});
 
 const CAT_ID = new URLSearchParams(location.search).get('id') || null;
 let _cat = null, _cats = [], _items = [], _settings = {};
@@ -402,11 +424,16 @@ function syncSlug() {
 document.getElementById('i-slug').addEventListener('input', e => { e.target.dataset.touched = '1'; });
 
 function renderImages() {
+  /* MAIN marks the first photograph, not the first row: a clip cannot be the
+     card thumbnail, so calling it the main image would be a lie. */
+  const firstPhoto = _images.findIndex(im => !isVideo(im.path));
   document.getElementById('i-images').innerHTML =
     _images.map((im, i) => `<figure>
-      <img src="${esc(IMG(im.path))}" alt=""/>
+      ${isVideo(im.path)
+        ? `<video src="${esc(IMG(im.path))}#t=0.1" muted preload="metadata"></video><span class="vtag">VIDEO</span>`
+        : `<img src="${esc(IMG(im.path))}" alt=""/>`}
       <button class="x" onclick="removeImage(${i})" title="Remove">×</button>
-      ${i === 0 ? '<span class="main">MAIN</span>' : ''}
+      ${i === firstPhoto ? '<span class="main">MAIN</span>' : ''}
     </figure>`).join('') +
     `<div class="drop" onclick="document.getElementById('i-image-file').click()">+</div>`;
 }
@@ -427,7 +454,7 @@ async function uploadImages(input) {
     _images.push({ path });
   }
   renderImages();
-  toast('Photos added — remember to save');
+  toast('Media added — remember to save');
 }
 
 function renderSizes() {
@@ -468,7 +495,9 @@ function stockNote() {
   document.getElementById('i-stats').innerHTML = `
     <div class="${total === 0 ? 'bad' : (total <= low ? 'warn' : '')}"><b>${total}</b><span>Units left</span></div>
     <div><b>${_sizes.length}</b><span>Sizes</span></div>
-    <div><b>${_images.length}</b><span>Photos</span></div>`;
+    <div><b>${_images.filter(im => !isVideo(im.path)).length}</b><span>Photos</span></div>
+    ${_images.some(im => isVideo(im.path))
+      ? `<div><b>${_images.filter(im => isVideo(im.path)).length}</b><span>Video</span></div>` : ''}`;
 }
 document.getElementById('i-low').addEventListener('input', stockNote);
 
