@@ -214,6 +214,13 @@
       + '<path d="M6.9 10.3l1.3 1.9M10 11.1l1.2 1.8"/><path d="M2.2 16.6h19.5"/>'),
     jewellery: g('<path d="M8.6 3h6.8l3.1 4.2L12 15.4 5.5 7.2z"/>'
       + '<path d="M5.6 7.2h12.8M9.4 7.2L12 15.4l2.6-8.2M8.6 3l.8 4.2M15.4 3l-.8 4.2"/>'),
+    /* The two Jewellery children. Both would otherwise fall through to the gem
+       above and sit under their own parent wearing its icon. */
+    watches: g('<circle cx="12" cy="12" r="5.4"/>'
+      + '<path d="M9.2 6.9L9.6 3h4.8l.4 3.9M9.2 17.1l.4 3.9h4.8l.4-3.9"/>'
+      + '<path d="M12 9.6V12l1.8 1.1"/>'),
+    necklaces: g('<path d="M5 4.2a8.6 8.6 0 0014 0"/>'
+      + '<path d="M12 12.4l1.9 2.4-1.9 3.6-1.9-3.6z"/><path d="M12 10.6v1.8"/>'),
     decor: g('<path d="M8.4 3.4h7.2l2.8 6.8H5.6z"/><path d="M12 10.2V19"/>'
       + '<path d="M8.6 21h6.8a3.4 3.4 0 00-6.8 0z"/>'),
     accessories: g('<path d="M3.4 15.8c0-4.8 3.9-8.7 8.6-8.7s8.6 3.9 8.6 8.7z"/>'
@@ -236,7 +243,9 @@
     [/full.?fit|suit|outfit|two.?piece|co.?ord/, 'fullfit'],
     [/bag|purse|tote|backpack|luggage/, 'bags'],
     [/shoe|sneaker|footwear|boot|sandal|slipper|trainer/, 'shoes'],
-    [/jewel|ring|necklace|earring|bracelet|watch/, 'jewellery'],
+    [/watch|timepiece/, 'watches'],
+    [/necklace|pendant|chain|choker/, 'necklaces'],
+    [/jewel|ring|earring|bracelet/, 'jewellery'],
     [/cap|hat|accessor|belt|sunglass/, 'accessories'],
     [/decor|lifestyle|home|furniture|lamp|kitchen/, 'decor'],
     [/top|shirt|tee|blouse|hoodie|jacket/, 'tops'],
