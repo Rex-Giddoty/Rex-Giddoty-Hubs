@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,follow"/>
+<title>My cart — Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<link rel="icon" href="/assets/logo-mark.png"/>
+<link rel="stylesheet" href="/assets/site.css"/>
+</head>
+<body>
+
+<header class="hdr" data-hdr></header>
+
+<div class="cart" id="cart" style="display:none;">
+  <div>
+    <div class="panel">
+      <h2>My cart <span class="note" id="count"></span></h2>
+      <div id="lines"></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="panel">
+      <h2 style="font-size:15px;">Order summary</h2>
+      <div id="free-hint"></div>
+      <div class="sum__row"><span>Subtotal</span><span id="s-sub">—</span></div>
+      <div class="sum__row"><span>Delivery</span><span id="s-ship">—</span></div>
+      <div class="sum__row total"><span>Total</span><span id="s-total">—</span></div>
+      <button class="btn btn--full btn--lg" id="go" style="margin-top:14px;">Checkout</button>
+      <p class="sum__note" id="pay-note"></p>
+    </div>
+  </aside>
+</div>
+
+<div class="auth" id="empty" style="display:none;">
+  <div class="auth__card" style="text-align:center;">
+    <h1>Your cart is empty</h1>
+    <p class="lede">Once you add something it will show up here.</p>
+    <a class="btn btn--full btn--lg" href="/shop.html">Start shopping</a>
+  </div>
+</div>
+
+<footer class="foot" data-foot></footer>
+<nav class="tabbar" data-tabbar></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script src="/assets/site.js"></script>
+<script>
+const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG, Bag = window.RG_BAG;
+let _settings = {}, _items = [];
+
+(async () => {
+  await window.RG_CHROME();
+  _settings = await window.RG_SETTINGS();
+  await render();
+})();
+
+async function render() {
+  _items = await Bag.detail();
+
+  /* Stock can fall while a cart sits in localStorage. Trim quantities down to
+     what is actually on the shelf, so the header badge stops counting units
+     that cannot be bought. Sold-out lines are left alone deliberately — they
+     stay visible for the shopper to remove, rather than vanishing unexplained. */
+  const stored = Bag.read();
+  const next = stored.map(s => {
+    const it = _items.find(i => i.variant_id === s.variant_id);
+    if (!it || it.stock <= 0) return s;
+    return { variant_id: s.variant_id, quantity: Math.min(s.quantity, it.stock) };
+  });
+  if (next.some((n, i) => n.quantity !== stored[i].quantity)) Bag.write(next);
+
+  const has = _items.length > 0;
+  document.getElementById('cart').style.display  = has ? '' : 'none';
+  document.getElementById('empty').style.display = has ? 'none' : '';
+  if (!has) return;
+
+  const cur = _items[0].currency || _settings.currency || 'NGN';
+  const units = _items.reduce((s, i) => s + i.quantity, 0);
+  document.getElementById('count').textContent =
+    '· ' + units + (units === 1 ? ' item' : ' items');
+
+  document.getElementById('lines').innerHTML = _items.map(i => {
+    const dead = i.stock <= 0;
+    const short = !dead && i.requested > i.stock;
+    return `<div class="cline ${dead ? 'cline--dead' : ''}">
+      <a class="cline__img" href="/product.html?slug=${encodeURIComponent(i.slug)}">
+        ${i.image ? `<img src="${esc(IMG(i.image))}" alt=""/>` : ''}</a>
+      <div class="cline__b">
+        <div class="cline__n"><a href="/product.html?slug=${encodeURIComponent(i.slug)}">${esc(i.name)}</a></div>
+        ${i.option ? `<div class="cline__o">${esc(i.option)}</div>` : ''}
+        ${dead ? '<div class="cline__warn">Out of stock — remove it to continue</div>' : ''}
+        ${short ? `<div class="cline__warn">Only ${i.stock} left, so we reduced the quantity</div>` : ''}
+        <div style="margin-top:9px;">
+          <div class="qty">
+            <button onclick="bump('${i.variant_id}',-1)" ${dead ? 'disabled' : ''}>−</button>
+            <span>${i.quantity}</span>
+            <button onclick="bump('${i.variant_id}',1)" ${dead || i.quantity >= i.stock ? 'disabled' : ''}>+</button>
+          </div>
+        </div>
+      </div>
+      <div class="cline__r">
+        <div class="cline__p">${M.fmt(i.line_minor, i.currency)}</div>
+        <button class="cline__rm" onclick="drop('${i.variant_id}')">Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  /* Totals are computed here for display only — place_order prices the order
+     again from the database, so this can never decide what is charged. */
+  const sub  = _items.reduce((s, i) => s + i.line_minor, 0);
+  const flat = parseInt(_settings.shipping_flat_minor || '0', 10);
+  const free = parseInt(_settings.free_shipping_over_minor || '0', 10);
+  const ship = (free > 0 && sub >= free) ? 0 : flat;
+
+  document.getElementById('s-sub').textContent   = M.fmt(sub, cur);
+  document.getElementById('s-ship').textContent  = ship === 0 ? 'Free' : M.fmt(ship, cur);
+  document.getElementById('s-total').textContent = M.fmt(sub + ship, cur);
+
+  const hint = document.getElementById('free-hint');
+  if (free > 0 && sub < free) {
+    hint.innerHTML = `<div class="free-hint">Spend ${M.fmt(free - sub, cur)} more for free delivery.</div>`;
+  } else if (free > 0) {
+    hint.innerHTML = `<div class="free-hint">You have earned free delivery.</div>`;
+  } else hint.innerHTML = '';
+
+  const blocked = _items.some(i => i.stock <= 0);
+  const go = document.getElementById('go');
+  go.disabled = blocked;
+  go.textContent = blocked ? 'Remove sold-out items' : 'Checkout';
+
+  document.getElementById('pay-note').textContent =
+    'Payment is confirmed before dispatch. You will see the transfer details on the next step.';
+}
+
+window.bump = async (id, d) => {
+  const it = _items.find(x => x.variant_id === id);
+  if (!it) return;
+  const next = it.quantity + d;
+  if (next < 1) return drop(id);
+  if (next > it.stock) return;
+  Bag.setQty(id, next);
+  await render();
+};
+
+window.drop = async id => { Bag.remove(id); await render(); };
+
+document.getElementById('go').onclick = async () => {
+  const { data: { session } } = await db.auth.getSession();
+  const signedIn = session && session.user && !session.user.is_anonymous;
+  /* Orders are placed by a function that only authenticated callers may run, so
+     send people to sign in first rather than letting checkout fail at the end. */
+  location.href = signedIn ? '/checkout.html' : '/login.html?next=/checkout.html';
+};
+</script>
+</body>
+</html>

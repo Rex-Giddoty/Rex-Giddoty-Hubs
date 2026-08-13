@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Checkout — Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<link rel="icon" href="/assets/logo-mark.png"/>
+<link rel="stylesheet" href="/assets/site.css"/>
+</head>
+<body>
+
+<header class="hdr" data-hdr></header>
+
+<div class="cart" id="wrap" style="display:none;">
+  <div>
+    <div class="panel">
+      <h2>Delivery address</h2>
+      <p class="lede">Where should we send this order?</p>
+      <div id="a-msg"></div>
+      <div id="picks"></div>
+
+      <div id="new-form" style="display:none;border-top:1px solid var(--line);padding-top:16px;margin-top:6px;">
+        <div class="two">
+          <div class="field"><label for="a-name">Full name</label><input class="inp" id="a-name"/></div>
+          <div class="field"><label for="a-phone">Phone</label><input class="inp" id="a-phone" type="tel"/></div>
+        </div>
+        <div class="field"><label for="a-line1">Street address</label><input class="inp" id="a-line1"/></div>
+        <div class="field"><label for="a-line2">Apartment, suite etc. <span style="font-weight:400;color:#7a7a7a;">(optional)</span></label>
+          <input class="inp" id="a-line2"/></div>
+        <div class="two">
+          <div class="field"><label for="a-city">City</label><input class="inp" id="a-city"/></div>
+          <div class="field"><label for="a-state">State</label><input class="inp" id="a-state"/></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;">
+          <input type="checkbox" id="a-save" checked/> Save this address to my account
+        </label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Anything we should know?</h2>
+      <p class="lede">Landmarks, delivery times, gift notes — optional.</p>
+      <textarea class="inp" id="note" rows="3" maxlength="500"
+        placeholder="e.g. the blue gate opposite the school"></textarea>
+    </div>
+
+    <div class="panel">
+      <h2>How you pay</h2>
+      <p class="lede">Bank transfer, confirmed by us before dispatch.</p>
+      <div class="bank" id="bank"></div>
+      <p class="sum__note" id="pay-inst"></p>
+    </div>
+  </div>
+
+  <aside>
+    <div class="panel">
+      <h2 style="font-size:15px;">Your order</h2>
+      <div id="mini"></div>
+      <div class="sum__row"><span>Subtotal</span><span id="s-sub">—</span></div>
+      <div class="sum__row"><span>Delivery</span><span id="s-ship">—</span></div>
+      <div class="sum__row total"><span>Total</span><span id="s-total">—</span></div>
+      <div id="msg" style="margin-top:12px;"></div>
+      <button class="btn btn--full btn--lg" id="place" style="margin-top:6px;">Place order</button>
+      <p class="sum__note">Placing the order reserves your items. It is not dispatched until we confirm payment.</p>
+    </div>
+  </aside>
+</div>
+
+<div class="auth" id="gate" style="display:none;">
+  <div class="auth__card" style="text-align:center;">
+    <h1 id="gate-h">Nothing to check out</h1>
+    <p class="lede" id="gate-p">Your cart is empty.</p>
+    <a class="btn btn--full btn--lg" href="/shop.html" id="gate-a">Start shopping</a>
+  </div>
+</div>
+
+<footer class="foot" data-foot></footer>
+<nav class="tabbar" data-tabbar></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script src="/assets/site.js"></script>
+<script>
+const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG, Bag = window.RG_BAG;
+let _user = null, _settings = {}, _items = [], _addresses = [], _pick = 'new';
+
+const show = (kind, html) => {
+  document.getElementById('msg').innerHTML = `<div class="msg msg--${kind}">${html}</div>`;
+};
+const gate = (h, p, label, href) => {
+  document.getElementById('wrap').style.display = 'none';
+  document.getElementById('gate').style.display = '';
+  document.getElementById('gate-h').textContent = h;
+  document.getElementById('gate-p').textContent = p;
+  document.getElementById('gate-a').textContent = label;
+  document.getElementById('gate-a').href = href;
+};
+
+(async () => {
+  await window.RG_CHROME();
+  _settings = await window.RG_SETTINGS();
+
+  const { data: { session } } = await db.auth.getSession();
+  if (!session || !session.user || session.user.is_anonymous) {
+    location.replace('/login.html?next=/checkout.html');
+    return;
+  }
+  _user = session.user;
+
+  _items = await Bag.detail();
+  const sellable = _items.filter(i => i.stock > 0 && i.quantity > 0);
+  if (!sellable.length) return gate('Nothing to check out', 'Your cart is empty.', 'Start shopping', '/shop.html');
+  if (sellable.length !== _items.length)
+    return gate('One item sold out', 'Something in your cart is no longer available.', 'Review my cart', '/bag.html');
+
+  document.getElementById('wrap').style.display = '';
+  paintBank();
+  await loadAddresses();
+  paintSummary();
+})();
+
+/* ── addresses ── */
+async function loadAddresses() {
+  const { data } = await db.from('addresses').select('*')
+    .order('is_default', { ascending: false }).order('created_at');
+  _addresses = data || [];
+
+  const { data: profile } = await db.from('profiles')
+    .select('full_name,phone').eq('id', _user.id).maybeSingle();
+  document.getElementById('a-name').value  = profile?.full_name || '';
+  document.getElementById('a-phone').value = profile?.phone || '';
+
+  document.getElementById('picks').innerHTML = _addresses.map(a => `
+    <label class="pick" data-id="${a.id}">
+      <input type="radio" name="addr" value="${a.id}"/>
+      <span class="pick__t">${esc(a.full_name)}${a.label ? ' · ' + esc(a.label) : ''}${
+        a.is_default ? '<span class="tagx">Default</span>' : ''}</span>
+      <div class="pick__b">${esc(a.line1)}${a.line2 ? ', ' + esc(a.line2) : ''}<br/>
+        ${esc(a.city)}${a.state ? ', ' + esc(a.state) : ''}${a.phone ? '<br/>' + esc(a.phone) : ''}</div>
+    </label>`).join('') + `
+    <label class="pick" data-id="new">
+      <input type="radio" name="addr" value="new"/>
+      <span class="pick__t">Use a new address</span>
+    </label>`;
+
+  document.querySelectorAll('input[name="addr"]').forEach(r =>
+    r.addEventListener('change', () => selectPick(r.value)));
+
+  selectPick(_addresses.length ? _addresses[0].id : 'new');
+}
+
+function selectPick(id) {
+  _pick = id;
+  document.querySelectorAll('.pick').forEach(p =>
+    p.classList.toggle('pick--on', p.dataset.id === id));
+  const radio = document.querySelector(`input[name="addr"][value="${id}"]`);
+  if (radio) radio.checked = true;
+  document.getElementById('new-form').style.display = id === 'new' ? '' : 'none';
+}
+
+/* ── summary ── */
+function paintSummary() {
+  const cur  = _items[0]?.currency || _settings.currency || 'NGN';
+  const sub  = _items.reduce((s, i) => s + i.line_minor, 0);
+  const flat = parseInt(_settings.shipping_flat_minor || '0', 10);
+  const free = parseInt(_settings.free_shipping_over_minor || '0', 10);
+  const ship = (free > 0 && sub >= free) ? 0 : flat;
+
+  document.getElementById('mini').innerHTML = _items.map(i => `
+    <div class="ord__line">
+      ${i.image ? `<img src="${esc(IMG(i.image))}" alt=""/>` : '<img alt=""/>'}
+      <span class="nm">${esc(i.name)}${i.option ? ' · ' + esc(i.option) : ''}
+        <span class="note">× ${i.quantity}</span></span>
+      <span>${M.fmt(i.line_minor, i.currency)}</span>
+    </div>`).join('') + '<div style="height:10px;"></div>';
+
+  document.getElementById('s-sub').textContent   = M.fmt(sub, cur);
+  document.getElementById('s-ship').textContent  = ship === 0 ? 'Free' : M.fmt(ship, cur);
+  document.getElementById('s-total').textContent = M.fmt(sub + ship, cur);
+}
+
+function paintBank() {
+  const rows = [
+    ['Bank',           _settings.bank_name],
+    ['Account name',   _settings.bank_account_name],
+    ['Account number', _settings.bank_account_number],
+  ].filter(r => r[1]);
+  document.getElementById('bank').innerHTML = rows.length
+    ? rows.map(([k, v]) => `<div class="bank__row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')
+    : '<p class="note" style="margin:0;">Transfer details will be sent to you once the order is placed.</p>';
+  document.getElementById('pay-inst').textContent =
+    _settings.payment_instructions || 'Transfer the order total, then reply to your confirmation email with the receipt.';
+}
+
+/* ── place the order ── */
+document.getElementById('place').onclick = async () => {
+  const btn = document.getElementById('place');
+  let address;
+
+  if (_pick === 'new') {
+    address = {
+      full_name: document.getElementById('a-name').value.trim(),
+      phone:     document.getElementById('a-phone').value.trim() || null,
+      line1:     document.getElementById('a-line1').value.trim(),
+      line2:     document.getElementById('a-line2').value.trim() || null,
+      city:      document.getElementById('a-city').value.trim(),
+      state:     document.getElementById('a-state').value.trim() || null,
+      country:   'NG',
+    };
+    if (!address.full_name || !address.line1 || !address.city)
+      return show('err', 'Please fill in your name, street address and city.');
+  } else {
+    const a = _addresses.find(x => x.id === _pick);
+    if (!a) return show('err', 'Please choose a delivery address.');
+    address = { full_name:a.full_name, phone:a.phone, line1:a.line1, line2:a.line2,
+                city:a.city, state:a.state, country:a.country || 'NG' };
+  }
+
+  btn.disabled = true; btn.textContent = 'Placing your order…';
+  document.getElementById('msg').innerHTML = '';
+
+  /* Only variant ids and quantities cross the wire. Everything about money is
+     decided by place_order inside the database. */
+  const items = _items.map(i => ({ variant_id: i.variant_id, quantity: i.quantity }));
+
+  const { data, error } = await db.rpc('place_order', {
+    p_items:   items,
+    p_address: address,
+    p_email:   _user.email,
+    p_note:    document.getElementById('note').value.trim() || null,
+  });
+
+  if (error) {
+    btn.disabled = false; btn.textContent = 'Place order';
+    /* The function raises a readable message for the cases a shopper can act on
+       — sold out, gone, empty — so show it rather than a generic failure. */
+    return show('err', esc(error.message || 'We could not place the order. Please try again.'));
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (_pick === 'new' && document.getElementById('a-save').checked) {
+    await db.from('addresses').insert({
+      user_id: _user.id, ...address, is_default: _addresses.length === 0,
+    });
+  }
+
+  Bag.clear();
+  location.replace('/order.html?n=' + encodeURIComponent(row.order_number));
+};
+</script>
+</body>
+</html>

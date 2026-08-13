@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Your order — Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<link rel="icon" href="/assets/logo-mark.png"/>
+<link rel="stylesheet" href="/assets/site.css"/>
+</head>
+<body>
+
+<header class="hdr" data-hdr></header>
+
+<div class="cart" id="wrap" style="display:none;">
+  <div>
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:6px;">
+        <h2 style="margin:0;">Order <span id="o-num"></span></h2>
+        <span class="pill" id="o-status"></span>
+      </div>
+      <p class="lede" id="o-when"></p>
+      <div class="msg msg--ok" id="o-hello" style="margin-bottom:18px;"></div>
+
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">What you ordered</h3>
+      <div id="o-items"></div>
+
+      <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px;">
+        <div class="sum__row"><span>Subtotal</span><span id="o-sub"></span></div>
+        <div class="sum__row"><span>Delivery</span><span id="o-ship"></span></div>
+        <div class="sum__row total"><span>Total</span><span id="o-total"></span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Delivering to</h2>
+      <div class="addr" style="margin:0;"><div class="addr__b" id="o-addr"></div></div>
+      <div id="o-note" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="panel">
+      <h2 style="font-size:15px;">Pay for this order</h2>
+      <p class="lede">Transfer the total below, then we confirm and dispatch.</p>
+      <div class="bank" id="bank"></div>
+      <div class="sum__row total" style="margin-top:12px;">
+        <span>To transfer</span><span id="o-pay"></span>
+      </div>
+      <p class="sum__note" id="pay-inst"></p>
+    </div>
+
+    <div class="panel">
+      <h2 style="font-size:15px;">What happens next</h2>
+      <div class="steps">
+        <div class="step"><i>1</i><span>Transfer the total, using <b id="ref-1"></b> as the reference.</span></div>
+        <div class="step"><i>2</i><span>We confirm the payment — your items are already reserved.</span></div>
+        <div class="step"><i>3</i><span>Your order is packed and sent out.</span></div>
+      </div>
+      <a class="btn btn--ghost btn--full" href="/account.html#orders" style="margin-top:14px;">All my orders</a>
+      <a class="btn btn--full" href="/shop.html" style="margin-top:8px;">Keep shopping</a>
+    </div>
+  </aside>
+</div>
+
+<div class="auth" id="gate" style="display:none;">
+  <div class="auth__card" style="text-align:center;">
+    <h1 id="g-h">Order not found</h1>
+    <p class="lede" id="g-p">We could not find that order on your account.</p>
+    <a class="btn btn--full btn--lg" id="g-a" href="/account.html#orders">My orders</a>
+  </div>
+</div>
+
+<footer class="foot" data-foot></footer>
+<nav class="tabbar" data-tabbar></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script src="/assets/site.js"></script>
+<script>
+const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG;
+const num = new URLSearchParams(location.search).get('n');
+
+const PILL = { pending:'pending', paid:'paid', packed:'shipped', shipped:'shipped',
+               delivered:'done', cancelled:'dead', refunded:'dead' };
+
+const gate = (h, p, label, href) => {
+  document.getElementById('gate').style.display = '';
+  document.getElementById('g-h').textContent = h;
+  document.getElementById('g-p').textContent = p;
+  document.getElementById('g-a').textContent = label;
+  document.getElementById('g-a').href = href;
+};
+
+(async () => {
+  await window.RG_CHROME();
+  const s = await window.RG_SETTINGS();
+
+  const { data: { session } } = await db.auth.getSession();
+  if (!session || !session.user || session.user.is_anonymous) {
+    location.replace('/login.html?next=' + encodeURIComponent(location.pathname + location.search));
+    return;
+  }
+  if (!num) return gate('No order chosen', 'Pick an order from your account.', 'My orders', '/account.html#orders');
+
+  /* RLS restricts this to the signed-in customer's own orders, so an order
+     number from someone else simply returns nothing. */
+  const { data: o } = await db.from('orders')
+    .select('*, order_items(id,product_name,option_label,quantity,unit_price_minor,line_total_minor,image_path)')
+    .eq('order_number', num).maybeSingle();
+
+  if (!o) return gate('Order not found', 'We could not find that order on your account.', 'My orders', '/account.html#orders');
+
+  document.getElementById('wrap').style.display = '';
+  document.getElementById('o-num').textContent = '#' + o.order_number;
+  document.getElementById('ref-1').textContent = o.order_number;
+  document.title = 'Order ' + o.order_number + ' — Rex-Giddoty Hubs';
+
+  const pill = document.getElementById('o-status');
+  pill.textContent = o.status;
+  pill.className = 'pill pill--' + (PILL[o.status] || 'done');
+
+  document.getElementById('o-when').textContent =
+    'Placed ' + new Date(o.placed_at).toLocaleString('en-NG',
+      { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+  document.getElementById('o-hello').innerHTML = o.status === 'pending'
+    ? '<b>Thank you — your order is in.</b><br/>Your items are reserved. Send the transfer below and we will confirm it.'
+    : '<b>Thank you — your order is in.</b><br/>We will keep you posted as it moves along.';
+
+  document.getElementById('o-items').innerHTML = (o.order_items || []).map(it => `
+    <div class="ord__line">
+      ${it.image_path ? `<img src="${esc(IMG(it.image_path))}" alt=""/>` : '<img alt=""/>'}
+      <span class="nm">${esc(it.product_name)}${it.option_label ? ' · ' + esc(it.option_label) : ''}
+        <span class="note">× ${it.quantity} at ${M.fmt(it.unit_price_minor, o.currency)}</span></span>
+      <span>${M.fmt(it.line_total_minor, o.currency)}</span>
+    </div>`).join('');
+
+  document.getElementById('o-sub').textContent   = M.fmt(o.subtotal_minor, o.currency);
+  document.getElementById('o-ship').textContent  = o.shipping_minor ? M.fmt(o.shipping_minor, o.currency) : 'Free';
+  document.getElementById('o-total').textContent = M.fmt(o.total_minor, o.currency);
+  document.getElementById('o-pay').textContent   = M.fmt(o.total_minor, o.currency);
+
+  const a = o.shipping_address || {};
+  document.getElementById('o-addr').innerHTML =
+    `<b>${esc(a.full_name || '')}</b><br/>${esc(a.line1 || '')}` +
+    (a.line2 ? '<br/>' + esc(a.line2) : '') +
+    `<br/>${esc(a.city || '')}${a.state ? ', ' + esc(a.state) : ''}` +
+    (a.phone ? '<br/>' + esc(a.phone) : '');
+
+  if (o.note) {
+    document.getElementById('o-note').innerHTML =
+      `<div class="note"><b>Your note:</b> ${esc(o.note)}</div>`;
+  }
+
+  const rows = [
+    ['Bank',           s.bank_name],
+    ['Account name',   s.bank_account_name],
+    ['Account number', s.bank_account_number],
+    ['Reference',      o.order_number],
+  ].filter(r => r[1]);
+  document.getElementById('bank').innerHTML = rows.map(([k, v]) =>
+    `<div class="bank__row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+  document.getElementById('pay-inst').textContent =
+    s.payment_instructions || 'Once your transfer lands we will confirm the order and send it out.';
+})();
+</script>
+</body>
+</html>
