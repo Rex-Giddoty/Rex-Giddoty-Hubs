@@ -241,9 +241,54 @@ ul{margin:0;padding:0;list-style:none;}
 .pgrid{display:grid;grid-template-columns:repeat(6,1fr);background:var(--paper);}
 .pgrid > *{min-width:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
 
-.pcard{background:var(--paper);padding:9px;display:flex;flex-direction:column;position:relative;}
-.pcard:hover{box-shadow:0 2px 12px rgba(0,0,0,.14);z-index:2;}
+.pcard{background:var(--paper);padding:9px;display:flex;flex-direction:column;position:relative;
+  overflow:hidden;isolation:isolate;
+  transition:transform .22s cubic-bezier(.22,.61,.36,1), box-shadow .22s ease;}
 .pcard > a{display:block;min-width:0;}
+
+/* ── the running light ──
+ * ::before is an oversized conic gradient spinning behind the card; ::after
+ * covers all but a 2px rim of it with the card's own background, so what shows
+ * is a bright point of purple travelling around the edge. Both sit at negative
+ * z-index, which paints them above the card's background but below its content.
+ * Kept at opacity 0 until lit so the animation costs nothing at rest. */
+.pcard::before,
+.pcard::after{content:'';position:absolute;z-index:-1;opacity:0;
+  transition:opacity .2s ease;pointer-events:none;}
+.pcard::before{
+  left:50%;top:50%;width:210%;aspect-ratio:1;translate:-50% -50%;z-index:-2;
+  /* The flat colour underneath is the rim at rest; the conic band on top is the
+     light travelling along it. A narrow band keeps it a moving point rather
+     than a glow over half the card. */
+  background-color:rgba(144,48,208,.22);
+  background-image:conic-gradient(from 0deg,
+    transparent 0 72%,
+    rgba(144,48,208,.35) 86%,
+    #a63ee0 94%,
+    #6d17a6 97.5%,
+    #d79bff 99%,
+    transparent 99.8% 100%);
+}
+.pcard::after{inset:2px;background:var(--paper);}
+
+.pcard.is-lit{transform:scale(1.035);box-shadow:0 6px 22px rgba(144,48,208,.22);z-index:4;}
+.pcard.is-lit::before{opacity:1;animation:pcard-run 1.6s linear infinite;}
+.pcard.is-lit::after{opacity:1;}
+
+@keyframes pcard-run{to{rotate:360deg;}}
+
+/* A mouse gets the same treatment without waiting for the script. Touch is
+   driven by .is-lit instead, because :hover sticks after a tap. */
+@media (hover:hover) and (pointer:fine){
+  .pcard:hover{transform:scale(1.035);box-shadow:0 6px 22px rgba(144,48,208,.22);z-index:4;}
+  .pcard:hover::before{opacity:1;animation:pcard-run 1.6s linear infinite;}
+  .pcard:hover::after{opacity:1;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .pcard,.pcard.is-lit,.pcard:hover{transform:none;transition:box-shadow .2s ease;}
+  .pcard.is-lit::before,.pcard:hover::before{animation:none;}
+}
 
 .pcard__media{position:relative;width:100%;max-width:100%;aspect-ratio:1/1;
   background:#fff;overflow:hidden;border-radius:2px;}
@@ -279,6 +324,9 @@ ul{margin:0;padding:0;list-style:none;}
   display:flex;background:var(--paper);
   overflow-x:auto;scroll-behavior:smooth;scroll-snap-type:x proximity;
   -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  /* overflow-x:auto clips the other axis too, so a card growing on hover would
+     be sliced off top and bottom. This is the room it grows into. */
+  padding-block:9px;
 }
 .crs__track::-webkit-scrollbar{display:none;}
 .crs__track > *{flex:0 0 16.666%;scroll-snap-align:start;min-width:0;

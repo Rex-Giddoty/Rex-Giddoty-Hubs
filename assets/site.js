@@ -581,6 +581,33 @@
     t.setAttribute('aria-expanded', String(open));
   });
 
+  /* Touch has no hover, so the card is lit for as long as a finger is on it.
+     A :hover rule cannot do this job — on a touch screen it latches after the
+     tap and the card stays lit until something else is pressed. Delegated once
+     for every grid and carousel on the page. */
+  (function cardTouch() {
+    let lit = null, fade;
+    const off = () => {
+      clearTimeout(fade);
+      if (lit) { lit.classList.remove('is-lit'); lit = null; }
+    };
+    document.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') return;      // the mouse has :hover already
+      const card = e.target.closest('.pcard');
+      off();
+      if (card) { lit = card; card.classList.add('is-lit'); }
+    }, { passive: true });
+    /* A tap is over in a moment, so the light lingers afterwards — long enough
+       to be seen, short enough not to look stuck. */
+    document.addEventListener('pointerup', () => {
+      if (lit) { clearTimeout(fade); fade = setTimeout(off, 900); }
+    }, { passive: true, capture: true });
+    /* Dragging a carousel is not a press, so the light drops the moment the
+       finger starts to travel. */
+    ['pointercancel', 'touchmove', 'scroll'].forEach(ev =>
+      document.addEventListener(ev, off, { passive: true, capture: true }));
+  })();
+
   document.addEventListener('click', e => {
     const nav = e.target.closest('[data-crs]');
     if (!nav) return;
