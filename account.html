@@ -53,6 +53,7 @@
         <div style="font-weight:600;font-size:14px;margin-bottom:3px;">Notifications</div>
         <p class="lede" id="push-state" style="margin-bottom:12px;"></p>
         <button class="btn btn--ghost" id="push-toggle">Turn on</button>
+        <button class="btn btn--ghost" id="push-test" style="display:none;margin-left:8px;">Send a test</button>
       </div>
     </section>
 
@@ -184,6 +185,21 @@ async function paintPush() {
     ? 'On for this device. You will hear when an order moves and when we reply to you.'
     : 'Off. Turn them on to hear when an order moves and when we reply to you.';
   btn.textContent = state === 'on' ? 'Turn off' : 'Turn on';
+
+  /* A way to find out without waiting for an order. Three quite different
+     faults look identical from the outside — no device, a retired
+     subscription, a failed delivery — and this tells them apart. */
+  const test = document.getElementById('push-test');
+  test.style.display = state === 'on' ? '' : 'none';
+  test.onclick = async () => {
+    test.disabled = true;
+    const { data, error } = await window.RG_DB.rpc('send_test_push');
+    test.disabled = false;
+    if (error) return note('p-msg', 'warn', window.RG_ESC(error.message));
+    if (data === 'no-device')
+      return note('p-msg', 'warn', 'This device is not subscribed yet. Turn notifications off and on again.');
+    note('p-msg', 'ok', 'Sent. It should arrive in a moment — leave this page if you want to see it as a banner.');
+  };
 
   btn.onclick = async () => {
     btn.disabled = true;

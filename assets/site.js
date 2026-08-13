@@ -1239,28 +1239,15 @@
           : 'Not now, then.' };
       }
 
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription()
-        || await reg.pushManager.subscribe({
-             userVisibleOnly: true,           // required, and honest: every push shows
-             applicationServerKey: b64ToBytes(VAPID),
-           });
-
-      const json = sub.toJSON();
-      /* The endpoint is unique, so the same device re-subscribing updates its
-         row rather than collecting duplicates and ringing twice. */
-      const { error } = await db.from('push_subscriptions').upsert({
-        user_id: session.user.id,
-        endpoint: json.endpoint,
-        p256dh: json.keys.p256dh,
-        auth: json.keys.auth,
-        user_agent: navigator.userAgent.slice(0, 200),
-      }, { onConflict: 'endpoint' });
-
+      const error = await subscribeAndRecord(session.user.id);
       if (error) return { ok: false, why: error.message };
       window.RG_NOTIF_SET_OFF(false);
       return { ok: true };
     },
+
+    /* Made available so a page can repair itself, and so the switch and the
+       repair share one definition of "subscribed". */
+    heal: () => healPush(),
 
     async disable() {
       const reg = await navigator.serviceWorker.getRegistration();
@@ -1275,6 +1262,50 @@
       return { ok: true };
     },
   };
+  async function subscribeAndRecord(userId) {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription()
+      || await reg.pushManager.subscribe({
+           userVisibleOnly: true,           // required, and honest: every push shows
+           applicationServerKey: b64ToBytes(VAPID),
+         });
+
+    const json = sub.toJSON();
+    /* The endpoint is unique, so the same device re-subscribing updates its
+       row rather than collecting duplicates and ringing twice. */
+    const { error } = await db.from('push_subscriptions').upsert({
+      user_id: userId,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      user_agent: navigator.userAgent.slice(0, 200),
+    }, { onConflict: 'endpoint' });
+    return error || null;
+  }
+
+  /* ── repairing a subscription that quietly died ──
+   * A push subscription can die without the permission dying with it. The push
+   * service retires an endpoint, the app is reinstalled, site data is cleared —
+   * and our own edge function, correctly, deletes the row it can no longer
+   * reach. Permission still reads "granted", so nothing ever asks again, and
+   * nothing ever arrives. Silent, and indefinite: it is the state this shop was
+   * actually in, with a live trigger, a working edge function and no device on
+   * the other end of it.
+   *
+   * So a granted permission is checked on every load rather than trusted.
+   * getSubscription() returning nothing means a fresh subscribe; the upsert is
+   * idempotent and keyed on the endpoint, so a row the server has since dropped
+   * comes straight back.
+   */
+  async function healPush() {
+    if (!Push.supported() || Notification.permission !== 'granted') return;
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session || !session.user || session.user.is_anonymous) return;
+      await subscribeAndRecord(session.user.id);
+    } catch (_) { /* offline, or the worker is not ready — next load will do */ }
+  }
+
   window.RG_PUSH = Push;
 
   /* ── the double bell ──
@@ -1394,6 +1425,7 @@
   }
 
   async function maybeAskPush() {
+    await healPush();
     if (!Push.supported() || notifOff()) return;
     if (Notification.permission === 'denied') return;   /* nothing we can do from here */
     if (location.pathname.startsWith('/ops')) return;
