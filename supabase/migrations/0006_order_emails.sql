@@ -41,7 +41,10 @@ begin
     return;   -- not configured yet, or nobody to send to; never block the order
   end if;
 
-  perform extensions.net.http_post(
+  /* pg_net is registered against the extensions schema but installs its
+     functions into net, and search_path is empty here, so this has to be the
+     schema the functions actually live in rather than the extension's. */
+  perform net.http_post(
     url     := 'https://api.resend.com/emails',
     headers := jsonb_build_object(
                  'Authorization', 'Bearer ' || v_key,
