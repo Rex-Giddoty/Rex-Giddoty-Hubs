@@ -588,6 +588,7 @@
             <a href="/help.html">How to shop</a>
             <a href="/help.html#delivery">Delivery &amp; payment</a>
             <a href="/account.html#orders">Track an order</a>
+            <a href="/privacy.html">Privacy policy</a>
           </div>
           <div><h4>About us</h4>
             <a href="/">Our store</a>
@@ -1169,6 +1170,15 @@
     chat.poll = setInterval(() => { if (document.visibilityState === 'visible') chatLoad(); }, 20000);
   }
   window.RG_CHAT_MOUNT = chatMount;
+
+  /* Registered here rather than in supabase.js because only the shop pages load
+     this file. The console loads supabase.js too, and staff software should not
+     be installable or served from a cache. */
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
 
   Bag.paint();
 })();

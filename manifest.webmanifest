@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "Rex-Giddoty Hubs",
+  "short_name": "Rex-Giddoty",
+  "description": "Clothing, bags, shoes and accessories, delivered nationwide.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1b1226",
+  "theme_color": "#9030d0",
+  "lang": "en-NG",
+  "dir": "ltr",
+  "categories": ["shopping", "lifestyle"],
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Shop", "short_name": "Shop", "url": "/shop.html",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My orders", "short_name": "Orders", "url": "/account.html#orders",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My cart", "short_name": "Cart", "url": "/bag.html",
+      "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

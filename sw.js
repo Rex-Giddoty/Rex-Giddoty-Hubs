@@ -1,0 +1,90 @@
+/* Rex-Giddoty Hubs — service worker
+ *
+ * The one rule that matters in a shop: never serve a cached price. Everything
+ * that decides what a customer pays or what is in stock comes from Supabase
+ * over the network, and those requests are not touched here at all. What is
+ * cached is the shell — the stylesheet, the script, the logo — so a page opens
+ * instantly and still has something to show on a bad signal.
+ *
+ * Bump CACHE when the shell changes; the old one is deleted on activate.
+ */
+const CACHE = 'rg-shell-v1';
+
+const SHELL = [
+  '/',
+  '/offline.html',
+  '/assets/site.css',
+  '/assets/site.js',
+  '/supabase.js',
+  '/assets/logo.png',
+  '/assets/logo-mark.png',
+  '/assets/icon-192.png',
+  '/manifest.webmanifest',
+];
+
+self.addEventListener('install', e => {
+  /* addAll fails the whole install if one file 404s, so they go in one at a
+     time: a missing icon should not cost the shop its offline page. */
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await Promise.all(SHELL.map(url => cache.add(url).catch(() => {})));
+    self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+/* Staff work in a browser, and their console has its own session and its own
+   freshness needs. It is left entirely alone. */
+const isOps = url => /^\/ops(-|\.)/.test(url.pathname);
+
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+
+  /* Anything that is not this site — Supabase, the fonts CDN, the supabase-js
+     bundle — is left to the network. Prices, stock and orders are in that
+     first group and must never come from a cache. */
+  if (url.origin !== self.location.origin) return;
+  if (isOps(url)) return;
+
+  /* A page: try the network so the catalogue is current, fall back to the copy
+     we have, and only then to the offline page. */
+  if (req.mode === 'navigate') {
+    e.respondWith((async () => {
+      try {
+        const fresh = await fetch(req);
+        const cache = await caches.open(CACHE);
+        cache.put(req, fresh.clone());
+        return fresh;
+      } catch (_) {
+        return (await caches.match(req))
+            || (await caches.match('/offline.html'))
+            || Response.error();
+      }
+    })());
+    return;
+  }
+
+  /* The shell: answer from cache at once, and refresh it in the background so
+     the next load has the new one. */
+  if (/\.(css|js|png|jpg|jpeg|webp|avif|svg|webmanifest)$/i.test(url.pathname)) {
+    e.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const hit = await cache.match(req);
+      const net = fetch(req).then(res => {
+        if (res && res.ok) cache.put(req, res.clone());
+        return res;
+      }).catch(() => hit);
+      return hit || net;
+    })());
+  }
+});

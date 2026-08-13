@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<meta name="theme-color" content="#9030d0"/>
+<title>You are offline — Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link rel="icon" href="/assets/logo-mark.png"/>
+<style>
+  /* Its own styling rather than site.css: this page has to work when nothing
+     else loaded, which is the one situation it exists for. */
+  body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;
+    background:#1b1226;color:#fff;font-family:Roboto,system-ui,Arial,sans-serif;text-align:center;}
+  .box{max-width:340px;}
+  img{width:120px;margin:0 auto 20px;display:block;}
+  h1{font-size:20px;font-weight:600;margin:0 0 8px;}
+  p{font-size:14px;line-height:1.65;color:#c9bcd6;margin:0 0 22px;}
+  button{background:#9030d0;color:#fff;border:0;border-radius:6px;
+    padding:12px 26px;font-size:14px;font-weight:600;cursor:pointer;}
+  button:hover{background:#7a26b0;}
+</style>
+</head>
+<body>
+  <div class="box">
+    <img src="/assets/icon-192.png" alt="Rex-Giddoty Hubs"/>
+    <h1>No connection</h1>
+    <p>Your phone has lost its signal. Nothing has gone wrong with your cart or
+      your orders — they are waiting for you.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+  <script>
+    /* Come back on its own the moment the signal does. */
+    addEventListener('online', () => location.reload());
+  </script>
+</body>
+</html>
