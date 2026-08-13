@@ -17,6 +17,7 @@
     <button class="tab" data-page="categories">Categories</button>
     <button class="tab" data-page="orders">Orders</button>
     <button class="tab" data-page="customers">Customers</button>
+    <button class="tab" data-page="support">Support<span class="tab__dot" id="support-dot" style="display:none;"></span></button>
     <button class="tab" data-page="settings">Settings</button>
   </div>
   <div class="who" id="who"></div>
@@ -91,6 +92,26 @@
       <div class="spacer"></div>
       <button class="btn" onclick="closeModal('customer-modal')">Close</button>
       <button class="btn btn--primary" id="cu-block" onclick="toggleBlock()">Block</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUPPORT -->
+<div class="page" id="page-support">
+  <div class="head">
+    <h2>Support</h2><span class="count" id="support-count"></span>
+    <div class="spacer"></div>
+    <select class="inp" id="support-filter" style="max-width:150px;" onchange="renderThreads()">
+      <option value="open">Open</option>
+      <option value="">All</option>
+      <option value="unread">Needs a reply</option>
+      <option value="closed">Closed</option>
+    </select>
+  </div>
+  <div class="sup">
+    <div class="card sup__list"><div id="threads-body"></div></div>
+    <div class="card sup__thread" id="thread-pane">
+      <div class="empty">Pick a conversation on the left.</div>
     </div>
   </div>
 </div>
@@ -246,7 +267,9 @@ async function signOut(){ await db.auth.signOut(); location.href = '/ops-login.h
     if (t) t.click();
   }
 
-  await Promise.all([loadSettings(), loadCategories(), loadProducts(), loadOrders(), loadCustomers()]);
+  await Promise.all([loadSettings(), loadCategories(), loadProducts(), loadOrders(),
+                     loadCustomers(), loadThreads()]);
+  watchSupport();
 })();
 
 /* ── settings ── */
@@ -647,6 +670,176 @@ async function deleteCustomer() {
   closeModal('customer-modal');
   await loadCustomers();
   toast('Account deleted');
+}
+
+/* ── support ──
+ * Replies go through staff_reply rather than an insert, which is what stops a
+ * message claiming to be from the shop when it is not. */
+let _threads = [], _thread = null, _tmsgs = [], _tsub = null;
+
+const ago = t => {
+  if (!t) return '';
+  const s = (Date.now() - new Date(t)) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  if (s < 604800) return Math.floor(s / 86400) + 'd ago';
+  return new Date(t).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' });
+};
+
+async function loadThreads() {
+  const { data, error } = await db.rpc('admin_list_threads');
+  if (error) return toast(error.message, true);
+  _threads = data || [];
+  renderThreads();
+  /* The tab wears a dot whichever page you are on, so a message arriving while
+     you are editing a product does not go unnoticed. */
+  const waiting = _threads.filter(t => t.staff_unread > 0).length;
+  document.getElementById('support-dot').style.display = waiting ? '' : 'none';
+}
+
+function renderThreads() {
+  const f = document.getElementById('support-filter').value;
+  let list = _threads;
+  if (f === 'open')   list = list.filter(t => t.status === 'open');
+  if (f === 'closed') list = list.filter(t => t.status === 'closed');
+  if (f === 'unread') list = list.filter(t => t.staff_unread > 0);
+
+  const waiting = _threads.filter(t => t.staff_unread > 0).length;
+  document.getElementById('support-count').textContent =
+    _threads.length + ' total' + (waiting ? ` · ${waiting} waiting` : '');
+
+  const box = document.getElementById('threads-body');
+  if (!list.length) {
+    box.innerHTML = `<div class="empty">${
+      _threads.length ? 'Nothing under this filter.' : 'No conversations yet.'}</div>`;
+    return;
+  }
+  box.innerHTML = list.map(t => `
+    <button class="thr ${t.id === _thread ? 'thr--on' : ''}" onclick="openThread('${t.id}')">
+      <div class="thr__top">
+        <b>${esc(t.full_name || t.email || 'Customer')}</b>
+        <span>${esc(ago(t.last_message_at))}</span>
+      </div>
+      <div class="thr__p">${t.last_sender === 'staff' ? '<i>You:</i> ' : ''}${esc(t.last_preview || '')}</div>
+      <div class="thr__m">
+        ${t.staff_unread ? `<span class="pill pill--red">${t.staff_unread} new</span>` : ''}
+        ${t.status === 'closed' ? '<span class="pill">closed</span>' : ''}
+        <span class="muted">${esc(t.email || '')}</span>
+      </div>
+    </button>`).join('');
+}
+
+async function openThread(id) {
+  _thread = id;
+  renderThreads();
+  await loadMessages();
+  await db.rpc('mark_support_read', { p_thread: id });
+  const t = _threads.find(x => x.id === id);
+  if (t) t.staff_unread = 0;
+  renderThreads();
+  watchThread();
+}
+
+async function loadMessages() {
+  const { data, error } = await db.from('support_messages')
+    .select('id,body,sender_role,created_at')
+    .eq('thread_id', _thread).order('created_at').limit(400);
+  if (error) return toast(error.message, true);
+  _tmsgs = data || [];
+  renderThread();
+}
+
+function renderThread() {
+  const t = _threads.find(x => x.id === _thread);
+  const pane = document.getElementById('thread-pane');
+  if (!t) { pane.innerHTML = '<div class="empty">Pick a conversation on the left.</div>'; return; }
+
+  const when = d => new Date(d).toLocaleString('en-NG',
+    { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  pane.innerHTML = `
+    <div class="thrhd">
+      <div>
+        <b>${esc(t.full_name || t.email || 'Customer')}</b>
+        <span>${esc(t.email || '')}${t.phone ? ' · ' + esc(t.phone) : ''}</span>
+      </div>
+      <button class="btn btn--sm" onclick="toggleThreadOpen()">
+        ${t.status === 'closed' ? 'Reopen' : 'Mark closed'}</button>
+    </div>
+    <div class="thrbody" id="thrbody">
+      ${_tmsgs.map(m => `
+        <div class="bub bub--${m.sender_role === 'staff' ? 'us' : 'them'}">
+          <div class="bub__b">${esc(m.body).replace(/\n/g, '<br/>')}</div>
+          <div class="bub__t">${m.sender_role === 'staff' ? 'You · ' : ''}${esc(when(m.created_at))}</div>
+        </div>`).join('') || '<div class="empty">No messages yet.</div>'}
+    </div>
+    <form class="thrform" onsubmit="sendReply(event)">
+      <textarea class="inp" id="reply" rows="2" maxlength="4000"
+        placeholder="Write a reply… (Enter sends, Shift+Enter for a new line)"></textarea>
+      <button class="btn btn--primary" type="submit">Send</button>
+    </form>`;
+
+  const body = document.getElementById('thrbody');
+  body.scrollTop = body.scrollHeight;
+
+  const box = document.getElementById('reply');
+  box.onkeydown = e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(e); }
+  };
+  box.focus();
+}
+
+async function sendReply(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const box = document.getElementById('reply');
+  const body = box.value.trim();
+  if (!body) return;
+  box.value = '';
+
+  const { error } = await db.rpc('staff_reply', { p_thread: _thread, p_body: body });
+  if (error) { box.value = body; return toast(error.message, true); }
+  await loadMessages();
+  await loadThreads();
+}
+
+async function toggleThreadOpen() {
+  const t = _threads.find(x => x.id === _thread);
+  if (!t) return;
+  const closing = t.status !== 'closed';
+  const { error } = await db.rpc('close_support_thread', { p_thread: _thread, p_closed: closing });
+  if (error) return toast(error.message, true);
+  await loadThreads();
+  renderThread();
+  toast(closing ? 'Conversation closed' : 'Conversation reopened');
+}
+
+/* One channel for the open conversation, another for everything, so the list
+   lights up even while you are reading a different thread. */
+function watchThread() {
+  if (_tsub) db.removeChannel(_tsub);
+  _tsub = db.channel('ops-thread:' + _thread)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'support_messages',
+        filter: 'thread_id=eq.' + _thread },
+      p => {
+        if (_tmsgs.some(m => m.id === p.new.id)) return;
+        _tmsgs.push(p.new);
+        renderThread();
+        if (p.new.sender_role === 'customer') db.rpc('mark_support_read', { p_thread: _thread });
+      })
+    .subscribe();
+}
+
+function watchSupport() {
+  db.channel('ops-support')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'support_threads' },
+      () => loadThreads())
+    .subscribe();
+  /* Realtime can drop quietly on a laptop that has been asleep; this is the
+     floor under it rather than the mechanism. */
+  setInterval(() => { if (document.visibilityState === 'visible') loadThreads(); }, 30000);
 }
 
 /* ── orders ── */

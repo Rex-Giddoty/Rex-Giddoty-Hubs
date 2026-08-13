@@ -409,6 +409,71 @@ ul{margin:0;padding:0;list-style:none;}
 .b2top.on{display:grid;}
 .b2top svg{width:22px;height:22px;}
 
+/* ───────────────────── support chat ─────────────────────
+   Sits above everything except the drawer, which is a full-screen takeover and
+   should cover it. */
+
+.chat{position:fixed;right:14px;bottom:20px;z-index:100;
+  display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+
+.chat__fab{width:54px;height:54px;border-radius:50%;border:0;flex-shrink:0;
+  background:var(--brand);color:#fff;display:grid;place-items:center;position:relative;
+  box-shadow:0 4px 16px rgba(144,48,208,.4);transition:transform .18s ease;}
+.chat__fab:hover{background:var(--brand-dk);transform:scale(1.06);}
+.chat__fab svg{width:26px;height:26px;}
+.chat--open .chat__fab svg{opacity:.9;}
+.chat__badge{position:absolute;top:-2px;right:-2px;min-width:20px;height:20px;padding:0 5px;
+  background:#be1d3e;color:#fff;border:2px solid var(--paper);border-radius:10px;
+  font-size:11px;font-weight:700;line-height:16px;}
+
+.chat__panel{width:340px;max-width:calc(100vw - 28px);height:460px;max-height:calc(100vh - 130px);
+  background:var(--paper);border-radius:10px;overflow:hidden;
+  box-shadow:0 12px 40px rgba(0,0,0,.26);display:flex;flex-direction:column;
+  animation:chat-in .22s cubic-bezier(.22,.61,.36,1) both;}
+@keyframes chat-in{from{opacity:0;transform:translateY(14px) scale(.97);}}
+
+.chat__hd{background:var(--brand);color:#fff;padding:13px 15px;flex-shrink:0;
+  display:flex;align-items:center;gap:10px;}
+.chat__hd > div{flex:1;min-width:0;}
+.chat__hd b{display:block;font-size:15px;font-weight:600;}
+.chat__hd span{display:block;font-size:12px;opacity:.85;margin-top:1px;}
+.chat__x{background:none;border:0;color:#fff;padding:4px;display:grid;place-items:center;
+  border-radius:4px;opacity:.85;flex-shrink:0;}
+.chat__x:hover{opacity:1;background:rgba(255,255,255,.16);}
+.chat__x svg{width:19px;height:19px;}
+
+.chat__body{flex:1;min-height:0;overflow-y:auto;padding:14px;background:#f7f5f9;
+  display:flex;flex-direction:column;gap:9px;}
+
+.cmsg{max-width:82%;}
+.cmsg--me{align-self:flex-end;}
+.cmsg--them{align-self:flex-start;}
+.cmsg__b{padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.5;
+  word-wrap:break-word;overflow-wrap:anywhere;}
+.cmsg--me   .cmsg__b{background:var(--brand);color:#fff;border-bottom-right-radius:3px;}
+.cmsg--them .cmsg__b{background:var(--paper);color:var(--ink);border:1px solid var(--line);
+  border-bottom-left-radius:3px;}
+.cmsg__t{font-size:10.5px;color:var(--mute);margin-top:3px;}
+.cmsg--me .cmsg__t{text-align:right;}
+
+.cempty{margin:auto;text-align:center;padding:10px 6px;}
+.cempty b{display:block;font-size:14px;margin-bottom:6px;color:var(--ink);}
+.cempty span{font-size:12.5px;color:var(--mute);line-height:1.6;}
+
+.chat__form{flex-shrink:0;display:flex;align-items:flex-end;gap:8px;padding:10px;
+  border-top:1px solid var(--line);background:var(--paper);}
+.chat__form textarea{flex:1;min-width:0;resize:none;border:1px solid var(--line);
+  border-radius:18px;padding:9px 13px;font-size:13.5px;line-height:1.4;outline:0;
+  max-height:110px;font-family:inherit;}
+.chat__form textarea:focus{border-color:var(--brand);}
+.chat__form button{width:38px;height:38px;flex-shrink:0;border:0;border-radius:50%;
+  background:var(--brand);color:#fff;display:grid;place-items:center;}
+.chat__form button:hover{background:var(--brand-dk);}
+.chat__form button svg{width:19px;height:19px;margin-left:-1px;}
+
+.chat__gate{flex-shrink:0;padding:16px;border-top:1px solid var(--line);}
+.chat__gate p{margin:0 0 12px;font-size:12.5px;line-height:1.6;color:var(--ink-2);}
+
 .toast{position:fixed;left:50%;bottom:86px;transform:translate(-50%,14px);
   background:var(--ink);color:#fff;padding:11px 18px;border-radius:4px;
   font-size:13.5px;z-index:200;opacity:0;pointer-events:none;transition:.22s;}
@@ -795,7 +860,12 @@ textarea.inp{resize:vertical;min-height:74px;}
   .countdown{font-size:12.5px;}
   .price-now{font-size:22px;}
   .tabbar{display:flex;}
-  .b2top{bottom:74px;}
+  /* Both float above the tab bar, and above each other rather than on top. */
+  .chat{bottom:66px;right:12px;}
+  .chat__fab{width:48px;height:48px;}
+  .chat__fab svg{width:23px;height:23px;}
+  .chat__panel{height:min(72vh,460px);max-height:calc(100vh - 150px);}
+  .b2top{bottom:124px;}
   .thumb{flex:0 0 88px;}
   .slider{min-height:130px;}
   .svc{flex-direction:column;}

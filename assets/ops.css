@@ -164,3 +164,60 @@ select.inp{color-scheme:dark;}
   .srow{grid-template-columns:1fr 1fr;gap:6px;}
   .srow .rm{grid-column:1/-1;}
 }
+
+/* ───────────────────── support ───────────────────── */
+
+/* The tab wears a dot when somebody is waiting, so a message arriving while you
+   are on another page is still visible. */
+.tab__dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--red);margin-left:7px;vertical-align:middle;}
+
+.sup{display:grid;grid-template-columns:330px 1fr;gap:10px;align-items:start;}
+.sup > *{min-width:0;}
+.sup__list{max-height:calc(100vh - 190px);overflow-y:auto;}
+.sup__thread{height:calc(100vh - 190px);display:flex;flex-direction:column;padding:0;}
+
+.thr{display:block;width:100%;text-align:left;background:none;border:0;
+  border-bottom:1px solid var(--b);padding:12px 14px;cursor:pointer;color:inherit;}
+.thr:last-child{border-bottom:0;}
+.thr:hover{background:var(--s2);}
+.thr--on{background:var(--s2);box-shadow:inset 3px 0 0 var(--accent);}
+.thr__top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+.thr__top b{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.thr__top span{font-size:11.5px;color:var(--sub);flex-shrink:0;}
+.thr__p{font-size:12.5px;color:var(--sub);margin-top:3px;line-height:1.45;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.thr__p i{font-style:normal;color:var(--text);opacity:.7;}
+.thr__m{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:11.5px;}
+.thr__m .muted{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+
+.thrhd{display:flex;align-items:center;gap:12px;padding:13px 16px;
+  border-bottom:1px solid var(--b);flex-shrink:0;}
+.thrhd > div{flex:1;min-width:0;}
+.thrhd b{display:block;font-size:14px;font-weight:500;}
+.thrhd span{display:block;font-size:12px;color:var(--sub);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.thrbody{flex:1;min-height:0;overflow-y:auto;padding:16px;
+  display:flex;flex-direction:column;gap:10px;}
+.bub{max-width:74%;}
+.bub--us{align-self:flex-end;}
+.bub--them{align-self:flex-start;}
+.bub__b{padding:9px 13px;border-radius:12px;font-size:13.5px;line-height:1.5;
+  word-wrap:break-word;overflow-wrap:anywhere;}
+/* --accent is near-white in this console, so the shop's own messages take dark
+   text on it the way the primary button does. */
+.bub--us   .bub__b{background:var(--accent);color:#0c0c0d;border-bottom-right-radius:3px;}
+.bub--them .bub__b{background:var(--s2);border:1px solid var(--b);border-bottom-left-radius:3px;}
+.bub__t{font-size:11px;color:var(--sub);margin-top:4px;}
+.bub--us .bub__t{text-align:right;}
+
+.thrform{display:flex;gap:9px;align-items:flex-end;padding:12px 14px;
+  border-top:1px solid var(--b);flex-shrink:0;}
+.thrform textarea{flex:1;min-width:0;resize:none;}
+
+@media (max-width:860px){
+  .sup{grid-template-columns:1fr;}
+  .sup__list{max-height:300px;}
+  .sup__thread{height:70vh;}
+}

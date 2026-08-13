@@ -519,6 +519,9 @@
 
     mountBackToTop();
     Bag.paint();
+    /* Not awaited: the chat bubble is the last thing anyone needs on arrival,
+       and its own queries should not hold up the header. */
+    chatMount();
   };
 
   /* ── product card ── */
@@ -694,6 +697,205 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
   };
+
+  /* ── support chat ──
+   * A bubble on every page. Signed-in customers get the conversation; everyone
+   * else gets a way in, because a message we cannot attach to an account is a
+   * message we cannot answer.
+   *
+   * Writes go through send_support_message rather than an insert, so the shop
+   * side of a conversation cannot be forged from a browser console. */
+  const CHAT_I = {
+    bubble: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">'
+      + '<path d="M21 11.5a8.4 8.4 0 01-9 8.4 9.5 9.5 0 01-2.9-.4L4 21l1.4-3.9A8.2 8.2 0 013 11.5 8.4 8.4 0 0112 3a8.4 8.4 0 019 8.5z"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+      + '<path d="M6 6l12 12M18 6L6 18"/></svg>',
+    send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'
+      + '<path d="M4 12l16-8-6 8 6 8z"/></svg>',
+  };
+
+  const chat = {
+    el: null, list: null, thread: null, msgs: [], sub: null, open: false, poll: 0, me: null,
+  };
+
+  const chatTime = t => new Date(t).toLocaleTimeString('en-NG',
+    { hour: '2-digit', minute: '2-digit' });
+
+  function chatPaintBadge(n) {
+    const b = chat.el && chat.el.querySelector('[data-chat-badge]');
+    if (!b) return;
+    b.textContent = n > 9 ? '9+' : String(n);
+    b.style.display = n > 0 ? '' : 'none';
+  }
+
+  function chatRender() {
+    if (!chat.list) return;
+    const atBottom = chat.list.scrollHeight - chat.list.scrollTop - chat.list.clientHeight < 60;
+
+    chat.list.innerHTML = chat.msgs.length
+      ? chat.msgs.map(m => `
+          <div class="cmsg cmsg--${m.sender_role === 'staff' ? 'them' : 'me'}">
+            <div class="cmsg__b">${esc(m.body).replace(/\n/g, '<br/>')}</div>
+            <div class="cmsg__t">${m.sender_role === 'staff' ? 'Rex-Giddoty Hubs · ' : ''}${chatTime(m.created_at)}</div>
+          </div>`).join('')
+      : `<div class="cempty">
+           <b>Ask us anything</b>
+           <span>Sizes, delivery, an order you have already placed — we answer
+           during working hours and you will see the reply right here.</span>
+         </div>`;
+
+    if (atBottom || chat.msgs.length <= 1) chat.list.scrollTop = chat.list.scrollHeight;
+  }
+
+  async function chatLoad() {
+    const { data: t } = await db.from('support_threads')
+      .select('id,status,customer_unread').eq('status', 'open').maybeSingle();
+    chat.thread = t ? t.id : null;
+    chatPaintBadge(t ? t.customer_unread : 0);
+
+    if (!chat.thread) { chat.msgs = []; chatRender(); return; }
+    const { data: m } = await db.from('support_messages')
+      .select('id,body,sender_role,created_at')
+      .eq('thread_id', chat.thread).order('created_at').limit(200);
+    chat.msgs = m || [];
+    chatRender();
+  }
+
+  /* Realtime carries the reply the moment it is sent; the poll is there for the
+     phone that has been asleep in a pocket and missed the socket entirely. */
+  function chatWatch() {
+    if (chat.sub || !chat.thread) return;
+    chat.sub = db.channel('support:' + chat.thread)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'support_messages',
+          filter: 'thread_id=eq.' + chat.thread },
+        p => {
+          if (chat.msgs.some(x => x.id === p.new.id)) return;
+          chat.msgs.push(p.new);
+          chatRender();
+          if (chat.open) chatMarkRead();
+          else if (p.new.sender_role === 'staff') {
+            chatPaintBadge(1);
+            window.RG_TOAST('Rex-Giddoty Hubs replied');
+          }
+        })
+      .subscribe();
+  }
+
+  async function chatMarkRead() {
+    if (!chat.thread) return;
+    chatPaintBadge(0);
+    await db.rpc('mark_support_read', { p_thread: chat.thread });
+  }
+
+  async function chatSend(input) {
+    const body = input.value.trim();
+    if (!body) return;
+    input.value = '';
+    input.style.height = '';
+
+    /* Shown straight away under its own temporary id. If the send fails it is
+       taken back out, so the panel never claims to have sent something twice. */
+    const temp = { id: 'tmp-' + Date.now(), body, sender_role: 'customer', created_at: new Date().toISOString() };
+    chat.msgs.push(temp);
+    chatRender();
+
+    const { data, error } = await db.rpc('send_support_message', { p_body: body });
+    if (error) {
+      chat.msgs = chat.msgs.filter(m => m.id !== temp.id);
+      chatRender();
+      window.RG_TOAST(error.message || 'That did not send');
+      input.value = body;
+      return;
+    }
+    if (!chat.thread) { chat.thread = data; chatWatch(); }
+    await chatLoad();
+  }
+
+  async function chatMount() {
+    /* Everywhere on the shop, checkout included — a question at the payment
+       step is the one most worth answering. The console is the exception. */
+    if (document.querySelector('.chat') || /^\/ops/.test(location.pathname)) return;
+
+    let session = null;
+    try { ({ data: { session } } = await db.auth.getSession()); } catch (_) {}
+    const signedIn = !!(session && session.user && !session.user.is_anonymous);
+    /* Staff answer from the console; a bubble on the shop would only give them
+       a second inbox that nobody watches. */
+    if (signedIn) {
+      const { data: admin } = await db.from('admin_users').select('id').eq('id', session.user.id).maybeSingle();
+      if (admin) return;
+    }
+    chat.me = signedIn ? session.user : null;
+
+    const el = document.createElement('div');
+    el.className = 'chat';
+    el.innerHTML = `
+      <div class="chat__panel" hidden>
+        <div class="chat__hd">
+          <div>
+            <b>Support</b>
+            <span>We reply during working hours</span>
+          </div>
+          <button class="chat__x" data-chat-close aria-label="Close">${CHAT_I.close}</button>
+        </div>
+        <div class="chat__body" data-chat-list></div>
+        ${signedIn ? `
+          <form class="chat__form" data-chat-form>
+            <textarea rows="1" placeholder="Type a message…" maxlength="4000"
+              aria-label="Message" data-chat-input></textarea>
+            <button type="submit" aria-label="Send">${CHAT_I.send}</button>
+          </form>`
+        : `<div class="chat__gate">
+             <p>Sign in and we can tie your question to your orders — and you get
+             the answer here rather than hoping an email arrives.</p>
+             <a class="btn btn--full" href="/login.html?next=${encodeURIComponent(location.pathname)}">Sign in</a>
+             <a class="btn btn--ghost btn--full" href="/register.html" style="margin-top:7px;">Create an account</a>
+           </div>`}
+      </div>
+      <button class="chat__fab" data-chat-fab aria-label="Support chat">
+        ${CHAT_I.bubble}<span class="chat__badge" data-chat-badge style="display:none;">0</span>
+      </button>`;
+    document.body.appendChild(el);
+    chat.el = el;
+    chat.list = el.querySelector('[data-chat-list]');
+
+    const panel = el.querySelector('.chat__panel');
+    const toggle = async () => {
+      chat.open = !chat.open;
+      panel.hidden = !chat.open;
+      el.classList.toggle('chat--open', chat.open);
+      if (!chat.open) return;
+      if (signedIn) { await chatLoad(); chatWatch(); await chatMarkRead(); }
+      const i = el.querySelector('[data-chat-input]');
+      if (i && window.matchMedia('(hover:hover)').matches) i.focus();
+    };
+    el.querySelector('[data-chat-fab]').onclick = toggle;
+    el.querySelector('[data-chat-close]').onclick = toggle;
+
+    if (!signedIn) { chatRender(); return; }
+
+    const form = el.querySelector('[data-chat-form]');
+    const input = el.querySelector('[data-chat-input]');
+    form.onsubmit = e => { e.preventDefault(); chatSend(input); };
+    /* Enter sends, Shift+Enter makes a new line — except on a phone, where
+       Enter is the only way to get one. */
+    input.onkeydown = e => {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      if (!window.matchMedia('(hover:hover)').matches) return;
+      e.preventDefault();
+      chatSend(input);
+    };
+    input.oninput = () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(110, input.scrollHeight) + 'px';
+    };
+
+    await chatLoad();
+    chatWatch();
+    chat.poll = setInterval(() => { if (document.visibilityState === 'visible') chatLoad(); }, 20000);
+  }
+  window.RG_CHAT_MOUNT = chatMount;
 
   Bag.paint();
 })();
