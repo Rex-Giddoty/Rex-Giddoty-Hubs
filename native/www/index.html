@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Rex-Giddoty Hubs</title>
+<style>
+  html,body{height:100%;margin:0;}
+  body{background:#1b1226;color:#efe9f5;display:grid;place-items:center;
+    font:400 14px Roboto,system-ui,Arial,sans-serif;text-align:center;padding:24px;}
+  h1{font-size:17px;font-weight:600;margin:0 0 8px;}
+  p{margin:0;color:#8d7ba0;font-size:13px;line-height:1.5;}
+</style>
+</head>
+<body>
+  <!--
+    The app loads rexgiddotyhubs.shop itself — see server.url in
+    capacitor.config.json — so this page is only ever seen if the phone has no
+    connection at all when the app is opened cold. It says so rather than
+    showing Android's own "webpage not available", which looks like a crash.
+  -->
+  <div>
+    <h1>No connection</h1>
+    <p>Rex-Giddoty Hubs needs the internet to load.<br/>Check your data and open the app again.</p>
+  </div>
+</body>
+</html>

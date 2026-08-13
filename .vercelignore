@@ -1,0 +1,6 @@
+# The shop is a static site — Vercel serves these files as they are. The Android
+# project is source for a different build entirely (see .github/workflows), and
+# uploading it would put tens of megabytes of Gradle wrapper and icons behind
+# the website for no reason.
+native/
+supabase/

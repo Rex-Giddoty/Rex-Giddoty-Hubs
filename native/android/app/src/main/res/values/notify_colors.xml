@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Its own file rather than colors.xml, which the icon generator rewrites.
+  Android tints the status-bar silhouette and the notification's accents with
+  this, so it is the shop's purple.
+-->
+<resources>
+    <color name="rg_notification">#9030D0</color>
+</resources>

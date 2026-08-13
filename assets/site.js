@@ -1211,12 +1211,97 @@
     btoa(String.fromCharCode(...new Uint8Array(buf)))
       .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+  /* ── inside the Android app ──
+   * There is no service worker push here: Android's WebView has no Push API at
+   * all. The app registers with Firebase instead and the token it gets back is
+   * what the shop sends to — which is also why its notifications carry the
+   * app's name and icon with no origin stamped underneath. Everything below is
+   * inert in a browser, where window.Capacitor does not exist.
+   */
+  const native = () => !!(window.Capacitor && window.Capacitor.isNativePlatform
+                          && window.Capacitor.isNativePlatform());
+  const nativePush = () => native() && window.Capacitor.Plugins
+                           && window.Capacitor.Plugins.PushNotifications;
+  window.RG_NATIVE = native;
+
+  let _fcmToken = null;
+  let _nativeWired = false;
+
+  function wireNative(P, userId) {
+    if (_nativeWired) return;
+    _nativeWired = true;
+
+    P.addListener('registration', async (t) => {
+      _fcmToken = t.value;
+      /* Keyed on the token, so a phone that signs in as somebody else moves its
+         row across rather than leaving the old account subscribed to it. */
+      await db.from('device_tokens').upsert({
+        user_id: userId,
+        token: t.value,
+        platform: 'android',
+        user_agent: navigator.userAgent.slice(0, 200),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'token' });
+    });
+
+    P.addListener('registrationError', (e) => console.error('push registration', e));
+
+    /* The banner was tapped: open the page it was about. */
+    P.addListener('pushNotificationActionPerformed', (ev) => {
+      const url = ev && ev.notification && ev.notification.data && ev.notification.data.url;
+      if (url) location.href = url;
+    });
+
+    /* Arriving while the app is already open. Android posts no banner then, so
+       this is where the shop's own double bell earns its keep. */
+    P.addListener('pushNotificationReceived', (n) => {
+      window.RG_BELL();
+      if (n && n.title) window.RG_TOAST(n.title);
+    });
+  }
+
+  async function nativeEnable() {
+    const P = nativePush();
+    if (!P) return { ok: false, why: 'Notifications are not available in this app build.' };
+
+    const { data: { session } } = await db.auth.getSession();
+    if (!session || !session.user || session.user.is_anonymous) {
+      return { ok: false, why: 'Sign in first, so we know whose orders to tell you about.' };
+    }
+
+    wireNative(P, session.user.id);
+
+    let perm = await P.checkPermissions();
+    if (perm.receive !== 'granted') perm = await P.requestPermissions();
+    if (perm.receive !== 'granted') {
+      return { ok: false, why: perm.receive === 'denied'
+        ? 'Notifications are blocked for this app. Turn them back on in Android settings.'
+        : 'Not now, then.' };
+    }
+
+    await P.register();
+    return { ok: true };
+  }
+
+  async function nativeState() {
+    const P = nativePush();
+    if (!P) return 'unsupported';
+    const perm = await P.checkPermissions();
+    if (perm.receive === 'denied') return 'denied';
+    if (perm.receive !== 'granted') return 'default';
+    /* Permitted is not the same as subscribed — the customer may have switched
+       it off from Account, which Android knows nothing about. */
+    return notifOff() ? 'granted' : 'on';
+  }
+
   const Push = {
-    supported: () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
+    supported: () => !!nativePush()
+      || ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window),
 
     /* granted | denied | default | unsupported — and 'on' only if this device
        actually has a live subscription, which is not the same as permission. */
     async state() {
+      if (nativePush()) return nativeState();
       if (!Push.supported()) return 'unsupported';
       if (Notification.permission !== 'granted') return Notification.permission;
       const reg = await navigator.serviceWorker.getRegistration();
@@ -1225,6 +1310,11 @@
     },
 
     async enable() {
+      if (nativePush()) {
+        const r = await nativeEnable();
+        if (r.ok) window.RG_NOTIF_SET_OFF(false);
+        return r;
+      }
       if (!Push.supported()) return { ok: false, why: 'This browser cannot do notifications.' };
 
       const { data: { session } } = await db.auth.getSession();
@@ -1250,6 +1340,13 @@
     heal: () => healPush(),
 
     async disable() {
+      if (nativePush()) {
+        /* Android gives no way to hand a permission back, so switching off means
+           forgetting the token: nothing is sent, and Account is the way back. */
+        if (_fcmToken) await db.from('device_tokens').delete().eq('token', _fcmToken);
+        window.RG_NOTIF_SET_OFF(true);
+        return { ok: true };
+      }
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = reg && await reg.pushManager.getSubscription();
       if (!sub) return { ok: true };
@@ -1298,6 +1395,22 @@
    * comes straight back.
    */
   async function healPush() {
+    /* In the app the same job is re-registering with Firebase: a token rotates
+       when the app updates or its data is cleared, and the old row stops
+       working without anything saying so. */
+    if (nativePush()) {
+      if (notifOff()) return;
+      try {
+        const P = nativePush();
+        const perm = await P.checkPermissions();
+        if (perm.receive !== 'granted') return;
+        const { data: { session } } = await db.auth.getSession();
+        if (!session || !session.user || session.user.is_anonymous) return;
+        wireNative(P, session.user.id);
+        await P.register();
+      } catch (_) { /* next load will do */ }
+      return;
+    }
     if (!Push.supported() || Notification.permission !== 'granted') return;
     try {
       const { data: { session } } = await db.auth.getSession();
@@ -1427,7 +1540,9 @@
   async function maybeAskPush() {
     await healPush();
     if (!Push.supported() || notifOff()) return;
-    if (Notification.permission === 'denied') return;   /* nothing we can do from here */
+    /* Notification is a browser object and does not exist in the app's WebView,
+       so it is only consulted when there is no native plugin to ask instead. */
+    if (!nativePush() && Notification.permission === 'denied') return;
     if (location.pathname.startsWith('/ops')) return;
     /* Only worth asking somebody we can address: a push is tied to an account. */
     const { data: { session } } = await db.auth.getSession();

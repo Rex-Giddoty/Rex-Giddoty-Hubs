@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rex-Giddoty Hubs</string>
+    <string name="title_activity_main">Rex-Giddoty Hubs</string>
+    <string name="package_name">shop.rexgiddotyhubs.twa</string>
+    <string name="custom_url_scheme">shop.rexgiddotyhubs.twa</string>
+</resources>
