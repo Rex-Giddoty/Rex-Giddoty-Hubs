@@ -857,7 +857,8 @@ function soldNote() {
   const el = document.getElementById('i-sold-note');
   if (!el) return;
   const typed = parseInt(document.getElementById('i-sold').value || '0', 10) || 0;
-  const base = 'Shown on the item as “' + (window.RG_SOLD_TXT(typed) || 'nothing') + '”. ';
+  const shown = window.RG_SOLD_TXT(typed);
+  const base = 'Shown on the item as “' + (shown ? '🔥 ' + shown : 'nothing') + '”. ';
   el.textContent = base + (_soldReal == null
     ? 'Counting what this shop has actually sold…'
     : _soldReal + ' sold through this shop so far. Type the number you want shoppers to see — many shops count sales made elsewhere too.');

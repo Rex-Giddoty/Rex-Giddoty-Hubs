@@ -584,7 +584,7 @@
           ${off ? `<span class="pcard__was">${M.fmt(p.compare_at_minor, p.currency)}</span>` : ''}
         </div>
         ${rating ? `<div class="stars"><i>${'★'.repeat(full)}${'☆'.repeat(5-full)}</i>(${p.rating_count || 0})</div>` : ''}
-        ${sold ? `<div class="sold">${sold}</div>` : ''}
+        ${sold ? `<div class="sold"><span>🔥</span>${sold}</div>` : ''}
         ${meter ? `<div class="left-note">${stock} items left</div><div class="bar"><span style="width:${meter}%"></span></div>` : ''}
       </a>
       <button class="pcard__add" ${firstV ? `data-add="${firstV.id}"` : 'disabled'}>
