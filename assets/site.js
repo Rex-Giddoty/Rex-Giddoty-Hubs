@@ -34,9 +34,13 @@
   window.RG_SOLD = n => {
     const v = Number(n || 0);
     if (v <= 0) return '';
-    if (v < 1000) return v + ' sold';
-    if (v < 1000000) return (v / 1000).toFixed(v < 10000 ? 1 : 0).replace(/\.0$/, '') + 'k sold';
-    return (v / 1000000).toFixed(1).replace(/\.0$/, '') + 'm sold';
+    const num = v < 1000 ? String(v)
+      : v < 1000000 ? (v / 1000).toFixed(v < 10000 ? 1 : 0).replace(/\.0$/, '') + 'k'
+      : (v / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+    /* The plus says the number is a floor rather than a count anybody is going
+       to audit, which is both how these read everywhere else and the honest
+       shape for a figure that is typed rather than counted. */
+    return num + '+ sold';
   };
 
   function tag(sel, make) {
