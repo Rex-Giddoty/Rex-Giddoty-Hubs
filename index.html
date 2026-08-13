@@ -14,8 +14,55 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Rex-Giddoty"/>
 <link rel="stylesheet" href="/assets/site.css"/>
+<style>
+/* ── the splash ──
+ * Inline, in the head, on purpose. The stylesheet is served from the service
+ * worker's cache and can be a version behind on the first load after a deploy —
+ * which is exactly what made the skeletons invisible. Nothing here depends on a
+ * file that might be stale.
+ *
+ * The full logo is used rather than the mark alone: its wordmark is white and
+ * was drawn for a dark ground, which is what this is.
+ */
+#splash{position:fixed;inset:0;z-index:9998;display:grid;place-items:center;
+  background:#1b1226;transition:opacity .45s ease,visibility .45s;}
+#splash.gone{opacity:0;visibility:hidden;pointer-events:none;}
+#splash .in{display:flex;flex-direction:column;align-items:center;gap:22px;}
+#splash img{width:210px;max-width:62vw;height:auto;display:block;
+  animation:sp-breathe 2.1s ease-in-out infinite;}
+/* A ring that runs behind the logo, so the wait reads as motion rather than as
+   a frozen picture. */
+#splash .ring{position:absolute;width:290px;height:290px;max-width:82vw;max-height:82vw;
+  border-radius:50%;border:2px solid rgba(144,48,208,.16);
+  border-top-color:#9030d0;animation:sp-spin 1.15s linear infinite;}
+#splash .bar{width:170px;max-width:52vw;height:3px;border-radius:2px;
+  background:rgba(255,255,255,.12);overflow:hidden;}
+#splash .bar i{display:block;width:40%;height:100%;border-radius:2px;background:#9030d0;
+  animation:sp-slide 1.25s ease-in-out infinite;}
+#splash .say{font:500 12.5px Roboto,system-ui,Arial,sans-serif;color:#8d7ba0;
+  letter-spacing:.04em;}
+
+@keyframes sp-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+@keyframes sp-spin{to{transform:rotate(360deg)}}
+@keyframes sp-slide{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
+
+/* Someone who has asked for less motion gets the logo and the words, held still. */
+@media (prefers-reduced-motion:reduce){
+  #splash img,#splash .ring,#splash .bar i{animation:none;}
+  #splash .ring{border-top-color:rgba(144,48,208,.16);}
+}
+</style>
 </head>
 <body>
+
+<div id="splash">
+  <div class="ring"></div>
+  <div class="in">
+    <img src="/assets/logo.png" alt="Rex-Giddoty Hubs"/>
+    <div class="bar"><i></i></div>
+    <div class="say">Loading the shop…</div>
+  </div>
+</div>
 
 <header class="hdr" data-hdr>
   <div class="skhdr">
@@ -151,6 +198,14 @@ function bootDone() {
   _bootGone = true;
   const el = document.getElementById('boot-sect');
   if (el) el.remove();
+
+  /* The splash fades rather than vanishing — a hard cut reads as a flicker when
+     the data was fast. Removed after the fade so it cannot swallow taps. */
+  const sp = document.getElementById('splash');
+  if (sp) {
+    sp.classList.add('gone');
+    setTimeout(() => sp.remove(), 500);
+  }
 }
 
 (async () => {
