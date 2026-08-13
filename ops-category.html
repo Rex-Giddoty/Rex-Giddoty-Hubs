@@ -97,15 +97,12 @@
     <div class="card">
       <h3 style="margin-bottom:6px;">Photos &amp; video</h3>
       <div class="muted" style="font-size:12px;margin-bottom:12px;">
-        Pick the colour first, then upload — the photos are filed under it and
-        the shopper sees them when they choose that colour. <b>Default</b> is the
-        item's general photography, shown whatever they pick. The first photo of
-        all is the one that appears in listings. Short clips work too, up to a
-        minute and 25 MB.
-      </div>
-      <div class="uprow">
-        <span class="uprow__l">Uploading for</span>
-        <div class="chips" id="i-up-colour"></div>
+        Each colour has its own <b>Add</b> button, and whatever you put there is
+        what a shopper sees when they choose that colour. <b>Default</b> is the
+        item's general photography, shown whatever they pick — and what a colour
+        with no pictures of its own falls back to. The first photo of all is the
+        one that appears in listings. Short clips work too, up to a minute and
+        25 MB.
       </div>
       <div id="i-images"></div>
       <input type="file" id="i-image-file" multiple hidden onchange="uploadImages(this)"
@@ -622,7 +619,7 @@ function openItem(id) {
   document.getElementById('i-delete').style.display = _item ? '' : 'none';
 
   loadSizeGuide(_item?.size_guide);
-  renderGrid(); renderUploadColours(); renderImages();
+  renderGrid(); renderImages();
   show('item');
 }
 
@@ -634,43 +631,25 @@ function syncSlug() {
 }
 document.getElementById('i-slug').addEventListener('input', e => { e.target.dataset.touched = '1'; });
 
-/* Which colour the next upload belongs to. Picked before the file dialog opens,
-   because tagging afterwards is a step people skip. */
+/* Which colour the next upload belongs to. Set by whichever "Add" tile was
+   pressed, so it is never a mode you have to remember being in. */
 let _upColour = DEFAULT_COLOUR;
 
-function renderUploadColours() {
-  const box = document.getElementById('i-up-colour');
-  if (!box) return;
-  const all = [DEFAULT_COLOUR, ..._colours];
-  if (!all.includes(_upColour)) _upColour = DEFAULT_COLOUR;
-  box.innerHTML = all.map(c => `
-    <button type="button" class="chip ${c === _upColour ? 'chip--on' : ''}"
-      onclick="pickUploadColour('${q(c)}')">
-      ${c === DEFAULT_COLOUR ? '' : `<i style="background:${swatchFor(c)}"></i>`}
-      ${c === DEFAULT_COLOUR ? 'Default' : esc(c)}</button>`).join('')
-    + (_colours.length ? '' :
-       '<span class="muted" style="font-size:11.5px;align-self:center;">Add a colour below to file photos under it</span>');
-}
-function pickUploadColour(c) { _upColour = c; renderUploadColours(); }
-
+/* Every colour gets its own section with its own Add tile, including the ones
+   with nothing in them yet — an earlier version only drew a section once it had
+   a photo, which left no way to put the first one there. */
 function renderImages() {
-  /* Grouped by colour rather than listed flat: the whole point of tagging is
-     being able to see at a glance that Red has three photos and Black has one.
-     MAIN marks the first photograph a shopper meets, which is the first one
-     that is not a video. */
-  const groups = [DEFAULT_COLOUR, ..._colours]
-    .map(c => [c, _images.filter(im => (im.color || '') === c)])
-    .filter(([c, list]) => list.length || c === _upColour || c === DEFAULT_COLOUR);
-
+  const box = document.getElementById('i-images');
   const firstPhoto = _images.find(im => !isVideo(im.path));
 
-  document.getElementById('i-images').innerHTML = groups.map(([c, list]) => `
-    <div class="mgroup">
+  const section = c => {
+    const list = _images.filter(im => (im.color || '') === c);
+    const isDefault = c === DEFAULT_COLOUR;
+    return `<div class="mgroup">
       <div class="mgroup__h">
-        ${c === DEFAULT_COLOUR ? '' : `<span class="swatch" style="background:${swatchFor(c)}"></span>`}
-        <b>${c === DEFAULT_COLOUR ? 'Default' : esc(c)}</b>
-        <span class="muted">${list.length || 'none'}</span>
-        ${c === _upColour ? '<span class="mgroup__on">uploading here</span>' : ''}
+        ${isDefault ? '' : `<span class="swatch" style="background:${swatchFor(c)}"></span>`}
+        <b>${isDefault ? 'Default' : esc(c) || 'Unnamed colour'}</b>
+        <span class="muted">${list.length ? list.length + (list.length === 1 ? ' file' : ' files') : 'nothing yet'}</span>
       </div>
       <div class="imgs">
         ${list.map(im => {
@@ -683,11 +662,28 @@ function renderImages() {
             ${im === firstPhoto ? '<span class="main">MAIN</span>' : ''}
           </figure>`;
         }).join('')}
-        <div class="drop" onclick="pickUploadColour('${q(c)}');document.getElementById('i-image-file').click()">+</div>
+        <button type="button" class="drop drop--add" onclick="addMediaTo('${q(c)}')">
+          <span>+</span><i>${isDefault ? 'Add' : 'Add ' + (esc(c) || 'colour')}</i>
+        </button>
       </div>
-    </div>`).join('');
+    </div>`;
+  };
+
+  box.innerHTML = [DEFAULT_COLOUR, ..._colours].map(section).join('')
+    + (_colours.length ? '' : `<p class="mhint">
+        Add a colour under <b>Sizes &amp; stock</b> below and it appears here with
+        its own Add button, so you can file photos under it.</p>`);
 }
+
+/* The one place _upColour is set: pressing an Add tile says which colour this
+   upload is for, and the file dialog opens straight after. */
+function addMediaTo(colour) {
+  _upColour = colour;
+  document.getElementById('i-image-file').click();
+}
+
 function removeImage(i) { _images.splice(i, 1); renderImages(); stockNote(); }
+
 
 
 async function uploadImages(input) {
@@ -817,7 +813,7 @@ function addColour(name) {
   const n = String(name || '').trim();
   if (n && _colours.some(c => c.toLowerCase() === n.toLowerCase())) return;
   _colours.push(n);
-  renderGrid(); renderUploadColours(); renderImages();
+  renderGrid(); renderImages();
 }
 
 /* The stock and the photographs are keyed by the name, so renaming carries
@@ -831,7 +827,7 @@ function renameColour(i, value) {
   }
   _images.forEach(im => { if ((im.color || '') === old) im.color = value || null; });
   if (_upColour === old) _upColour = value;
-  renderUploadColours(); renderImages(); stockNote();
+  renderImages(); stockNote();
 }
 
 function removeColour(i) {
@@ -842,7 +838,7 @@ function removeColour(i) {
   for (const z of _sizes) _stock.delete(cellKey(gone, z.option_value));
   _images.forEach(im => { if ((im.color || '') === gone) im.color = null; });
   if (_upColour === gone) _upColour = DEFAULT_COLOUR;
-  renderGrid(); renderUploadColours(); renderImages();
+  renderGrid(); renderImages();
 }
 
 /* Quick-add chips for the colours a shop reaches for most. The list stays open
