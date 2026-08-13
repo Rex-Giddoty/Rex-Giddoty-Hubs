@@ -284,7 +284,12 @@ async function signOut(){ await db.auth.signOut(); location.href = '/ops-login.h
     if (t) t.click();
   }
 
-  await Promise.all([loadSettings(), loadCategories(), loadProducts(), loadOrders(),
+  /* Categories first, alone. The products list prints each product's category
+     name by looking it up in this array, so a product list that arrives before
+     it says "Uncategorised" against everything — which it did, more often as
+     more queries were added to race alongside. */
+  await loadCategories();
+  await Promise.all([loadSettings(), loadProducts(), loadOrders(),
                      loadCustomers(), loadThreads(), loadReviews()]);
   watchSupport();
 })();

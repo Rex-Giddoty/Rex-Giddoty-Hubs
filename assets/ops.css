@@ -3,7 +3,43 @@
   --text:#ececec; --sub:#8b8b90; --accent:#ececec; --green:#3ecf8e; --red:#ff6b6b; --amber:#f0b429;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+/* color-scheme is what makes the browser's own furniture — scrollbars, the
+   caret, form controls, the flash behind a loading page — come out dark rather
+   than a white bar down the side of a black console. It has to be on :root for
+   the document scrollbar to pick it up. */
+:root{color-scheme:dark;}
 html,body{min-height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-size:14px;}
+
+/* ── scrollbars ──
+ * Every scrolling surface in the console: the page, the tab strip, wide tables,
+ * the stock grid, the support list and thread, and the modals. Thin, dark, and
+ * only as visible as it needs to be — a scrollbar is a position indicator, not
+ * a piece of the design.
+ *
+ * Firefox takes the two standard properties; everything Blink and WebKit needs
+ * the pseudo-elements, so both are stated.
+ */
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.16);
+  border-radius:8px;
+  /* A transparent border with background-clip leaves the thumb floating inside
+     the track rather than filling it edge to edge. */
+  border:2px solid transparent;
+  background-clip:content-box;
+}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.3);background-clip:content-box;}
+::-webkit-scrollbar-thumb:active{background:rgba(255,255,255,.4);background-clip:content-box;}
+/* Where the two bars meet, so the square in the corner is not left white. */
+::-webkit-scrollbar-corner{background:transparent;}
+
+/* The tab strip and the media rows are short and horizontal, so their bar is
+   slimmer still. Not hidden: on a narrow window it is the only sign that
+   Support, Reviews and Settings are further along. */
+.tabs::-webkit-scrollbar,.imgs::-webkit-scrollbar{height:6px;}
+.tabs::-webkit-scrollbar-thumb,.imgs::-webkit-scrollbar-thumb{border-width:1px;}
 button,input,select,textarea{font-family:inherit;}
 a{color:inherit;}
 
