@@ -573,6 +573,65 @@ textarea.inp{resize:vertical;min-height:74px;}
   .panel{padding:14px;}
 }
 
+/* ───────────────────── help page ─────────────────────
+   Long-form prose, which nothing else on the site has: the shop pages are all
+   short labels around pictures. Body text is a step larger than a product name
+   so a screen of it stays readable. */
+
+.hjump{display:flex;flex-wrap:wrap;gap:7px;}
+.hjump a{border:1px solid var(--line);border-radius:14px;padding:6px 13px;
+  font-size:12.5px;color:var(--ink-2);}
+.hjump a:hover{border-color:var(--brand);color:var(--brand);}
+
+.hp{font-size:14px;line-height:1.65;color:var(--ink-2);margin:0 0 12px;}
+.hp a,.hul a,.hq a,.step a{color:var(--brand);font-weight:500;}
+.hp a:hover,.hul a:hover,.hq a:hover,.step a:hover{text-decoration:underline;}
+.hh3{font-size:14.5px;font-weight:600;color:var(--ink);margin:20px 0 9px;}
+/* The global reset strips list markers; prose is the one place that wants them. */
+.hul{margin:0 0 12px;padding-left:19px;list-style:disc;}
+.hul li{font-size:14px;line-height:1.65;color:var(--ink-2);margin-bottom:7px;}
+
+/* Set apart from the prose without shouting: a tinted panel with a brand rule
+   down its edge, the same purple as everything else. */
+.hnote{background:var(--beige);border-left:3px solid var(--brand);border-radius:0 3px 3px 0;
+  padding:12px 14px;font-size:13.5px;line-height:1.6;color:var(--ink-2);margin:14px 0 0;}
+
+.hgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:6px;}
+.hgrid > *{min-width:0;}
+.hbox{border:1px solid var(--line);border-radius:var(--rad);padding:13px 14px;}
+.hbox__k{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);}
+.hbox__v{font-size:19px;font-weight:700;color:var(--ink);margin:4px 0 5px;line-height:1.2;}
+.hbox__s{font-size:12.5px;line-height:1.55;color:var(--ink-2);}
+
+.hstat{display:flex;flex-direction:column;gap:9px;margin-bottom:4px;}
+.hstat > div{display:flex;flex-wrap:wrap;align-items:center;gap:9px;
+  font-size:13.5px;line-height:1.55;color:var(--ink-2);}
+.hstat .pill{flex-shrink:0;}
+
+/* <details> rather than scripted accordions: it opens without JavaScript, and
+   the browser's own find-in-page can reach inside a closed one. */
+.hq{border-bottom:1px solid var(--line);}
+.hq:last-of-type{border-bottom:0;}
+.hq summary{cursor:pointer;list-style:none;padding:13px 26px 13px 0;position:relative;
+  font-size:14px;font-weight:500;color:var(--ink);}
+.hq summary::-webkit-details-marker{display:none;}
+.hq summary::after{content:'';position:absolute;right:6px;top:19px;width:8px;height:8px;
+  border-right:2px solid var(--mute);border-bottom:2px solid var(--mute);
+  transform:rotate(45deg);transition:transform .2s ease;}
+.hq[open] summary::after{transform:rotate(-135deg);}
+.hq summary:hover{color:var(--brand);}
+.hq p{font-size:13.5px;line-height:1.65;color:var(--ink-2);margin:0 0 14px;padding-right:20px;}
+
+.hcon{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:13.5px;
+  border-bottom:1px solid var(--line);}
+.hcon:last-child{border-bottom:0;}
+.hcon span{color:var(--mute);}
+.hcon a{color:var(--brand);font-weight:500;word-break:break-all;text-align:right;}
+
+@media (max-width:720px){
+  .hgrid{grid-template-columns:1fr;}
+}
+
 /* ───────────────────── product page ───────────────────── */
 
 .pdp{display:grid;grid-template-columns:1fr 320px;gap:8px;align-items:start;}

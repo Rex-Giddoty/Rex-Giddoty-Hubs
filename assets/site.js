@@ -355,8 +355,8 @@
               <div class="dpdw__box">
                 <a href="mailto:${esc(email)}">Contact us</a>
                 ${phone ? `<a href="tel:${esc(phone.replace(/\s/g,''))}">Call ${esc(phone)}</a>` : ''}
-                <a href="/shop.html">How to shop</a>
-                <a href="/shop.html">Delivery &amp; payment</a>
+                <a href="/help.html">How to shop</a>
+                <a href="/help.html#delivery">Delivery &amp; payment</a>
               </div>
             </div>
             <a class="hact" href="/bag.html">${I.cart}<span class="hact--label">Cart</span>
@@ -379,7 +379,8 @@
             : `<a href="/login.html">${I.account}Sign in</a>
                <a href="/register.html">${I.account}Create an account</a>`}
           <a href="/bag.html">${I.cart}My cart</a>
-          <a href="mailto:${esc(email)}">${I.help}Help</a>
+          <a href="/help.html">${I.help}How to shop &amp; delivery</a>
+          <a href="mailto:${esc(email)}">${I.tag}Contact us</a>
         </div>`;
       document.body.appendChild(drawer);
 
@@ -463,8 +464,9 @@
           <div><h4>Need help?</h4>
             <a href="mailto:${esc(email)}">Contact us</a>
             ${phone ? `<a href="tel:${esc(phone.replace(/\s/g,''))}">${esc(phone)}</a>` : ''}
-            <a href="/shop.html">How to shop</a>
-            <a href="/account.html">Track an order</a>
+            <a href="/help.html">How to shop</a>
+            <a href="/help.html#delivery">Delivery &amp; payment</a>
+            <a href="/account.html#orders">Track an order</a>
           </div>
           <div><h4>About us</h4>
             <a href="/">Our store</a>
