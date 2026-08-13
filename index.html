@@ -51,7 +51,7 @@
 
     <!-- category tiles -->
     <section class="sect" id="cats-sect" style="display:none;">
-      <div class="sect__hd" style="background:#f0dcc2;justify-content:center;">
+      <div class="sect__hd" style="background:#e7d5f7;justify-content:center;">
         <!-- flex:0 would collapse the heading to zero width, and the stylesheet's
              overflow:hidden would then clip the text away completely -->
         <h2 style="flex:0 1 auto;text-align:center;">All Your Essentials in One Place</h2>
@@ -218,7 +218,9 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
 
   /* ── one carousel per category ── */
   const rows = document.getElementById('cat-rows');
-  const tint = ['#fce7bb','#e7f0d9','#dbe9f5','#f6dfe4','#e8e2f3','#fdeadf'];
+  /* Row headers cycle through tints of the brand purple rather than a rainbow,
+     so a long page still reads as one shop. */
+  const tint = ['#f0e4fb','#e7d5f7','#ede6f9','#f4ecfd','#e4dcf6','#f7f0fd'];
   let ti = 0;
   for (const c of cats) {
     const ids = idsFor(c);
