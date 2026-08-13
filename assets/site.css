@@ -48,7 +48,7 @@ ul{margin:0;padding:0;list-style:none;}
 
 /* ─────────────────────────── header ─────────────────────────── */
 
-.promo{background:#009afd;color:#fff;text-align:center;font-size:13px;font-weight:500;padding:7px 12px;}
+.promo{background:var(--brandv);color:#fff;text-align:center;font-size:13px;font-weight:500;padding:7px 12px;}
 
 .vbar{background:#eaeaea;border-bottom:1px solid #ddd;font-size:12px;color:var(--ink-2);}
 .vbar__in{
@@ -140,7 +140,9 @@ ul{margin:0;padding:0;list-style:none;}
   color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .rail a:hover{background:#f6f6f6;color:var(--brand);}
 .rail a.on{color:var(--brand);font-weight:600;}
-.rail a svg{width:19px;height:19px;flex-shrink:0;}
+/* Icons hold the logo's purple whatever the label does, so hovering or landing
+   on a category changes the text without the row flickering two colours. */
+.rail a svg{width:19px;height:19px;flex-shrink:0;color:var(--brandv);}
 
 /* expandable group (Collection ▾ Tops, Bottoms, …) */
 .rail__row{display:flex;align-items:center;}
@@ -640,7 +642,7 @@ textarea.inp{resize:vertical;min-height:74px;}
 .drawer__panel .hd:hover{background:#1f1f21;}
 .drawer__panel a{display:flex;align-items:center;gap:9px;padding:12px 16px;
   border-bottom:1px solid #f2f2f2;font-size:14px;}
-.drawer__panel a svg{width:20px;height:20px;color:var(--mute);flex-shrink:0;}
+.drawer__panel a svg{width:20px;height:20px;color:var(--brandv);flex-shrink:0;}
 
 /* ───────────────────── responsive ───────────────────── */
 
