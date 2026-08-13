@@ -549,6 +549,13 @@
     /* Jumia shows the meter against a nominal batch of 50, which is what makes a
        low count read as urgent rather than as an arbitrary bar. */
     const meter = stock > 0 && stock <= 50 ? Math.max(6, Math.round(stock / 50 * 100)) : 0;
+    /* Pairings can cost different amounts, so the card shows the cheapest one a
+       shopper could actually buy and says "from" when they differ — a price no
+       variant has is worse than no price at all. */
+    const prices = (p.product_variants || [])
+      .map(v => v.price_minor != null ? v.price_minor : p.price_minor)
+      .filter(n => n != null);
+    const lowest = prices.length ? Math.min(...prices) : p.price_minor;
 
     return `<div class="pcard">
       <a href="/product.html?slug=${encodeURIComponent(p.slug)}">
@@ -561,7 +568,7 @@
         </div>
         <div class="pcard__name">${esc(p.name)}</div>
         <div>
-          <span class="pcard__price">${M.fmt(p.price_minor, p.currency)}</span>
+          <span class="pcard__price">${lowest === p.price_minor ? '' : 'from '}${M.fmt(lowest, p.currency)}</span>
           ${off ? `<span class="pcard__was">${M.fmt(p.compare_at_minor, p.currency)}</span>` : ''}
         </div>
         ${rating ? `<div class="stars"><i>${'★'.repeat(full)}${'☆'.repeat(5-full)}</i>(${p.rating_count || 0})</div>` : ''}

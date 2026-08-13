@@ -156,15 +156,17 @@
       <!-- sizes and stock -->
       <div class="card">
         <div class="head" style="margin-bottom:6px;">
-          <h3>Sizes &amp; stock</h3>
+          <h3>Sizes, stock &amp; price</h3>
           <span class="count" id="i-stock-note"></span>
         </div>
         <div class="muted" style="font-size:12px;margin-bottom:12px;">
-          One row per colour, one column per size, and the number in each cell is
-          how many of that exact pairing you hold. Leave it on <b>Default</b> alone
-          if the item does not come in colours. Use “One Size” if it does not come
-          in sizes. A pairing left at zero shows as sold out rather than
-          disappearing.
+          One row per colour, one column per size. Each cell holds two numbers:
+          <b>how many you have</b> of that exact pairing, and <b>what it costs</b>.
+          Leave the price blank and the pairing simply costs whatever the item
+          costs — so change the price above and every blank follows it. Leave the
+          whole thing on <b>Default</b> if the item does not come in colours, and
+          use “One Size” if it does not come in sizes. A pairing left at zero
+          stock shows as sold out rather than disappearing.
         </div>
         <div class="gridwrap"><table class="stockgrid" id="i-grid"></table></div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -174,6 +176,7 @@
           <div class="spacer"></div>
           <button class="btn btn--sm" onclick="addColour()">+ Add colour</button>
         </div>
+        <div class="muted" id="i-price-note" style="font-size:12px;margin-top:10px;color:var(--amber);"></div>
         <div class="chips" id="i-colour-chips" style="margin-top:12px;"></div>
         <div class="grid" style="margin-top:16px;">
           <div><label class="f">Warn me when stock drops to</label>
@@ -376,7 +379,7 @@ let _cat = null, _cats = [], _items = [], _settings = {};
 let _item = null, _images = [], _sizes = [], _catImage = null;
 /* Colours the item comes in (Default is implicit and always present), and the
    stock for every colour × size pairing, keyed so a rename can carry it. */
-let _colours = [], _stock = new Map();
+let _colours = [], _cells = new Map();
 
 let _toastT;
 function toast(msg, bad) {
@@ -590,7 +593,7 @@ function openItem(id) {
   const vs = _item ? (_item.product_variants || []).slice().sort((a,b) => a.position - b.position) : [];
   _colours = [];
   _sizes = [];
-  _stock = new Map();
+  _cells = new Map();
   for (const v of vs) {
     const c = v.color || '';
     if (c && !_colours.includes(c)) _colours.push(c);
@@ -598,7 +601,8 @@ function openItem(id) {
       _sizes.push({ option_name: v.option_name || 'Size', option_value: v.option_value,
                     price_minor: v.price_minor ?? null });
     }
-    _stock.set(cellKey(c, v.option_value), { id: v.id, stock: v.stock ?? 0 });
+    _cells.set(cellKey(c, v.option_value),
+      { id: v.id, stock: v.stock ?? 0, price: v.price_minor });
   }
   if (!_sizes.length) _sizes = [{ option_name: 'Size', option_value: 'One Size', price_minor: null }];
   _upColour = DEFAULT_COLOUR;
@@ -752,9 +756,6 @@ function renderGrid() {
     <th>
       <input class="inp inp--mini" value="${esc(z.option_value || '')}" placeholder="M"
         oninput="_sizes[${i}].option_value=this.value;stockNote();"/>
-      <input class="inp inp--mini" inputmode="decimal" placeholder="price —"
-        value="${z.price_minor != null ? M.toMajor(z.price_minor) : ''}"
-        oninput="_sizes[${i}]._price=this.value"/>
       <button class="linkx" onclick="removeSize(${i})">Remove</button>
     </th>`).join('') + '<th></th></tr></thead>';
 
@@ -770,7 +771,12 @@ function renderGrid() {
       </th>
       ${_sizes.map(z => `<td>
         <input class="inp inp--cell" type="number" min="0" value="${stockAt(c, z.option_value)}"
+          title="How many of this pairing you hold"
           oninput="setStock('${q(c)}', '${q(z.option_value)}', this.value)"/>
+        <input class="inp inp--cell inp--money" inputmode="decimal"
+          value="${priceAt(c, z.option_value)}" placeholder="${basePrice()}"
+          title="Price for this pairing. Blank uses the item's own price."
+          oninput="setPrice('${q(c)}', '${q(z.option_value)}', this.value)"/>
       </td>`).join('')}
       <td>${isDefault ? '' : `<button class="btn btn--sm btn--danger" onclick="removeColour(${ci - 1})">×</button>`}</td>
     </tr>`;
@@ -785,16 +791,62 @@ const swatchFor = name => {
   return hit ? hit[1] : 'linear-gradient(135deg,#5a5a60,#8b8b90)';
 };
 
+const cellAt = (colour, size) => _cells.get(cellKey(colour, size));
+
 function stockAt(colour, size) {
-  const cell = _stock.get(cellKey(colour, size));
+  const cell = cellAt(colour, size);
   return cell ? (cell.stock ?? 0) : 0;
 }
 function setStock(colour, size, value) {
   const key = cellKey(colour, size);
-  const cell = _stock.get(key) || {};
+  const cell = _cells.get(key) || {};
   cell.stock = Math.max(0, parseInt(value || '0', 10) || 0);
-  _stock.set(key, cell);
+  _cells.set(key, cell);
   stockNote();
+}
+
+/* Price is per pairing: Red in Large can cost more than Red in Small. Blank
+   means "whatever the item costs", which is why it is stored as null rather
+   than as a copy of the item price — change the item price later and the
+   blanks follow it. */
+function priceAt(colour, size) {
+  const cell = cellAt(colour, size);
+  if (!cell) return '';
+  if (cell._price !== undefined) return cell._price;
+  return cell.price != null ? M.toMajor(cell.price) : '';
+}
+function setPrice(colour, size, value) {
+  const key = cellKey(colour, size);
+  const cell = _cells.get(key) || {};
+  cell._price = value;
+  _cells.set(key, cell);
+  priceNote();
+}
+
+const basePrice = () => {
+  const p = M.toMinor(document.getElementById('i-price').value);
+  return p ? M.toMajor(p) : '0.00';
+};
+
+/* Says plainly when a pairing is not simply the item price, because a grid of
+   numbers is easy to mistype into. */
+function priceNote() {
+  const base = M.toMinor(document.getElementById('i-price').value);
+  const set = [];
+  for (const z of _sizes) {
+    for (const c of [DEFAULT_COLOUR, ..._colours]) {
+      const raw = priceAt(c, z.option_value);
+      const minor = String(raw).trim() ? M.toMinor(raw) : 0;
+      if (minor && minor !== base) set.push(minor);
+    }
+  }
+  const el = document.getElementById('i-price-note');
+  if (!el) return;
+  if (!set.length) { el.textContent = ''; return; }
+  const lo = Math.min(...set, base || Infinity), hi = Math.max(...set, base || 0);
+  el.textContent = set.length + (set.length === 1 ? ' pairing has' : ' pairings have')
+    + ' their own price — shoppers see ' + M.fmt(lo, _settings.currency)
+    + (hi !== lo ? ' to ' + M.fmt(hi, _settings.currency) : '');
 }
 
 function addSize() { _sizes.push({ option_name: 'Size', option_value: '', price_minor: null }); renderGrid(); }
@@ -823,7 +875,7 @@ function renameColour(i, value) {
   _colours[i] = value;
   for (const z of _sizes) {
     const from = cellKey(old, z.option_value), to = cellKey(value, z.option_value);
-    if (_stock.has(from)) { _stock.set(to, _stock.get(from)); _stock.delete(from); }
+    if (_cells.has(from)) { _cells.set(to, _cells.get(from)); _cells.delete(from); }
   }
   _images.forEach(im => { if ((im.color || '') === old) im.color = value || null; });
   if (_upColour === old) _upColour = value;
@@ -835,7 +887,7 @@ function removeColour(i) {
   if (_images.some(im => (im.color || '') === gone)
       && !confirm(`Remove ${gone || 'this colour'}? Its photos stay on the item as general photography.`)) return;
   _colours.splice(i, 1);
-  for (const z of _sizes) _stock.delete(cellKey(gone, z.option_value));
+  for (const z of _sizes) _cells.delete(cellKey(gone, z.option_value));
   _images.forEach(im => { if ((im.color || '') === gone) im.color = null; });
   if (_upColour === gone) _upColour = DEFAULT_COLOUR;
   renderGrid(); renderImages();
@@ -866,6 +918,7 @@ function stockNote() {
   el.textContent = total === 0 ? 'Out of stock'
     : `${total} in stock across ${pairs} pairing${pairs === 1 ? '' : 's'}`;
   el.style.color = total === 0 ? 'var(--red)' : (total <= low ? 'var(--amber)' : '');
+  priceNote();
 
   document.getElementById('i-stats').innerHTML = `
     <div class="${total === 0 ? 'bad' : (total <= low ? 'warn' : '')}"><b>${total}</b><span>Units left</span></div>
@@ -886,6 +939,7 @@ document.getElementById('i-low').addEventListener('input', stockNote);
   note.textContent = (p && c && c > p)
     ? `Shoppers see -${Math.round((1 - p / c) * 100)}% and the old price crossed out.`
     : (c && p && c <= p ? 'The “was” price must be higher than the selling price to show a discount.' : '');
+  priceNote();
 }));
 
 async function saveItem() {
@@ -905,14 +959,16 @@ async function saveItem() {
   for (const c of colours) {
     for (let i = 0; i < sizes.length; i++) {
       const z = sizes[i];
-      const cell = _stock.get(cellKey(c, z.option_value)) || {};
+      const cell = _cells.get(cellKey(c, z.option_value)) || {};
       combos.push({
         id: cell.id || null,
         color: c || null,
         option_name: (z.option_name || 'Size').trim() || 'Size',
         option_value: String(z.option_value).trim(),
         stock: Math.max(0, parseInt(cell.stock || 0, 10)),
-        price_minor: z._price !== undefined ? (M.toMinor(z._price) || null) : (z.price_minor ?? null),
+        price_minor: cell._price !== undefined
+          ? (M.toMinor(cell._price) || null)
+          : (cell.price ?? null),
         position: i,
       });
     }

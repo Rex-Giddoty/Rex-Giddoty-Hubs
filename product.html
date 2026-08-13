@@ -312,7 +312,7 @@ let _p = null, _v = null, _qty = 1;
   if (guide) paintGuide(guide, p.name);
 
   const { data: more } = await db.from('products')
-    .select('id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,product_images(path,position),product_variants(id,stock)')
+    .select('id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,product_images(path,position),product_variants(id,stock,price_minor)')
     .eq('status','published').neq('id', p.id).limit(12);
   if (more && more.length) {
     document.getElementById('more-sect').style.display = '';

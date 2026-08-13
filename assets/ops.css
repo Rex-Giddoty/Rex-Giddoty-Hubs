@@ -283,7 +283,12 @@ select.inp{color-scheme:dark;}
    override, and inline they fight for the same line. */
 .inp--mini{padding:5px 8px;font-size:12.5px;min-width:96px;display:block;}
 .stockgrid thead th .inp--mini + .inp--mini{margin-top:5px;}
-.inp--cell{padding:6px 8px;font-size:13px;width:70px;text-align:center;}
+.inp--cell{padding:6px 8px;font-size:13px;width:82px;text-align:center;display:block;}
+/* Stock above, price below, in the same cell — the two numbers that describe
+   one pairing belong together. The price is quieter because most are blank. */
+.inp--money{margin-top:5px;font-size:12px;color:var(--sub);}
+.inp--money:focus{color:var(--text);}
+.inp--money::placeholder{color:rgba(255,255,255,.22);}
 .linkx{background:none;border:0;color:var(--sub);font-size:10.5px;cursor:pointer;
   padding:2px 0 0;text-decoration:underline;display:block;}
 .linkx:hover{color:var(--red);}
