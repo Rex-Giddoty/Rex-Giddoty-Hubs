@@ -22,6 +22,10 @@ a{color:inherit;}
 h2{font-size:19px;font-weight:600;letter-spacing:-.2px;}
 .count{font-size:12px;color:var(--sub);}
 .spacer{flex:1;}
+/* Sized here rather than inline so the narrow-screen rules below can widen
+   them — an inline max-width would outrank anything a media query says. */
+#customer-search{max-width:240px;}
+#customer-filter{max-width:150px;}
 
 .btn{background:var(--s2);border:1px solid var(--b);color:var(--text);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;}
 .btn:hover{border-color:rgba(255,255,255,.2);}
@@ -86,6 +90,10 @@ select.inp{color-scheme:dark;}
   .head{gap:8px;}
   .head h2{font-size:17px;}
   #product-search{max-width:none;flex:1;}
+  /* The customer head carries a search box and a filter next to each other, so
+     the search takes the rest of the first line and the filter drops below. */
+  #customer-search{max-width:none;flex:1 1 100%;}
+  #customer-filter{max-width:none;flex:1;}
   .variant{gap:6px;}
   .variant .inp{min-width:72px;}
   .modal{padding:12px;}

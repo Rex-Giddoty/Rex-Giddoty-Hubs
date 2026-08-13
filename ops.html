@@ -16,6 +16,7 @@
     <button class="tab active" data-page="products">Products</button>
     <button class="tab" data-page="categories">Categories</button>
     <button class="tab" data-page="orders">Orders</button>
+    <button class="tab" data-page="customers">Customers</button>
     <button class="tab" data-page="settings">Settings</button>
   </div>
   <div class="who" id="who"></div>
@@ -60,6 +61,38 @@
     </select>
   </div>
   <div class="card"><div id="orders-body"></div></div>
+</div>
+
+<!-- CUSTOMERS -->
+<div class="page" id="page-customers">
+  <div class="head">
+    <h2>Customers</h2><span class="count" id="customers-count"></span>
+    <div class="spacer"></div>
+    <input class="inp" id="customer-search" placeholder="Search name, email or phone…"
+      oninput="renderCustomers()"/>
+    <select class="inp" id="customer-filter" onchange="renderCustomers()">
+      <option value="">Everyone</option>
+      <option value="active">Active</option>
+      <option value="blocked">Blocked</option>
+      <option value="buyers">Has ordered</option>
+    </select>
+  </div>
+  <div class="stat" id="customers-stats"></div>
+  <div class="card"><div id="customers-body"></div></div>
+</div>
+
+<!-- CUSTOMER MODAL -->
+<div class="modal" id="customer-modal">
+  <div class="sheet" style="max-width:560px;">
+    <h3 id="customer-modal-title">Customer</h3>
+    <div id="customer-detail"></div>
+    <div class="row-actions">
+      <button class="btn btn--danger" id="cu-delete" onclick="deleteCustomer()">Delete account</button>
+      <div class="spacer"></div>
+      <button class="btn" onclick="closeModal('customer-modal')">Close</button>
+      <button class="btn btn--primary" id="cu-block" onclick="toggleBlock()">Block</button>
+    </div>
+  </div>
 </div>
 
 <!-- SETTINGS -->
@@ -213,7 +246,7 @@ async function signOut(){ await db.auth.signOut(); location.href = '/ops-login.h
     if (t) t.click();
   }
 
-  await Promise.all([loadSettings(), loadCategories(), loadProducts(), loadOrders()]);
+  await Promise.all([loadSettings(), loadCategories(), loadProducts(), loadOrders(), loadCustomers()]);
 })();
 
 /* ── settings ── */
@@ -488,6 +521,132 @@ async function deleteProduct() {
   closeModal('product-modal');
   await loadProducts();
   toast('Product deleted');
+}
+
+/* ── customers ── */
+let _customers = [], _editCustomer = null;
+
+async function loadCustomers() {
+  const { data, error } = await db.rpc('admin_list_customers');
+  if (error) return toast(error.message, true);
+  _customers = data || [];
+  renderCustomers();
+}
+
+function renderCustomers() {
+  const q = (document.getElementById('customer-search').value || '').trim().toLowerCase();
+  const f = document.getElementById('customer-filter').value;
+
+  let list = _customers;
+  if (q) list = list.filter(c =>
+    ((c.full_name || '') + ' ' + (c.email || '') + ' ' + (c.phone || '')).toLowerCase().includes(q));
+  if (f === 'active')  list = list.filter(c => !c.is_blocked);
+  if (f === 'blocked') list = list.filter(c => c.is_blocked);
+  if (f === 'buyers')  list = list.filter(c => c.orders_count > 0);
+
+  const spent = _customers.reduce((s, c) => s + Number(c.orders_total_minor || 0), 0);
+  document.getElementById('customers-stats').innerHTML = `
+    <div><b>${_customers.length}</b><span>Customers</span></div>
+    <div><b>${_customers.filter(c => c.orders_count > 0).length}</b><span>Have ordered</span></div>
+    <div><b>${M.fmt(spent, _settings.currency)}</b><span>Lifetime value</span></div>
+    <div class="${_customers.some(c => c.is_blocked) ? 'bad' : ''}">
+      <b>${_customers.filter(c => c.is_blocked).length}</b><span>Blocked</span></div>`;
+
+  const blocked = _customers.filter(c => c.is_blocked).length;
+  document.getElementById('customers-count').textContent =
+    _customers.length + ' total' + (blocked ? ` · ${blocked} blocked` : '');
+
+  const box = document.getElementById('customers-body');
+  if (!list.length) {
+    box.innerHTML = `<div class="empty">${q || f ? 'Nobody matches that.' : 'No customers yet.'}</div>`;
+    return;
+  }
+
+  box.innerHTML = `<table><thead><tr>
+      <th>Customer</th><th class="hide-sm">Phone</th><th>Orders</th>
+      <th class="hide-sm">Spent</th><th>Status</th><th></th>
+    </tr></thead><tbody>` +
+    list.map(c => `<tr>
+      <td>
+        <div style="font-weight:500;">${esc(c.full_name || '—')}</div>
+        <div class="muted">${esc(c.email || '')}</div>
+      </td>
+      <td class="hide-sm muted">${esc(c.phone || '—')}</td>
+      <td class="muted">${c.orders_count}</td>
+      <td class="hide-sm">${c.orders_total_minor > 0
+        ? M.fmt(c.orders_total_minor, _settings.currency) : '<span class="muted">—</span>'}</td>
+      <td>${c.is_staff  ? '<span class="pill pill--live">Staff</span>'
+          : c.is_blocked ? '<span class="pill pill--red">Blocked</span>'
+          : !c.email_confirmed ? '<span class="pill pill--warn">Unconfirmed</span>'
+          : '<span class="pill pill--live">Active</span>'}</td>
+      <td style="text-align:right;">
+        <button class="btn btn--sm" onclick="openCustomer('${c.id}')">View</button></td>
+    </tr>`).join('') + '</tbody></table>';
+}
+
+const when = t => t ? new Date(t).toLocaleString('en-NG',
+  { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'Never';
+
+function openCustomer(id) {
+  _editCustomer = _customers.find(c => c.id === id);
+  if (!_editCustomer) return;
+  const c = _editCustomer;
+
+  document.getElementById('customer-modal-title').textContent = c.full_name || c.email || 'Customer';
+  document.getElementById('customer-detail').innerHTML = `
+    <div class="grid">
+      <div><label class="f">Email</label><input class="inp" value="${esc(c.email || '')}" disabled/></div>
+      <div><label class="f">Phone</label><input class="inp" value="${esc(c.phone || '—')}" disabled/></div>
+      <div><label class="f">Joined</label><input class="inp" value="${esc(when(c.created_at))}" disabled/></div>
+      <div><label class="f">Last signed in</label><input class="inp" value="${esc(when(c.last_sign_in_at))}" disabled/></div>
+    </div>
+    <div class="stat" style="margin:16px 0 0;">
+      <div><b>${c.orders_count}</b><span>Orders</span></div>
+      <div><b>${M.fmt(c.orders_total_minor, _settings.currency)}</b><span>Spent</span></div>
+      <div><b>${c.addresses_count}</b><span>Addresses</span></div>
+      <div class="${c.is_blocked ? 'bad' : ''}"><b>${
+        c.is_staff ? 'Staff' : c.is_blocked ? 'Blocked' : c.email_confirmed ? 'Active' : 'Unconfirmed'
+      }</b><span>Status</span></div>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:14px;">
+      ${c.last_order_at ? 'Last ordered ' + esc(when(c.last_order_at)) + '.' : 'Has never ordered.'}
+      Blocking refuses sign-in and ends any session they have open. Deleting removes
+      the account and its saved addresses; their orders stay in your records.
+    </p>`;
+
+  const blockBtn = document.getElementById('cu-block');
+  const delBtn = document.getElementById('cu-delete');
+  /* Staff are managed in the database, not here — offering the buttons would
+     only produce an error message. */
+  blockBtn.style.display = c.is_staff ? 'none' : '';
+  delBtn.style.display   = c.is_staff ? 'none' : '';
+  blockBtn.textContent   = c.is_blocked ? 'Unblock' : 'Block';
+  openModal('customer-modal');
+}
+
+async function toggleBlock() {
+  if (!_editCustomer) return;
+  const c = _editCustomer;
+  const next = !c.is_blocked;
+  if (next && !confirm(`Block ${c.full_name || c.email}? They will not be able to sign in, and any open session ends now.`)) return;
+
+  const { error } = await db.rpc('admin_set_customer_blocked', { p_user: c.id, p_blocked: next });
+  if (error) return toast(error.message, true);
+  closeModal('customer-modal');
+  await loadCustomers();
+  toast(next ? 'Account blocked' : 'Account unblocked');
+}
+
+async function deleteCustomer() {
+  if (!_editCustomer) return;
+  const c = _editCustomer;
+  if (!confirm(`Delete ${c.full_name || c.email}? This cannot be undone.\n\nTheir ${c.orders_count} order(s) stay in your records, but the account, its saved addresses and cart are removed.`)) return;
+
+  const { error } = await db.rpc('admin_delete_customer', { p_user: c.id });
+  if (error) return toast(error.message, true);
+  closeModal('customer-modal');
+  await loadCustomers();
+  toast('Account deleted');
 }
 
 /* ── orders ── */
