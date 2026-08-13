@@ -291,6 +291,15 @@
     const phone = s.support_phone || '';
     const email = s.support_email || 'support@example.com';
 
+    /* An anonymous session is not a customer — only a real account counts as
+       signed in for the purposes of this menu. */
+    let session = null;
+    try { ({ data: { session } } = await db.auth.getSession()); } catch (_) {}
+    const signedIn = !!(session && session.user && !session.user.is_anonymous);
+    const firstName = signedIn
+      ? String(session.user.user_metadata?.full_name || session.user.email || 'Account').split(/[\s@]/)[0]
+      : '';
+
     const head = document.querySelector('[data-hdr]');
     if (head) {
       head.innerHTML = `
@@ -313,11 +322,22 @@
           </form>
           <div class="hdr__acts">
             <div class="dpdw">
-              <a class="hact" href="/account.html">${I.account}<span class="hact--label">Account</span>${I.caret}</a>
+              <a class="hact" href="${signedIn ? '/account.html' : '/login.html'}">${I.account}<span class="hact--label">${
+                signedIn ? esc(firstName) : 'Account'}</span>${I.caret}</a>
               <div class="dpdw__box">
-                <div class="lead"><a class="btn" href="/account.html">Sign in</a></div>
-                <a href="/account.html">${'My account'}</a>
-                <a href="/account.html#orders">Orders</a>
+                ${signedIn ? `
+                  <div class="lead" style="font-size:13px;">
+                    <div style="color:var(--mute);">Signed in as</div>
+                    <b style="word-break:break-all;">${esc(session.user.email || '')}</b>
+                  </div>
+                  <a href="/account.html">My account</a>
+                  <a href="/account.html#orders">My orders</a>
+                  <a href="/account.html#addresses">Addresses</a>
+                  <a href="#" data-signout>Sign out</a>`
+                : `
+                  <div class="lead"><a class="btn" href="/login.html">Sign in</a></div>
+                  <a href="/register.html">Create an account</a>
+                  <a href="/account.html#orders">My orders</a>`}
                 <a href="/bag.html">Cart</a>
               </div>
             </div>
@@ -342,7 +362,11 @@
           <div class="hd">${esc(store)}</div>
           <a href="/">${I.home}Home</a>
           ${entries.map(e => groupHtml(e, true)).join('')}
-          <a href="/account.html">${I.account}My account</a>
+          ${signedIn
+            ? `<a href="/account.html">${I.account}My account</a>
+               <a href="/account.html#orders">${I.orders}My orders</a>`
+            : `<a href="/login.html">${I.account}Sign in</a>
+               <a href="/register.html">${I.account}Create an account</a>`}
           <a href="/bag.html">${I.cart}My cart</a>
           <a href="mailto:${esc(email)}">${I.help}Help</a>
         </div>`;
@@ -428,6 +452,13 @@
         <a href="/account.html" class="${on('account')}">${I.account}Account</a>
         <a href="/bag.html" class="${on('bag')}">${I.cart}Cart<span class="cart-badge" data-bag-count style="display:none;">0</span></a>`;
     }
+
+    /* Signing out from the header, wherever the header happens to be. */
+    document.querySelectorAll('[data-signout]').forEach(a => a.addEventListener('click', async e => {
+      e.preventDefault();
+      await db.auth.signOut();
+      location.href = '/';
+    }));
 
     mountBackToTop();
     Bag.paint();
@@ -530,6 +561,31 @@
     Bag.add(b.dataset.add, 1);
     window.RG_TOAST('Added to cart');
   });
+
+  /* ── password visibility ──
+   * Typing a password blind on a phone keyboard is where most sign-in failures
+   * come from, so every password field gets a reveal. */
+  const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">'
+    + '<path d="M2.2 12S5.8 5.6 12 5.6 21.8 12 21.8 12 18.2 18.4 12 18.4 2.2 12 2.2 12z"/>'
+    + '<circle cx="12" cy="12" r="3.1"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">'
+    + '<path d="M9.9 5.9A9.6 9.6 0 0112 5.6c6.2 0 9.8 6.4 9.8 6.4a17 17 0 01-3.3 4"/>'
+    + '<path d="M6.3 7.7A17 17 0 002.2 12S5.8 18.4 12 18.4c1.6 0 3-.4 4.2-1"/>'
+    + '<path d="M9.9 9.9a3.1 3.1 0 004.3 4.3"/><path d="M3.5 3.5l17 17"/></svg>';
+
+  window.RG_PEEK = function (inputId, buttonId) {
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(buttonId);
+    if (!input || !btn) return;
+    btn.innerHTML = EYE;
+    btn.onclick = () => {
+      const shown = input.type === 'text';
+      input.type = shown ? 'password' : 'text';
+      btn.innerHTML = shown ? EYE : EYE_OFF;
+      btn.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+      input.focus();
+    };
+  };
 
   /* ── back to top ── */
   function mountBackToTop() {

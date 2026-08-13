@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Create an account — Rex-Giddoty Hubs</title>
+<meta name="description" content="Create a Rex-Giddoty Hubs account to check out faster and track your orders."/>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<link rel="icon" href="/assets/logo-mark.png"/>
+<link rel="stylesheet" href="/assets/site.css"/>
+</head>
+<body>
+
+<header class="hdr" data-hdr></header>
+
+<div class="auth">
+  <div class="auth__card">
+    <h1>Create your account</h1>
+    <p class="lede">Check out faster, keep your addresses and follow your orders.</p>
+
+    <div id="msg"></div>
+
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="name">Full name</label>
+        <input class="inp" id="name" name="name" autocomplete="name" required/>
+      </div>
+
+      <div class="field">
+        <label for="email">Email address</label>
+        <input class="inp" id="email" name="email" type="email" autocomplete="email" required/>
+      </div>
+
+      <div class="field">
+        <label for="phone">Phone number <span style="font-weight:400;color:#7a7a7a;">(optional)</span></label>
+        <input class="inp" id="phone" name="phone" type="tel" autocomplete="tel" placeholder="080…"/>
+        <div class="hint">Used only to reach you about an order.</div>
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="pw">
+          <input class="inp" id="password" name="password" type="password" autocomplete="new-password" required/>
+          <button type="button" id="peek" aria-label="Show password"></button>
+        </div>
+        <div class="hint">At least 8 characters.</div>
+      </div>
+
+      <button class="btn btn--full btn--lg" id="go" type="submit">Create account</button>
+    </form>
+
+    <div class="auth__alt">
+      Already have an account? <a href="/login.html">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<footer class="foot" data-foot></footer>
+<nav class="tabbar" data-tabbar></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script src="/assets/site.js"></script>
+<script>
+const db = window.RG_DB, esc = window.RG_ESC;
+const msg = document.getElementById('msg');
+const show = (kind, html) => { msg.innerHTML = `<div class="msg msg--${kind}">${html}</div>`; };
+
+(async () => {
+  await window.RG_CHROME();
+  window.RG_PEEK('password', 'peek');
+  /* Already signed in? Nothing to create. */
+  const { data: { session } } = await db.auth.getSession();
+  if (session && session.user && !session.user.is_anonymous) location.replace('/account.html');
+})();
+
+document.getElementById('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('go');
+  const full_name = document.getElementById('name').value.trim();
+  const email     = document.getElementById('email').value.trim();
+  const phone     = document.getElementById('phone').value.trim();
+  const password  = document.getElementById('password').value;
+
+  if (!full_name)            return show('err', 'Please enter your name.');
+  if (!/^\S+@\S+\.\S+$/.test(email)) return show('err', 'That email address does not look right.');
+  if (password.length < 8)   return show('err', 'Your password needs at least 8 characters.');
+
+  btn.disabled = true; btn.textContent = 'Creating your account…';
+  msg.innerHTML = '';
+
+  const { data, error } = await db.auth.signUp({
+    email, password,
+    options: {
+      data: { full_name, phone },
+      emailRedirectTo: location.origin + '/account.html',
+    },
+  });
+
+  btn.disabled = false; btn.textContent = 'Create account';
+
+  if (error) {
+    /* Supabase reports a failed confirmation send as a signup failure, and the
+       account is rolled back — worth saying plainly rather than "try again". */
+    if (/sending confirmation|smtp|email/i.test(error.message)) {
+      return show('err', 'We could not send your confirmation email, so the account was not created. '
+        + 'This is a problem on our side — please try again shortly.');
+    }
+    if (/already registered|already exists/i.test(error.message)) {
+      return show('err', 'That email already has an account. <a href="/login.html">Sign in instead</a>.');
+    }
+    return show('err', esc(error.message));
+  }
+
+  /* With confirmations on there is no session yet; with them off we are in. */
+  if (data.session) {
+    location.replace('/account.html');
+    return;
+  }
+
+  document.getElementById('form').style.display = 'none';
+  show('ok', `<b>Almost there.</b><br/>We sent a confirmation link to <b>${esc(email)}</b>. `
+    + 'Open it to finish setting up your account. If it is not in your inbox, check your spam folder.');
+});
+</script>
+</body>
+</html>

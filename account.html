@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>My account — Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<link rel="icon" href="/assets/logo-mark.png"/>
+<link rel="stylesheet" href="/assets/site.css"/>
+</head>
+<body>
+
+<header class="hdr" data-hdr></header>
+
+<div class="acct" id="acct" style="display:none;">
+  <aside class="acct__nav">
+    <div class="acct__who">
+      <b id="who-name">—</b>
+      <span id="who-email"></span>
+    </div>
+    <a href="#profile"   data-pane="profile">Profile</a>
+    <a href="#orders"    data-pane="orders">My orders</a>
+    <a href="#addresses" data-pane="addresses">Addresses</a>
+    <a href="#password"  data-pane="password">Password</a>
+    <button id="signout">Sign out</button>
+  </aside>
+
+  <main>
+    <!-- profile -->
+    <section class="acct__panel pane" id="pane-profile">
+      <h2>Profile</h2>
+      <p class="lede">The name and number we use on your orders.</p>
+      <div id="p-msg"></div>
+      <div class="two">
+        <div class="field"><label for="f-name">Full name</label>
+          <input class="inp" id="f-name" autocomplete="name"/></div>
+        <div class="field"><label for="f-phone">Phone number</label>
+          <input class="inp" id="f-phone" type="tel" autocomplete="tel"/></div>
+      </div>
+      <div class="field"><label for="f-email">Email address</label>
+        <input class="inp" id="f-email" disabled/>
+        <div class="hint">Get in touch if you need this changed.</div></div>
+      <button class="btn" id="save-profile">Save changes</button>
+    </section>
+
+    <!-- orders -->
+    <section class="acct__panel pane" id="pane-orders">
+      <h2>My orders</h2>
+      <p class="lede">Everything you have ordered, newest first.</p>
+      <div id="orders-body"><p class="note">Loading…</p></div>
+    </section>
+
+    <!-- addresses -->
+    <section class="acct__panel pane" id="pane-addresses">
+      <h2>Addresses</h2>
+      <p class="lede">Where we deliver. The default is filled in at checkout.</p>
+      <div id="a-msg"></div>
+      <div id="addr-body"></div>
+      <button class="btn" id="add-addr" style="margin-top:6px;">+ Add an address</button>
+
+      <div id="addr-form" style="display:none;margin-top:18px;border-top:1px solid var(--line);padding-top:18px;">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:14px;" id="addr-form-title">New address</h3>
+        <div class="two">
+          <div class="field"><label for="a-name">Full name</label><input class="inp" id="a-name"/></div>
+          <div class="field"><label for="a-phone">Phone</label><input class="inp" id="a-phone" type="tel"/></div>
+        </div>
+        <div class="field"><label for="a-line1">Street address</label><input class="inp" id="a-line1"/></div>
+        <div class="field"><label for="a-line2">Apartment, suite etc. <span style="font-weight:400;color:#7a7a7a;">(optional)</span></label>
+          <input class="inp" id="a-line2"/></div>
+        <div class="two">
+          <div class="field"><label for="a-city">City</label><input class="inp" id="a-city"/></div>
+          <div class="field"><label for="a-state">State</label><input class="inp" id="a-state"/></div>
+        </div>
+        <div class="two">
+          <div class="field"><label for="a-label">Label <span style="font-weight:400;color:#7a7a7a;">(optional)</span></label>
+            <input class="inp" id="a-label" placeholder="Home, office…"/></div>
+          <div class="field"><label for="a-default">Default</label>
+            <select class="inp" id="a-default"><option value="true">Yes</option><option value="false">No</option></select></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" id="save-addr">Save address</button>
+          <button class="btn btn--ghost" id="cancel-addr">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- password -->
+    <section class="acct__panel pane" id="pane-password">
+      <h2>Password</h2>
+      <p class="lede">Choose something you do not use anywhere else.</p>
+      <div id="w-msg"></div>
+      <div class="field"><label for="w-new">New password</label>
+        <div class="pw"><input class="inp" id="w-new" type="password" autocomplete="new-password"/>
+          <button type="button" id="w-peek" aria-label="Show password"></button></div>
+        <div class="hint">At least 8 characters.</div></div>
+      <button class="btn" id="save-pw">Update password</button>
+    </section>
+  </main>
+</div>
+
+<div class="auth" id="gate" style="display:none;">
+  <div class="auth__card" style="text-align:center;">
+    <h1>Your account</h1>
+    <p class="lede">Sign in to see your orders and addresses.</p>
+    <a class="btn btn--full btn--lg" href="/login.html?next=/account.html">Sign in</a>
+    <div class="auth__alt">New here? <a href="/register.html">Create an account</a></div>
+  </div>
+</div>
+
+<footer class="foot" data-foot></footer>
+<nav class="tabbar" data-tabbar></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script src="/assets/site.js"></script>
+<script>
+const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG;
+let _user = null, _addresses = [], _editAddr = null;
+
+const note = (el, kind, text) => {
+  document.getElementById(el).innerHTML = `<div class="msg msg--${kind}">${text}</div>`;
+  setTimeout(() => { const n = document.getElementById(el); if (n) n.innerHTML = ''; }, 5000);
+};
+
+(async () => {
+  await window.RG_CHROME();
+  window.RG_PEEK('w-new', 'w-peek');
+
+  const { data: { session } } = await db.auth.getSession();
+  /* An anonymous session is not a signed-in customer. */
+  if (!session || !session.user || session.user.is_anonymous) {
+    document.getElementById('gate').style.display = '';
+    return;
+  }
+  _user = session.user;
+  document.getElementById('acct').style.display = '';
+  document.getElementById('who-email').textContent = _user.email || '';
+  document.getElementById('f-email').value = _user.email || '';
+
+  const { data: profile } = await db.from('profiles')
+    .select('full_name,phone').eq('id', _user.id).maybeSingle();
+  const name = profile?.full_name || _user.user_metadata?.full_name || '';
+  document.getElementById('who-name').textContent = name || 'My account';
+  document.getElementById('f-name').value = name;
+  document.getElementById('f-phone').value = profile?.phone || _user.user_metadata?.phone || '';
+
+  openPane(location.hash.replace('#', '') || 'profile');
+  loadOrders();
+  loadAddresses();
+})();
+
+/* ── panes ── */
+function openPane(name) {
+  const valid = ['profile','orders','addresses','password'];
+  if (!valid.includes(name)) name = 'profile';
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+  document.getElementById('pane-' + name).classList.add('on');
+  document.querySelectorAll('.acct__nav a').forEach(a =>
+    a.classList.toggle('on', a.dataset.pane === name));
+}
+document.querySelectorAll('.acct__nav a').forEach(a =>
+  a.addEventListener('click', () => setTimeout(() => openPane(a.dataset.pane), 0)));
+window.addEventListener('hashchange', () => openPane(location.hash.replace('#','')));
+
+document.getElementById('signout').onclick = async () => {
+  await db.auth.signOut();
+  location.href = '/';
+};
+
+/* ── profile ── */
+document.getElementById('save-profile').onclick = async () => {
+  const full_name = document.getElementById('f-name').value.trim();
+  const phone     = document.getElementById('f-phone').value.trim() || null;
+  if (!full_name) return note('p-msg', 'err', 'Please enter your name.');
+
+  const { error } = await db.from('profiles')
+    .update({ full_name, phone }).eq('id', _user.id);
+  if (error) return note('p-msg', 'err', esc(error.message));
+
+  /* Keep the auth copy in step, so it survives if the profile row is ever rebuilt. */
+  await db.auth.updateUser({ data: { full_name, phone } });
+  document.getElementById('who-name').textContent = full_name;
+  note('p-msg', 'ok', 'Saved.');
+};
+
+/* ── password ── */
+document.getElementById('save-pw').onclick = async () => {
+  const pw = document.getElementById('w-new').value;
+  if (pw.length < 8) return note('w-msg', 'err', 'Use at least 8 characters.');
+  const { error } = await db.auth.updateUser({ password: pw });
+  if (error) return note('w-msg', 'err', esc(error.message));
+  document.getElementById('w-new').value = '';
+  note('w-msg', 'ok', 'Password updated.');
+};
+
+/* ── orders ── */
+const PILL = {
+  pending:'pending', paid:'paid', packed:'shipped', shipped:'shipped',
+  delivered:'done', cancelled:'dead', refunded:'dead',
+};
+async function loadOrders() {
+  const { data, error } = await db.from('orders')
+    .select('id,order_number,status,payment_status,currency,total_minor,placed_at,order_items(id,product_name,option_label,quantity,line_total_minor,image_path)')
+    .order('placed_at', { ascending: false });
+
+  const box = document.getElementById('orders-body');
+  if (error) { box.innerHTML = `<div class="msg msg--err">${esc(error.message)}</div>`; return; }
+  if (!data || !data.length) {
+    box.innerHTML = `<div class="empty" style="padding:30px 10px;">
+      <p>You have not placed an order yet.</p>
+      <a class="btn" href="/shop.html">Start shopping</a></div>`;
+    return;
+  }
+  box.innerHTML = data.map(o => `
+    <div class="ord">
+      <div class="ord__hd">
+        <b>#${esc(o.order_number)}</b>
+        <span class="pill pill--${PILL[o.status] || 'done'}">${esc(o.status)}</span>
+        <span class="when">${new Date(o.placed_at).toLocaleDateString('en-NG',
+          { day:'numeric', month:'short', year:'numeric' })}</span>
+        <span class="tot">${M.fmt(o.total_minor, o.currency)}</span>
+      </div>
+      <div class="ord__b">
+        ${(o.order_items || []).map(it => `
+          <div class="ord__line">
+            ${it.image_path ? `<img src="${esc(IMG(it.image_path))}" alt=""/>` : '<img alt=""/>'}
+            <span class="nm">${esc(it.product_name)}${it.option_label ? ' · ' + esc(it.option_label) : ''}
+              <span class="note">× ${it.quantity}</span></span>
+            <span>${M.fmt(it.line_total_minor, o.currency)}</span>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+/* ── addresses ── */
+async function loadAddresses() {
+  const { data, error } = await db.from('addresses')
+    .select('*').order('is_default', { ascending: false }).order('created_at');
+  if (error) return note('a-msg', 'err', esc(error.message));
+  _addresses = data || [];
+  const box = document.getElementById('addr-body');
+  if (!_addresses.length) {
+    box.innerHTML = '<p class="note">No addresses saved yet.</p>';
+    return;
+  }
+  box.innerHTML = _addresses.map(a => `
+    <div class="addr">
+      <div class="addr__t">${esc(a.full_name)}
+        ${a.label ? `<span class="tagx">${esc(a.label)}</span>` : ''}
+        ${a.is_default ? '<span class="tagx">Default</span>' : ''}</div>
+      <div class="addr__b">
+        ${esc(a.line1)}${a.line2 ? '<br/>' + esc(a.line2) : ''}<br/>
+        ${esc(a.city)}${a.state ? ', ' + esc(a.state) : ''}<br/>
+        ${a.phone ? esc(a.phone) : ''}
+      </div>
+      <div class="addr__acts">
+        <button class="btn btn--ghost" style="padding:7px 13px;font-size:13px;"
+          onclick="editAddr('${a.id}')">Edit</button>
+        <button class="btn btn--ghost" style="padding:7px 13px;font-size:13px;color:#b3261e;border-color:#f4c7c4;"
+          onclick="delAddr('${a.id}')">Remove</button>
+      </div>
+    </div>`).join('');
+}
+
+function fillAddr(a) {
+  document.getElementById('a-name').value  = a?.full_name || document.getElementById('f-name').value || '';
+  document.getElementById('a-phone').value = a?.phone || document.getElementById('f-phone').value || '';
+  document.getElementById('a-line1').value = a?.line1 || '';
+  document.getElementById('a-line2').value = a?.line2 || '';
+  document.getElementById('a-city').value  = a?.city || '';
+  document.getElementById('a-state').value = a?.state || '';
+  document.getElementById('a-label').value = a?.label || '';
+  document.getElementById('a-default').value = String(a ? a.is_default : true);
+  document.getElementById('addr-form-title').textContent = a ? 'Edit address' : 'New address';
+  document.getElementById('addr-form').style.display = '';
+}
+document.getElementById('add-addr').onclick = () => { _editAddr = null; fillAddr(null); };
+document.getElementById('cancel-addr').onclick = () => {
+  _editAddr = null; document.getElementById('addr-form').style.display = 'none';
+};
+window.editAddr = id => { _editAddr = _addresses.find(a => a.id === id); fillAddr(_editAddr); };
+
+window.delAddr = async id => {
+  if (!confirm('Remove this address?')) return;
+  const { error } = await db.from('addresses').delete().eq('id', id);
+  if (error) return note('a-msg', 'err', esc(error.message));
+  loadAddresses();
+};
+
+document.getElementById('save-addr').onclick = async () => {
+  const row = {
+    user_id:   _user.id,
+    full_name: document.getElementById('a-name').value.trim(),
+    phone:     document.getElementById('a-phone').value.trim() || null,
+    line1:     document.getElementById('a-line1').value.trim(),
+    line2:     document.getElementById('a-line2').value.trim() || null,
+    city:      document.getElementById('a-city').value.trim(),
+    state:     document.getElementById('a-state').value.trim() || null,
+    label:     document.getElementById('a-label').value.trim() || null,
+    is_default: document.getElementById('a-default').value === 'true',
+    country:   'NG',
+  };
+  if (!row.full_name || !row.line1 || !row.city)
+    return note('a-msg', 'err', 'Name, street address and city are needed.');
+
+  /* Only one default at a time, or checkout would have to guess. */
+  if (row.is_default) {
+    await db.from('addresses').update({ is_default: false })
+      .eq('user_id', _user.id).neq('id', _editAddr?.id || '00000000-0000-0000-0000-000000000000');
+  }
+
+  const { error } = _editAddr
+    ? await db.from('addresses').update(row).eq('id', _editAddr.id)
+    : await db.from('addresses').insert(row);
+  if (error) return note('a-msg', 'err', esc(error.message));
+
+  _editAddr = null;
+  document.getElementById('addr-form').style.display = 'none';
+  await loadAddresses();
+  note('a-msg', 'ok', 'Address saved.');
+};
+</script>
+</body>
+</html>
