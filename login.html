@@ -82,11 +82,14 @@ document.getElementById('form').addEventListener('submit', async e => {
 
   btn.disabled = true; btn.textContent = 'Signing in…';
   msg.innerHTML = '';
+  window.RG_BUSY.show('Signing in', true);
+  window.RG_BUSY.pct(15, 'Checking your password');
 
   const { error } = await db.auth.signInWithPassword({ email, password });
   btn.disabled = false; btn.textContent = 'Sign in';
 
   if (error) {
+    window.RG_BUSY.hide();
     if (/confirm/i.test(error.message)) {
       return show('err', 'This email has not been confirmed yet. Open the link we sent you, or '
         + '<a href="/register.html">create the account again</a>.');
@@ -95,6 +98,9 @@ document.getElementById('form').addEventListener('submit', async e => {
        unknown email, deliberately — repeating that keeps it that way. */
     return show('err', 'That email and password do not match an account.');
   }
+  window.RG_BUSY.pct(70, 'Taking you through');
+  await window.RG_BUSY.done();
+  window.RG_BUSY.show('Almost there');
   location.replace(next);
 });
 </script>

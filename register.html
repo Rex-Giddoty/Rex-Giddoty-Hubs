@@ -89,6 +89,10 @@ document.getElementById('form').addEventListener('submit', async e => {
 
   btn.disabled = true; btn.textContent = 'Creating your account…';
   msg.innerHTML = '';
+  /* Signing up sends a confirmation email on the way, which is the slow part —
+     so this waits behind the veil rather than behind a dead button. */
+  window.RG_BUSY.show('Creating your account', true);
+  window.RG_BUSY.pct(20, 'Setting up your details');
 
   const { data, error } = await db.auth.signUp({
     email, password,
@@ -101,6 +105,7 @@ document.getElementById('form').addEventListener('submit', async e => {
   btn.disabled = false; btn.textContent = 'Create account';
 
   if (error) {
+    window.RG_BUSY.hide();
     /* Supabase reports a failed confirmation send as a signup failure, and the
        account is rolled back — worth saying plainly rather than "try again". */
     if (/sending confirmation|smtp|email/i.test(error.message)) {
@@ -113,8 +118,12 @@ document.getElementById('form').addEventListener('submit', async e => {
     return show('err', esc(error.message));
   }
 
+  window.RG_BUSY.pct(80, 'Sending your confirmation email');
+  await window.RG_BUSY.done();
+
   /* With confirmations on there is no session yet; with them off we are in. */
   if (data.session) {
+    window.RG_BUSY.show('Opening your account');
     location.replace('/account.html');
     return;
   }

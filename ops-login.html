@@ -64,6 +64,10 @@ document.getElementById('form').addEventListener('submit', async e => {
   e.preventDefault();
   err.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Signing in…';
+  /* Two real stages, and the bar moves when each one comes back. Nothing here
+     is on a timer. */
+  window.RG_BUSY.show('Signing in', true);
+  window.RG_BUSY.pct(10, 'Checking your password');
 
   const { data, error } = await db.auth.signInWithPassword({
     email: document.getElementById('email').value.trim(),
@@ -71,10 +75,12 @@ document.getElementById('form').addEventListener('submit', async e => {
   });
 
   if (error) {
+    window.RG_BUSY.hide();
     fail(error.message);
     btn.disabled = false; btn.textContent = 'Sign in';
     return;
   }
+  window.RG_BUSY.pct(55, 'Checking operations access');
 
   /* Signing in is not the same as being staff. Anyone with an account could
      reach this form, so membership decides access — and RLS enforces it again
@@ -82,12 +88,17 @@ document.getElementById('form').addEventListener('submit', async e => {
   const { data: admin } = await db.from('admin_users').select('id').eq('id', data.user.id).maybeSingle();
   if (!admin) {
     await db.auth.signOut();
+    window.RG_BUSY.hide();
     fail('That account does not have operations access.');
     btn.disabled = false; btn.textContent = 'Sign in';
     return;
   }
 
   sessionStorage.setItem('rg_ops_login_at', String(Date.now()));
+  /* The veil stays up through the redirect: ops.html takes a moment to load,
+     and a blank screen in between reads as a failure. */
+  await window.RG_BUSY.done();
+  window.RG_BUSY.show('Opening operations');
   location.href = '/ops.html';
 });
 </script>

@@ -298,15 +298,20 @@ async function saveCategory() {
   };
   if (_cat && row.parent_id === _cat.id) row.parent_id = null;
 
+  /* One write, so a spinner rather than a percentage — there is nothing
+     honest to count. */
+  window.RG_BUSY.show('Saving category');
+
   if (_cat) {
     const { error } = await db.from('categories').update(row).eq('id', _cat.id);
-    if (error) return toast(error.message, true);
+    if (error) { window.RG_BUSY.hide(); return toast(error.message, true); }
     Object.assign(_cat, row);
     paintCategory();
+    await window.RG_BUSY.done(200);
     toast('Category saved');
   } else {
     const { data, error } = await db.from('categories').insert(row).select('*').single();
-    if (error) return toast(error.message, true);
+    if (error) { window.RG_BUSY.hide(); return toast(error.message, true); }
     /* Land on the saved category so items can be added straight away. */
     location.href = '/ops-category.html?id=' + data.id;
   }
@@ -443,16 +448,36 @@ async function uploadImages(input) {
   const files = Array.from(input.files || []);
   input.value = '';
   if (!files.length) return;
-  toast('Uploading…');
+  /* Weighted by size, so one 20MB clip beside three small photos does not leave
+     the bar sitting at 25% for most of the wait. */
+  const total = files.reduce((n, f) => n + f.size, 0);
+  let sent = 0;
+  window.RG_BUSY.show(files.length > 1 ? `Uploading ${files.length} files` : 'Uploading', true);
+
   for (const file of files) {
-    if (file.size > 10 * 1024 * 1024) { toast(file.name + ' is over 10 MB', true); continue; }
+    const vid = file.type.startsWith('video/');
+    if (file.size > (vid ? 25 : 10) * 1024 * 1024) {
+      toast(file.name + ' is over ' + (vid ? '25' : '10') + ' MB', true);
+      sent += file.size; continue;
+    }
+    if (vid) {
+      const secs = await videoSeconds(file);
+      if (secs && secs > 61) {
+        toast(file.name + ' is longer than a minute', true);
+        sent += file.size; continue;
+      }
+    }
     const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-50);
     const base = slugify(document.getElementById('i-name').value || 'item') || 'item';
     const path = `${base}/${Date.now()}-${safe}`;
-    const { error } = await db.storage.from('product-images').upload(path, file, { contentType: file.type });
+    const { error } = await window.RG_UPLOAD('product-images', path, file,
+      frac => window.RG_BUSY.pct((sent + file.size * frac) / total * 100, file.name));
+    sent += file.size;
+    window.RG_BUSY.pct(sent / total * 100, file.name);
     if (error) { toast(error.message, true); continue; }
     _images.push({ path });
   }
+  await window.RG_BUSY.done();
   renderImages();
   toast('Media added — remember to save');
 }
@@ -537,23 +562,31 @@ async function saveItem() {
     updated_at: new Date().toISOString(),
   };
 
+  /* Five writes go out, and the bar moves as each one comes back — so the
+     number tracks what has actually landed rather than a timer. */
+  const BUSY = window.RG_BUSY;
+  BUSY.show('Saving item', true);
+  const stop = msg => { BUSY.hide(); toast(msg, true); };
+
   let pid = _item?.id;
   if (pid) {
     const { error } = await db.from('products').update(row).eq('id', pid);
-    if (error) return toast(error.message, true);
+    if (error) return stop(error.message);
   } else {
     const { data, error } = await db.from('products').insert(row).select('id').single();
-    if (error) return toast(error.message, true);
+    if (error) return stop(error.message);
     pid = data.id;
   }
+  BUSY.pct(20, 'Details saved');
 
   /* Photos are replaced wholesale — simpler than diffing, and the counts are small. */
   await db.from('product_images').delete().eq('product_id', pid);
   if (_images.length) {
     const { error } = await db.from('product_images')
       .insert(_images.map((im, i) => ({ product_id: pid, path: im.path, position: i })));
-    if (error) return toast(error.message, true);
+    if (error) return stop(error.message);
   }
+  BUSY.pct(40, 'Photos and video linked');
 
   /* Sizes are updated in place where they already exist, so carts holding a
      variant keep pointing at the same row. */
@@ -561,6 +594,7 @@ async function saveItem() {
   let del = db.from('product_variants').delete().eq('product_id', pid);
   if (keep.length) del = del.not('id', 'in', `(${keep.join(',')})`);
   await del;
+  BUSY.pct(55, 'Sizes tidied');
 
   for (let i = 0; i < sizes.length; i++) {
     const v = sizes[i];
@@ -575,13 +609,17 @@ async function saveItem() {
     const { error } = v.id
       ? await db.from('product_variants').update(body).eq('id', v.id)
       : await db.from('product_variants').insert(body);
-    if (error) return toast(error.message, true);
+    if (error) return stop(error.message);
+    /* Sizes are a loop of their own, so they get a slice of the bar to move
+       through rather than one jump at the end. */
+    BUSY.pct(55 + 25 * ((i + 1) / sizes.length), `Size ${i + 1} of ${sizes.length}`);
   }
 
   /* Keep it in this category without disturbing any others it belongs to. */
   const { error: linkErr } = await db.from('product_categories')
     .upsert({ product_id: pid, category_id: _cat.id }, { onConflict: 'product_id,category_id' });
-  if (linkErr) return toast(linkErr.message, true);
+  if (linkErr) return stop(linkErr.message);
+  BUSY.pct(88, 'Filed under ' + (_cat.name || 'category'));
 
   await loadItems();
   _item = _items.find(p => p.id === pid) || null;
@@ -591,6 +629,7 @@ async function saveItem() {
     _sizes = (_item.product_variants || []).slice().sort((a,b) => a.position - b.position).map(v => ({ ...v }));
     renderSizes();
   }
+  await BUSY.done();
   toast('Item saved');
 }
 

@@ -287,6 +287,7 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
+  window.RG_BUSY.show('Saving settings');
   const rows = [];
   ['store_name','currency','hero_heading','hero_subheading',
    'support_email','support_phone','social_facebook','social_instagram','social_x',
@@ -296,8 +297,9 @@ async function saveSettings() {
     rows.push({ key: k, value: String(M.toMinor(document.getElementById('s-' + k).value)), updated_at: new Date().toISOString() }));
 
   const { error } = await db.from('site_settings').upsert(rows, { onConflict: 'key' });
-  if (error) return toast(error.message, true);
+  if (error) { window.RG_BUSY.hide(); return toast(error.message, true); }
   await loadSettings();
+  await window.RG_BUSY.done(200);
   toast('Settings saved');
 }
 
@@ -442,15 +444,26 @@ async function uploadImages(input) {
   const files = Array.from(input.files || []);
   input.value = '';
   if (!files.length) return;
-  toast('Uploading…');
+  /* Weighted by size, so a big file does not sit at one number while the small
+     ones fly past. */
+  const total = files.reduce((n, f) => n + f.size, 0);
+  let sent = 0;
+  window.RG_BUSY.show(files.length > 1 ? `Uploading ${files.length} files` : 'Uploading', true);
+
   for (const file of files) {
-    if (file.size > 10 * 1024 * 1024) { toast(file.name + ' is over 10 MB', true); continue; }
+    if (file.size > 10 * 1024 * 1024) {
+      toast(file.name + ' is over 10 MB', true); sent += file.size; continue;
+    }
     const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-50);
     const path = `${slugify(document.getElementById('p-name').value || 'product')}/${Date.now()}-${safe}`;
-    const { error } = await db.storage.from('product-images').upload(path, file, { contentType: file.type });
+    const { error } = await window.RG_UPLOAD('product-images', path, file,
+      frac => window.RG_BUSY.pct((sent + file.size * frac) / total * 100, file.name));
+    sent += file.size;
+    window.RG_BUSY.pct(sent / total * 100, file.name);
     if (error) { toast(error.message, true); continue; }
     _pImages.push({ path, position: _pImages.length });
   }
+  await window.RG_BUSY.done();
   renderImages();
   toast('Images added — remember to save');
 }
@@ -487,15 +500,20 @@ async function saveProduct() {
     updated_at: new Date().toISOString(),
   };
 
+  const BUSY = window.RG_BUSY;
+  BUSY.show('Saving product', true);
+  const stop = m => { BUSY.hide(); toast(m, true); };
+
   let pid = _editProduct?.id;
   if (pid) {
     const { error } = await db.from('products').update(row).eq('id', pid);
-    if (error) return toast(error.message, true);
+    if (error) return stop(error.message);
   } else {
     const { data, error } = await db.from('products').insert(row).select('id').single();
-    if (error) return toast(error.message, true);
+    if (error) return stop(error.message);
     pid = data.id;
   }
+  BUSY.pct(25, 'Details saved');
 
   /* Images and variants are replaced wholesale — simpler than diffing, and the
      row counts here are small. */
@@ -503,8 +521,9 @@ async function saveProduct() {
   if (_pImages.length) {
     const { error } = await db.from('product_images')
       .insert(_pImages.map((im, i) => ({ product_id: pid, path: im.path, position: i })));
-    if (error) return toast(error.message, true);
+    if (error) return stop(error.message);
   }
+  BUSY.pct(45, 'Photos linked');
 
   const keepIds = _pVariants.filter(v => v.id).map(v => v.id);
   let del = db.from('product_variants').delete().eq('product_id', pid);
@@ -524,15 +543,18 @@ async function saveProduct() {
     const { error } = v.id
       ? await db.from('product_variants').update(body).eq('id', v.id)
       : await db.from('product_variants').insert(body);
-    if (error) return toast(error.message, true);
+    if (error) return stop(error.message);
+    BUSY.pct(45 + 40 * ((i + 1) / _pVariants.length), `Size ${i + 1} of ${_pVariants.length}`);
   }
 
   const cat = document.getElementById('p-category').value;
   await db.from('product_categories').delete().eq('product_id', pid);
   if (cat) await db.from('product_categories').insert({ product_id: pid, category_id: cat });
 
+  BUSY.pct(95, 'Filing it under its category');
   closeModal('product-modal');
   await loadProducts();
+  await BUSY.done();
   toast('Product saved');
 }
 
