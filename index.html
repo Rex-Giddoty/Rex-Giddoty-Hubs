@@ -17,26 +17,60 @@
 </head>
 <body>
 
-<header class="hdr" data-hdr></header>
+<header class="hdr" data-hdr>
+  <div class="skhdr">
+    <div class="sk skhdr__logo"></div>
+    <div class="sk skhdr__search"></div>
+    <div class="sk skhdr__act"></div>
+    <div class="sk skhdr__act"></div>
+  </div>
+</header>
 
 <div class="shell">
-  <aside class="box rail-box" data-rail></aside>
+  <aside class="box rail-box" data-rail>
+    <div class="skrail">
+      <div class="sk sk--dark skrail__cap"></div>
+      <div class="sk skrail__row"></div><div class="sk skrail__row"></div>
+      <div class="sk skrail__row"></div><div class="sk skrail__row"></div>
+      <div class="sk skrail__row"></div><div class="sk skrail__row"></div>
+      <div class="sk skrail__row" style="margin-bottom:14px;"></div>
+    </div>
+  </aside>
 
   <main>
     <!-- slider + service cards -->
     <section class="topblock">
       <div class="slider" id="slider">
-        <div class="slider__track" id="sl-track"></div>
+        <div class="slider__track" id="sl-track"><div class="sk skhero"></div></div>
         <button class="slider__nav _p" id="sl-prev" aria-label="Previous"></button>
         <button class="slider__nav _n" id="sl-next" aria-label="Next"></button>
         <div class="slider__dots" id="sl-dots"></div>
       </div>
 
       <div class="svc">
-        <div class="svc__card" id="svc-card"></div>
+        <div class="svc__card" id="svc-card">
+          <div class="sksvc">
+            <div class="sk sksvc__row"></div>
+            <div class="sk sksvc__row"></div>
+            <div class="sk sksvc__row"></div>
+          </div>
+        </div>
         <a class="svc__promo" href="/shop.html?deals=1">
           <b>Deals of the day</b><span>Up to 70% off selected items</span>
         </a>
+      </div>
+    </section>
+
+    <!-- what the rows look like before any of them have data -->
+    <section class="sect" id="boot-sect">
+      <div class="sk skhd"></div>
+      <div class="skgrid">
+        <div><div class="sk skcard__img"></div><div class="sk skcard__l1"></div><div class="sk skcard__l2"></div><div class="sk skcard__p"></div></div>
+        <div><div class="sk skcard__img"></div><div class="sk skcard__l1"></div><div class="sk skcard__l2"></div><div class="sk skcard__p"></div></div>
+        <div><div class="sk skcard__img"></div><div class="sk skcard__l1"></div><div class="sk skcard__l2"></div><div class="sk skcard__p"></div></div>
+        <div><div class="sk skcard__img"></div><div class="sk skcard__l1"></div><div class="sk skcard__l2"></div><div class="sk skcard__p"></div></div>
+        <div><div class="sk skcard__img"></div><div class="sk skcard__l1"></div><div class="sk skcard__l2"></div><div class="sk skcard__p"></div></div>
+        <div><div class="sk skcard__img"></div><div class="sk skcard__l1"></div><div class="sk skcard__l2"></div><div class="sk skcard__p"></div></div>
       </div>
     </section>
 
@@ -104,6 +138,20 @@ const db = window.RG_DB, esc = window.RG_ESC, IMG = window.RG_IMG, I = window.RG
 const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,sold_count,created_at,product_images(path,position),product_variants(id,stock,price_minor)';
 const img1 = p => { const a = (p.product_images||[]).slice().sort((x,y)=>x.position-y.position); return a[0] ? IMG(a[0].path) : null; };
 const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
+
+/* The stand-in row goes the moment any real row is ready — and after eight
+   seconds regardless, because a shimmer that never stops is worse than the
+   empty page it replaced. */
+setTimeout(() => bootDone(), 8000);
+
+/* The stand-in row goes the moment any real row is ready. */
+let _bootGone = false;
+function bootDone() {
+  if (_bootGone) return;
+  _bootGone = true;
+  const el = document.getElementById('boot-sect');
+  if (el) el.remove();
+}
 
 (async () => {
   await window.RG_CHROME();
@@ -173,7 +221,7 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
   };
 
   if (cats.length) {
-    document.getElementById('thumbs-sect').style.display = '';
+    document.getElementById('thumbs-sect').style.display = ''; bootDone();
     const ICO = window.RG_CAT_ICON;
     document.getElementById('thumbs').innerHTML = [
       { name:'Deals', href:'/shop.html?deals=1', slug:'__deals', img:null },
@@ -187,7 +235,7 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
           : `<span class="ico">${ICO(t.slug, t.name)}</span>`}</div>
         <p>${esc(t.name)}</p></a>`).join('');
 
-    document.getElementById('cats-sect').style.display = '';
+    document.getElementById('cats-sect').style.display = ''; bootDone();
     document.getElementById('cats').innerHTML = cats.slice(0,12).map(c => {
       const a = artFor(c);
       return `<a class="fl" href="/shop.html?category=${encodeURIComponent(c.slug)}">
@@ -200,7 +248,7 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
   /* ── flash sales ── */
   const deals = list.filter(p => p.compare_at_minor && p.compare_at_minor > p.price_minor);
   if (deals.length) {
-    document.getElementById('flash-sect').style.display = '';
+    document.getElementById('flash-sect').style.display = ''; bootDone();
     document.getElementById('flash-title').textContent = s.flash_title || 'Flash Sales';
     document.getElementById('flash').innerHTML =
       window.RG_CRS(deals.slice(0,16).map(window.RG_CARD).join(''));
@@ -211,14 +259,14 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
   const top = list.slice().sort((a,b) =>
     (Number(b.rating_avg)||0) - (Number(a.rating_avg)||0) ||
     (b.rating_count||0) - (a.rating_count||0));
-  document.getElementById('top-sect').style.display = '';
+  document.getElementById('top-sect').style.display = ''; bootDone();
   document.getElementById('top').innerHTML =
     window.RG_CRS(top.slice(0,16).map(window.RG_CARD).join(''));
 
   /* ── limited stock: genuinely low counts only ── */
   const low = list.filter(p => { const st = stockOf(p); return st > 0 && st <= 10; });
   if (low.length) {
-    document.getElementById('limited-sect').style.display = '';
+    document.getElementById('limited-sect').style.display = ''; bootDone();
     document.getElementById('limited').innerHTML = low.slice(0,12).map(window.RG_CARD).join('');
   }
 
@@ -246,10 +294,10 @@ const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
   }
 
   /* ── recommended ── */
-  document.getElementById('reco-sect').style.display = '';
+  document.getElementById('reco-sect').style.display = ''; bootDone();
   document.getElementById('reco').innerHTML =
     list.slice().sort(() => Math.random() - .5).slice(0,12).map(window.RG_CARD).join('');
-})();
+})().finally(bootDone);   /* an empty catalogue, or a failed query, must not shimmer for ever */
 
 /* ── hero slider ── */
 function buildSlides(list, s) {

@@ -1096,3 +1096,59 @@ textarea.inp{resize:vertical;min-height:74px;}
 /* The chat bubble lives in the same corner, so it steps up out of the way —
    but only while the bar is actually there, which is what :has asks. */
 @media (max-width:860px){ body:has(.instbar) .chat{bottom:132px;} }
+
+/* ───────────────────── loading skeletons ─────────────────────
+ * A shape rather than a spinner. The page's furniture is drawn immediately —
+ * header, rail, hero, a row of cards — and each piece is replaced as its data
+ * lands. A spinner says "wait"; this says "here is what is coming", which is
+ * both faster to read and, because the layout does not jump when the content
+ * arrives, calmer.
+ *
+ * These live in the HTML rather than being drawn by script, so they paint on
+ * the first frame — before site.js has parsed, let alone fetched anything.
+ */
+.sk{background:linear-gradient(90deg,#f0f0f0,#e4e4e4,#f0f0f0);
+  background-size:200% 100%;animation:sk 1.2s infinite;border-radius:4px;}
+.sk--dark{background:linear-gradient(90deg,#2f2f33,#3a3a40,#2f2f33);
+  background-size:200% 100%;animation:sk 1.2s infinite;}
+
+/* header: logo block, search bar, two actions */
+.skhdr{max-width:1200px;margin:0 auto;padding:10px;display:flex;align-items:center;gap:12px;}
+.skhdr__logo{width:150px;height:40px;flex-shrink:0;}
+.skhdr__search{flex:1;min-width:0;height:40px;border-radius:24px;}
+.skhdr__act{width:64px;height:28px;flex-shrink:0;}
+
+/* sidebar rail */
+.skrail{padding:0 0 6px;}
+.skrail__cap{height:132px;}
+.skrail__row{height:14px;margin:14px 14px 0;}
+
+/* hero and the service card beside it */
+.skhero{position:absolute;inset:0;border-radius:var(--rad);}
+.sksvc{padding:12px;display:flex;flex-direction:column;gap:14px;height:100%;}
+.sksvc__row{height:34px;}
+
+/* a row of product cards, matching the real grid so nothing shifts */
+.skgrid{display:grid;grid-template-columns:repeat(6,1fr);background:var(--paper);}
+.skgrid > *{min-width:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:9px;}
+.skcard__img{width:100%;aspect-ratio:1/1;margin-bottom:9px;}
+.skcard__l1{height:11px;margin-bottom:6px;}
+.skcard__l2{height:11px;width:70%;margin-bottom:10px;}
+.skcard__p{height:15px;width:52%;}
+
+/* The band above a row, so the section reads as a section while it loads. */
+.skhd{height:38px;margin-bottom:0;border-radius:0;}
+
+@media (max-width:860px){
+  .skgrid{grid-template-columns:repeat(4,1fr);}
+  .skhdr__act{display:none;}
+}
+@media (max-width:600px){
+  .skgrid{grid-template-columns:repeat(2,1fr);}
+}
+
+/* Someone who has asked for less motion gets the shape without the shimmer. */
+@media (prefers-reduced-motion:reduce){
+  .sk,.sk--dark,.skeleton{animation:none;}
+}
