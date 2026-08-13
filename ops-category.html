@@ -1056,6 +1056,13 @@ function priceNote() {
 function addSize() { _sizes.push({ option_name: 'Size', option_value: '', price_minor: null }); renderGrid(); }
 function removeSize(i) { _sizes.splice(i, 1); renderGrid(); }
 function addSizeSet(vals) {
+  /* A lone "One Size" is the default row every new item starts with. Adding
+     real sizes means it was never true, so it goes rather than sitting in the
+     shop's size selector confusing people. */
+  if (_sizes.length === 1 && String(_sizes[0].option_value).trim().toLowerCase() === 'one size') {
+    for (const c of [DEFAULT_COLOUR, ..._colours]) _cells.delete(cellKey(c, _sizes[0].option_value));
+    _sizes = [];
+  }
   /* Skip sizes already on the item rather than creating duplicates. */
   const have = new Set(_sizes.map(v => String(v.option_value).trim().toLowerCase()));
   for (const val of vals) {

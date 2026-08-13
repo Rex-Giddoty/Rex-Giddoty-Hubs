@@ -45,6 +45,7 @@
               onclick="document.getElementById('guide-modal').classList.add('on')">Size guide</button>
           </div>
           <div class="opt" id="opts"></div>
+          <div class="sizefacts" id="sizefacts"></div>
         </div>
 
         <div style="display:flex;gap:9px;align-items:center;margin-top:16px;flex-wrap:wrap;">
@@ -150,6 +151,60 @@ function convertTable(t, from, to) {
     : String(cell).replace(/\d+(\.\d+)?/g, m => f(parseFloat(m), isWeightCol(t.columns[ci - 1]))))) };
 }
 
+/* ── the measurements for the size in hand ──
+ * Picking L and being told what L measures, without opening anything: the
+ * numbers come from whichever guide the item shows, so there is one source and
+ * the panel cannot disagree with the line above it.
+ *
+ * The unit follows whatever the shopper last chose and is remembered, because
+ * somebody who thinks in inches thinks in inches on every product.
+ */
+const UNIT_KEY = 'rg_units';
+function readUnitPref() {
+  try { const u = localStorage.getItem(UNIT_KEY); return u === 'in' || u === 'cm' ? u : null; } catch (_) { return null; }
+}
+function writeUnitPref(u) { try { localStorage.setItem(UNIT_KEY, u); } catch (_) {} }
+
+/* The body table first — a shopper matching themselves to a size wants their
+   own measurements, not the garment's. */
+function factsTable() {
+  const tables = guideTables(_guide);
+  return tables.find(t => colIndex(t, /height/i) >= 0 || colIndex(t, /weight/i) >= 0) || tables[0];
+}
+
+function paintSizeFacts(sizeName) {
+  const box = document.getElementById('sizefacts');
+  if (!box) return;
+  const t = _guide ? factsTable() : null;
+  const row = t && (t.rows || []).find(r =>
+    String(r[0]).trim().toLowerCase() === String(sizeName || '').trim().toLowerCase());
+  if (!row) { box.innerHTML = ''; return; }
+
+  const shown = convertTable(t, _guide.units || 'cm', _gunits);
+  const line = shown.rows.find(r => r[0] === row[0]) || row;
+  const lenU = _gunits === 'in' ? 'in' : 'cm', wgtU = _gunits === 'in' ? 'lb' : 'kg';
+
+  const parts = (t.columns || []).map((c, i) => {
+    const v = String(line[i + 1] || '').trim();
+    if (!v) return '';
+    return `<span><i>${esc(c)}</i> ${esc(v)} ${isWeightCol(c) ? wgtU : lenU}</span>`;
+  }).filter(Boolean);
+  if (!parts.length) { box.innerHTML = ''; return; }
+
+  box.innerHTML = `<div class="sizefacts__row">${parts.join('')}</div>
+    <div class="sizefacts__foot">
+      <button onclick="flipUnits()">${_gunits === 'in' ? 'Show cm' : 'Show inches'}</button>
+      <button onclick="document.getElementById('guide-modal').classList.add('on')">Full size guide</button>
+    </div>`;
+}
+
+/* One switch for both places, so the line and the panel never disagree. */
+function flipUnits() {
+  _gunits = _gunits === 'in' ? 'cm' : 'in';
+  writeUnitPref(_gunits);
+  if (_guide) { drawGuide(); paintSizeFacts(_lastSize); }
+}
+
 function paintGuide(guide, name) {
   document.getElementById('guide-title').textContent = 'Size guide — ' + name;
   _guide = guide;
@@ -159,7 +214,7 @@ function paintGuide(guide, name) {
       `<img class="gchart" src="${esc(IMG(guide.image_path))}" alt="Size guide"/>`
       + (guide.note ? `<p class="gnote">${esc(guide.note)}</p>` : '');
   } else if (guideTables(guide).length) {
-    _gunits = guide.units || 'cm';
+    _gunits = readUnitPref() || guide.units || 'cm';
     drawGuide();
   } else {
     return;                              // nothing usable, so no link is offered
@@ -194,7 +249,12 @@ function drawGuide() {
     + (g.note ? `<p class="gnote">${esc(g.note)}</p>` : '');
 }
 
-function setGuideUnit(u) { _gunits = u; drawGuide(); }
+function setGuideUnit(u) {
+  _gunits = u;
+  writeUnitPref(u);
+  drawGuide();
+  paintSizeFacts(_lastSize);
+}
 
 /* ── find my size ── */
 const colIndex = (t, re) => (t.columns || []).findIndex(c => re.test(String(c)));
@@ -283,7 +343,7 @@ function placeGuideLink() {
     link.classList.add('guidelink--solo');
   }
 }const slug = new URLSearchParams(location.search).get('slug');
-let _p = null, _v = null, _qty = 1;
+let _p = null, _v = null, _qty = 1, _lastSize = null;
 
 (async () => {
   await window.RG_CHROME();
@@ -382,7 +442,12 @@ let _p = null, _v = null, _qty = 1;
   }
 
   function paintSizes() {
-    const mine = sizesFor(_colour);
+    /* A row called "One Size" alongside real ones is a leftover default and
+       reads as something to choose. Where real sizes exist it is not offered;
+       where it is all there is, the size row hides itself anyway. */
+    const all = sizesFor(_colour);
+    const real = all.filter(v => String(v.option_value).trim().toLowerCase() !== 'one size');
+    const mine = real.length ? real : all;
     /* "One Size" on its own is not a choice, so it is not offered as one. */
     const meaningful = mine.length > 1
       || (mine[0] && String(mine[0].option_value).toLowerCase() !== 'one size');
@@ -441,7 +506,7 @@ let _p = null, _v = null, _qty = 1;
   /* ── size guide ── */
   const guide = p.size_guide || (p.product_categories || [])
     .map(pc => pc.categories && pc.categories.size_guide).find(Boolean);
-  if (guide) paintGuide(guide, p.name);
+  if (guide) { paintGuide(guide, p.name); paintSizeFacts(_lastSize); }
 
   const { data: more } = await db.from('products')
     .select('id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,product_images(path,position),product_variants(id,stock,price_minor)')
@@ -454,6 +519,8 @@ let _p = null, _v = null, _qty = 1;
 
 function pick(v) {
   _v = v; _qty = 1; document.getElementById('qty').textContent = '1';
+  _lastSize = v ? v.option_value : null;
+  paintSizeFacts(_lastSize);
   const price = v && v.price_minor != null ? v.price_minor : _p.price_minor;
   document.getElementById('p-price').textContent = M.fmt(price, _p.currency);
 

@@ -998,3 +998,15 @@ textarea.inp{resize:vertical;min-height:74px;}
 .grec__out--hit{color:var(--ink);}
 .grec__out--hit b{color:var(--brand);font-size:14px;}
 .grec__out--miss{color:#a35a00;}
+
+/* the measurements for the size in hand, under the size chips */
+.sizefacts:empty{display:none;}
+.sizefacts{margin-top:9px;border:1px solid var(--line);border-radius:6px;
+  background:#faf8fc;padding:9px 11px;}
+.sizefacts__row{display:flex;flex-wrap:wrap;gap:4px 16px;}
+.sizefacts__row span{font-size:12.5px;color:var(--ink);white-space:nowrap;}
+.sizefacts__row i{font-style:normal;color:var(--mute);}
+.sizefacts__foot{display:flex;gap:14px;margin-top:7px;}
+.sizefacts__foot button{background:none;border:0;padding:0;
+  color:var(--brand);font-size:11.5px;font-weight:500;text-decoration:underline;}
+.sizefacts__foot button:hover{color:var(--brand-dk);}
