@@ -393,6 +393,7 @@
             : `<a href="/login.html">${I.account}Sign in</a>
                <a href="/register.html">${I.account}Create an account</a>`}
           <a href="/bag.html">${I.cart}My cart</a>
+          <a href="#" data-install>${I.home}Install the app</a>
           <a href="/help.html">${I.help}How to shop &amp; delivery</a>
           <a href="mailto:${esc(email)}">${I.tag}Contact us</a>
         </div>`;
@@ -427,6 +428,17 @@
       head.querySelector('[data-burger]').onclick = openDrawer;
       drawer.querySelector('[data-close]').onclick = closeDrawer;
       document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+      /* A way back to it after the bar has been dismissed, and gone entirely
+         once the app is installed — there is nothing left to offer then. */
+      const inst = drawer.querySelector('[data-install]');
+      if (inst) {
+        if (matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
+          inst.remove();
+        } else {
+          inst.onclick = e => { e.preventDefault(); closeDrawer(); window.RG_INSTALL(); };
+        }
+      }
 
       /* A strip down the left edge is the only place an opening swipe may begin.
          Anywhere else and it would fight the product rows, which scroll
@@ -1170,6 +1182,93 @@
     chat.poll = setInterval(() => { if (document.visibilityState === 'visible') chatLoad(); }, 20000);
   }
   window.RG_CHAT_MOUNT = chatMount;
+
+  /* ── install ──
+   * Chrome no longer shows a banner of its own: it fires beforeinstallprompt
+   * and waits for the site to ask. Its own "Install app" is buried in the ⋮
+   * menu, which nobody opens. So the shop asks.
+   *
+   * iOS never fires the event and has no programmatic install at all — Safari
+   * only has Share ▸ Add to Home Screen — so it gets the same bar with the
+   * instructions instead of a button.
+   */
+  const INSTALL_KEY = 'rg_install_dismissed';
+  let deferredPrompt = null;
+
+  const isStandalone = () =>
+    matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+  const isIOS = () =>
+    /iphone|ipad|ipod/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent);
+
+  const dismissed = () => {
+    try {
+      const at = Number(localStorage.getItem(INSTALL_KEY) || 0);
+      /* A no is a no for a fortnight, not for ever: somebody who dismissed it
+         on their first visit may well want it after their third order. */
+      return at && Date.now() - at < 14 * 864e5;
+    } catch (_) { return false; }
+  };
+  const dismiss = () => {
+    try { localStorage.setItem(INSTALL_KEY, String(Date.now())); } catch (_) {}
+    const bar = document.querySelector('.instbar');
+    if (bar) bar.remove();
+  };
+
+  function showInstallBar(ios) {
+    if (document.querySelector('.instbar') || isStandalone() || dismissed()) return;
+    const bar = document.createElement('div');
+    bar.className = 'instbar';
+    bar.innerHTML = `
+      <img src="/assets/icon-192.png" alt=""/>
+      <div class="instbar__t">
+        <b>Install Rex-Giddoty Hubs</b>
+        <span>${ios
+          ? 'Tap Share, then <b>Add to Home Screen</b>'
+          : 'Shop from your home screen, even offline'}</span>
+      </div>
+      ${ios ? '' : '<button class="instbar__go" data-go>Install</button>'}
+      <button class="instbar__x" data-no aria-label="Not now">✕</button>`;
+    document.body.appendChild(bar);
+    requestAnimationFrame(() => bar.classList.add('on'));
+
+    bar.querySelector('[data-no]').onclick = dismiss;
+    const go = bar.querySelector('[data-go]');
+    if (go) go.onclick = async () => {
+      if (!deferredPrompt) return dismiss();
+      go.disabled = true;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      /* Accepted or not, it has been asked and answered. */
+      if (outcome === 'accepted') bar.remove(); else dismiss();
+    };
+  }
+
+  window.RG_INSTALL = () => {
+    if (deferredPrompt) { deferredPrompt.prompt(); return true; }
+    showInstallBar(isIOS());
+    return false;
+  };
+
+  addEventListener('beforeinstallprompt', e => {
+    /* Held rather than let go: Chrome will not hand it back, and the shop wants
+       to choose the moment. */
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallBar(false);
+  });
+
+  addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    const bar = document.querySelector('.instbar');
+    if (bar) bar.remove();
+    try { localStorage.removeItem(INSTALL_KEY); } catch (_) {}
+  });
+
+  /* iPhone gets no event, so the bar is offered outright — once the page has
+     settled, so it is not the first thing a new visitor meets. */
+  if (isIOS() && !isStandalone()) setTimeout(() => showInstallBar(true), 4000);
 
   /* Registered here rather than in supabase.js because only the shop pages load
      this file. The console loads supabase.js too, and staff software should not
