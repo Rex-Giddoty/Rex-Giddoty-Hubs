@@ -29,10 +29,17 @@ begin
     return 'no-device';
   end if;
 
+  -- Worded like a real message rather than like a test. Chrome runs an
+  -- on-device classifier over notification content and replaces anything it
+  -- thinks is spam with a "Possible spam" card of its own — and a notification
+  -- whose title is only the site's name, whose body says "test", and which is a
+  -- brand new origin's very first send, is close to the shape it looks for.
+  -- Everything the shop sends in earnest already names an order and a status;
+  -- this now matches.
   perform private.push_to_user(
     auth.uid(),
-    'Rex-Giddoty Hubs',
-    'Test notification — this device is set up correctly.',
+    'Notifications are on',
+    'You will hear from us when an order is packed, shipped and delivered.',
     '/account.html');
 
   return 'sent';
