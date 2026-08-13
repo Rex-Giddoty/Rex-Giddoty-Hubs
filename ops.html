@@ -167,6 +167,7 @@
       <div><label class="f">Name</label><input class="inp" id="p-name" oninput="autoSlug()"/></div>
       <div><label class="f">URL slug</label><input class="inp" id="p-slug" placeholder="capucines-mm"/></div>
       <div class="full"><label class="f">Subtitle</label><input class="inp" id="p-subtitle" placeholder="Taurillon leather"/></div>
+      <div class="full"><label class="f">Colour</label><input class="inp" id="p-color" placeholder="e.g. Black, Sand"/></div>
       <div><label class="f">Price</label><input class="inp" id="p-price" inputmode="decimal" placeholder="250000.00"/></div>
       <div><label class="f">Status</label>
         <select class="inp" id="p-status">
@@ -415,6 +416,7 @@ function openProduct(id) {
   document.getElementById('p-slug').value        = p?.slug || '';
   document.getElementById('p-slug').dataset.touched = p ? '1' : '';
   document.getElementById('p-subtitle').value    = p?.subtitle || '';
+  document.getElementById('p-color').value       = p?.color || '';
   document.getElementById('p-price').value       = p ? M.toMajor(p.price_minor) : '';
   document.getElementById('p-status').value      = p?.status || 'draft';
   document.getElementById('p-featured').value    = String(p?.is_featured ?? false);
@@ -491,6 +493,7 @@ async function saveProduct() {
     name,
     slug: slugify(document.getElementById('p-slug').value || name),
     subtitle: document.getElementById('p-subtitle').value.trim() || null,
+    color: document.getElementById('p-color').value.trim() || null,
     description: document.getElementById('p-description').value.trim() || null,
     details: document.getElementById('p-details').value.trim() || null,
     price_minor: price,

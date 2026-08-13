@@ -87,7 +87,7 @@ let _p = null, _v = null, _qty = 1;
   if (!slug) return notFound();
 
   const { data: p } = await db.from('products')
-    .select('id,slug,name,subtitle,description,details,material,brand,badge,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,product_images(path,position),product_variants(id,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug))')
+    .select('id,slug,name,subtitle,description,details,material,color,brand,badge,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,product_images(path,position),product_variants(id,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug))')
     .eq('slug', slug).eq('status','published').maybeSingle();
   if (!p) return notFound();
 
@@ -134,8 +134,11 @@ let _p = null, _v = null, _qty = 1;
   document.getElementById('p-desc').textContent = p.description || p.subtitle || 'No description provided.';
   /* Material leads the specifications — it is the thing shoppers check first. */
   const dbox = document.getElementById('details-box');
-  const spec = [p.material ? 'Material: ' + p.material : '', p.details || '']
-    .filter(Boolean).join('\n\n');
+  const spec = [
+    p.material ? 'Material: ' + p.material : '',
+    p.color ? 'Colour: ' + p.color : '',
+    p.details || '',
+  ].filter(Boolean).join('\n\n');
   if (spec) document.getElementById('p-details').textContent = spec;
   else dbox.style.display = 'none';
 

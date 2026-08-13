@@ -112,6 +112,14 @@
           <div class="full"><label class="f">Description</label><textarea class="inp" id="i-description" rows="4"></textarea></div>
           <div class="full"><label class="f">Material</label>
             <input class="inp" id="i-material" placeholder="e.g. 100% cotton, full-grain leather"/></div>
+          <div class="full"><label class="f">Colour</label>
+            <input class="inp" id="i-color" placeholder="e.g. Black, Sand, Wine" oninput="renderColourChips()"/>
+            <div class="chips" id="i-color-chips"></div>
+            <div class="muted" style="font-size:12px;margin-top:5px;">
+              Free text, so name the colour the way you would to a customer.
+              Separate several with commas if the item comes in more than one.
+            </div>
+          </div>
           <div class="full"><label class="f">Specifications</label>
             <textarea class="inp" id="i-details" rows="3" placeholder="Care, dimensions, what is in the box…"></textarea></div>
         </div>
@@ -408,6 +416,8 @@ function openItem(id) {
   document.getElementById('i-subtitle').value    = _item?.subtitle || '';
   document.getElementById('i-description').value = _item?.description || '';
   document.getElementById('i-material').value    = _item?.material || '';
+  document.getElementById('i-color').value       = _item?.color || '';
+  renderColourChips();
   document.getElementById('i-details').value     = _item?.details || '';
   document.getElementById('i-price').value       = _item ? M.toMajor(_item.price_minor) : '';
   document.getElementById('i-compare').value     = _item?.compare_at_minor ? M.toMajor(_item.compare_at_minor) : '';
@@ -482,6 +492,40 @@ async function uploadImages(input) {
   toast('Media added — remember to save');
 }
 
+/* The colours this shop actually sells, offered as one tap each. The field
+   stays free text underneath — these are a shortcut, not the vocabulary. */
+const COLOURS = [
+  ['Black', '#1b1b1b'], ['White', '#ffffff'], ['Off-white', '#f2ece1'],
+  ['Grey', '#8b8b90'],  ['Brown', '#6b4423'], ['Tan', '#c19a6b'],
+  ['Sand', '#dfcfb0'],  ['Red', '#c62828'],   ['Wine', '#6d1b2e'],
+  ['Pink', '#e59bb7'],  ['Orange', '#e07b25'],['Yellow', '#e3b829'],
+  ['Green', '#2f7d46'], ['Blue', '#1f4e9c'],  ['Navy', '#1b2a4a'],
+  ['Purple', '#9030d0'],['Gold', '#c9a227'],  ['Silver', '#c0c4c9'],
+  ['Multicolour', 'linear-gradient(135deg,#c62828,#e3b829,#2f7d46,#1f4e9c)'],
+];
+
+function renderColourChips() {
+  const picked = colourList();
+  document.getElementById('i-color-chips').innerHTML = COLOURS.map(([name, swatch]) => `
+    <button type="button" class="chip ${picked.includes(name.toLowerCase()) ? 'chip--on' : ''}"
+      onclick="toggleColour('${name}')">
+      <i style="background:${swatch};"></i>${name}</button>`).join('');
+}
+
+const colourList = () => document.getElementById('i-color').value
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+/* Tapping a chip adds or removes that one word, leaving anything typed by hand
+   alone — so "Black, custom teal" survives a tap on Sand. */
+function toggleColour(name) {
+  const box = document.getElementById('i-color');
+  const parts = box.value.split(',').map(s => s.trim()).filter(Boolean);
+  const at = parts.findIndex(p => p.toLowerCase() === name.toLowerCase());
+  if (at >= 0) parts.splice(at, 1); else parts.push(name);
+  box.value = parts.join(', ');
+  renderColourChips();
+}
+
 function renderSizes() {
   document.getElementById('i-sizes').innerHTML = _sizes.map((v, i) => `
     <div class="srow">
@@ -551,6 +595,7 @@ async function saveItem() {
     subtitle:    document.getElementById('i-subtitle').value.trim() || null,
     description: document.getElementById('i-description').value.trim() || null,
     material:    document.getElementById('i-material').value.trim() || null,
+    color:       document.getElementById('i-color').value.trim() || null,
     details:     document.getElementById('i-details').value.trim() || null,
     brand:       document.getElementById('i-brand').value.trim() || null,
     badge:       document.getElementById('i-badge').value.trim() || null,

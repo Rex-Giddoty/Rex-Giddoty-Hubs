@@ -105,11 +105,11 @@ let _items = [];
   } else {
     query = db.from('products').select(SEL).eq('status','published');
   }
-  /* Search across name, brand and description — ilike keeps it simple and the
+  /* Search across name, brand, description and colour — ilike keeps it simple and the
      catalogue is small enough that a full-text index would be premature. */
   if (q) {
     const safe = q.replace(/[%,()]/g, ' ');
-    query = query.or(`name.ilike.%${safe}%,brand.ilike.%${safe}%,description.ilike.%${safe}%`);
+    query = query.or(`name.ilike.%${safe}%,brand.ilike.%${safe}%,description.ilike.%${safe}%,color.ilike.%${safe}%`);
   }
 
   const { data, error } = await query.limit(200);
