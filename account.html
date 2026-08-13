@@ -48,6 +48,12 @@
         <input class="inp" id="f-email" disabled/>
         <div class="hint">Get in touch if you need this changed.</div></div>
       <button class="btn" id="save-profile">Save changes</button>
+
+      <div id="push-row" style="display:none;border-top:1px solid var(--line);margin-top:20px;padding-top:18px;">
+        <div style="font-weight:600;font-size:14px;margin-bottom:3px;">Notifications</div>
+        <p class="lede" id="push-state" style="margin-bottom:12px;"></p>
+        <button class="btn btn--ghost" id="push-toggle">Turn on</button>
+      </div>
     </section>
 
     <!-- orders -->
@@ -151,10 +157,42 @@ const note = (el, kind, text) => {
   document.getElementById('f-name').value = name;
   document.getElementById('f-phone').value = profile?.phone || _user.user_metadata?.phone || '';
 
+  paintPush();
   openPane(location.hash.replace('#', '') || 'profile');
   loadOrders();
   loadAddresses();
 })();
+
+/* The switch reads the real state each time rather than remembering one:
+   permission can be revoked in browser settings without telling the page. */
+async function paintPush() {
+  const row = document.getElementById('push-row');
+  const state = await window.RG_PUSH.state();
+  if (state === 'unsupported') return;
+  row.style.display = '';
+
+  const label = document.getElementById('push-state');
+  const btn = document.getElementById('push-toggle');
+
+  if (state === 'denied') {
+    label.textContent = 'Blocked for this site. Turn them back on in your browser settings, then come back.';
+    btn.style.display = 'none';
+    return;
+  }
+  btn.style.display = '';
+  label.textContent = state === 'on'
+    ? 'On for this device. You will hear when an order moves and when we reply to you.'
+    : 'Off. Turn them on to hear when an order moves and when we reply to you.';
+  btn.textContent = state === 'on' ? 'Turn off' : 'Turn on';
+
+  btn.onclick = async () => {
+    btn.disabled = true;
+    const r = state === 'on' ? await window.RG_PUSH.disable() : await window.RG_PUSH.enable();
+    btn.disabled = false;
+    if (!r.ok) note('p-msg', 'warn', window.RG_ESC(r.why));
+    paintPush();
+  };
+}
 
 /* ── panes ── */
 function openPane(name) {

@@ -8,7 +8,7 @@
  *
  * Bump CACHE when the shell changes; the old one is deleted on activate.
  */
-const CACHE = 'rg-shell-v1';
+const CACHE = 'rg-shell-v2';
 
 const SHELL = [
   '/',
@@ -87,4 +87,42 @@ self.addEventListener('fetch', e => {
       return hit || net;
     })());
   }
+});
+
+/* ── push ──
+ * The payload is built by the edge function and carries only what the banner
+ * shows: a title, a line, and where tapping it should land.
+ */
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) {}
+  const title = d.title || 'Rex-Giddoty Hubs';
+  e.waitUntil(self.registration.showNotification(title, {
+    body: d.body || '',
+    icon: '/assets/icon-192.png',
+    badge: '/assets/icon-192.png',
+    data: { url: d.url || '/' },
+    /* One tag per kind, so three status changes on one order replace each other
+       rather than stacking three banners on the lock screen. */
+    tag: d.url || 'rg',
+    renotify: true,
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil((async () => {
+    /* If the shop is already open somewhere, go to it rather than opening a
+       second copy of the app. */
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) {
+      if (new URL(c.url).origin === self.location.origin) {
+        await c.focus();
+        if ('navigate' in c) await c.navigate(url);
+        return;
+      }
+    }
+    await self.clients.openWindow(url);
+  })());
 });

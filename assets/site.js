@@ -1183,6 +1183,87 @@
   }
   window.RG_CHAT_MOUNT = chatMount;
 
+  /* ── push ──
+   * Permission is never asked for on arrival. A browser that is asked cold
+   * mostly gets a no, and a no is permanent — so it is asked at the one moment
+   * it obviously makes sense: just after an order is placed. Everywhere else it
+   * is a switch the customer reaches for themselves.
+   */
+  const VAPID = 'BHXrf13LAQcKq3KeEkgPsvAStuJ8GpQceCG2biDa8W7JQJ-kjPTDr8oPyur1jpQ0Cm0g-YHfHz7sjPjdx_3qByI';
+
+  const b64ToBytes = b64 => {
+    const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+    const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(raw, c => c.charCodeAt(0));
+  };
+  const bytesToB64 = buf =>
+    btoa(String.fromCharCode(...new Uint8Array(buf)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const Push = {
+    supported: () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
+
+    /* granted | denied | default | unsupported — and 'on' only if this device
+       actually has a live subscription, which is not the same as permission. */
+    async state() {
+      if (!Push.supported()) return 'unsupported';
+      if (Notification.permission !== 'granted') return Notification.permission;
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && await reg.pushManager.getSubscription();
+      return sub ? 'on' : 'granted';
+    },
+
+    async enable() {
+      if (!Push.supported()) return { ok: false, why: 'This browser cannot do notifications.' };
+
+      const { data: { session } } = await db.auth.getSession();
+      if (!session || !session.user || session.user.is_anonymous) {
+        return { ok: false, why: 'Sign in first, so we know whose orders to tell you about.' };
+      }
+
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        return { ok: false, why: perm === 'denied'
+          ? 'Notifications are blocked for this site. Turn them back on in your browser settings.'
+          : 'Not now, then.' };
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription()
+        || await reg.pushManager.subscribe({
+             userVisibleOnly: true,           // required, and honest: every push shows
+             applicationServerKey: b64ToBytes(VAPID),
+           });
+
+      const json = sub.toJSON();
+      /* The endpoint is unique, so the same device re-subscribing updates its
+         row rather than collecting duplicates and ringing twice. */
+      const { error } = await db.from('push_subscriptions').upsert({
+        user_id: session.user.id,
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+        user_agent: navigator.userAgent.slice(0, 200),
+      }, { onConflict: 'endpoint' });
+
+      if (error) return { ok: false, why: error.message };
+      return { ok: true };
+    },
+
+    async disable() {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && await reg.pushManager.getSubscription();
+      if (!sub) return { ok: true };
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe().catch(() => {});
+      /* Removed from the database too: a row nobody can reach is one the shop
+         would keep trying to push to for ever. */
+      await db.from('push_subscriptions').delete().eq('endpoint', endpoint);
+      return { ok: true };
+    },
+  };
+  window.RG_PUSH = Push;
+
   /* ── install ──
    * Chrome no longer shows a banner of its own: it fires beforeinstallprompt
    * and waits for the site to ask. Its own "Install app" is buried in the ⋮

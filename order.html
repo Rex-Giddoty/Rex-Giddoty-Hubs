@@ -68,6 +68,14 @@
       <a class="btn btn--full" href="/shop.html" style="margin-top:8px;">Keep shopping</a>
     </div>
 
+    <div class="panel" id="push-box" style="display:none;">
+      <h2 style="font-size:15px;">Tell me when it moves</h2>
+      <p class="lede">A notification the moment we confirm your payment, and
+        again when it ships. No email to dig through.</p>
+      <div id="push-msg"></div>
+      <button class="btn btn--full" id="push-go">Turn on notifications</button>
+    </div>
+
     <div class="panel" id="cancel-box" style="display:none;">
       <h2 style="font-size:15px;">Changed your mind?</h2>
       <p class="lede">You can cancel while the order is still waiting for payment.
@@ -183,6 +191,29 @@ const gate = (h, p, label, href) => {
 
   /* Only while it is still awaiting payment — after that the database refuses
      anyway, and offering the button would just be a promise we cannot keep. */
+  /* Offered on a live order only. Somebody looking at a delivered or cancelled
+     one has nothing left to be told about. */
+  (async () => {
+    const box = document.getElementById('push-box');
+    const done = ['delivered', 'cancelled', 'refunded'].includes(o.status);
+    const state = await window.RG_PUSH.state();
+    if (done || state === 'unsupported' || state === 'on' || state === 'denied') return;
+    box.style.display = '';
+    document.getElementById('push-go').onclick = async e => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const r = await window.RG_PUSH.enable();
+      btn.disabled = false;
+      if (r.ok) {
+        box.innerHTML = '<h2 style="font-size:15px;">Notifications are on</h2>'
+          + '<p class="lede" style="margin:0;">We will let you know the moment this order moves.</p>';
+      } else {
+        document.getElementById('push-msg').innerHTML =
+          '<div class="msg msg--warn">' + window.RG_ESC(r.why) + '</div>';
+      }
+    };
+  })();
+
   if (o.status === 'pending') {
     document.getElementById('cancel-box').style.display = '';
     document.getElementById('cancel-go').onclick = async () => {
