@@ -61,6 +61,15 @@
       <a class="btn btn--ghost btn--full" href="/account.html#orders" style="margin-top:14px;">All my orders</a>
       <a class="btn btn--full" href="/shop.html" style="margin-top:8px;">Keep shopping</a>
     </div>
+
+    <div class="panel" id="cancel-box" style="display:none;">
+      <h2 style="font-size:15px;">Changed your mind?</h2>
+      <p class="lede">You can cancel while the order is still waiting for payment.
+        Once we have confirmed your transfer, get in touch instead.</p>
+      <div id="c-msg"></div>
+      <button class="btn btn--ghost btn--full" id="cancel-go"
+        style="color:#b3261e;border-color:#f4c7c4;">Cancel this order</button>
+    </div>
   </aside>
 </div>
 
@@ -125,9 +134,21 @@ const gate = (h, p, label, href) => {
     'Placed ' + new Date(o.placed_at).toLocaleString('en-NG',
       { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
 
-  document.getElementById('o-hello').innerHTML = o.status === 'pending'
-    ? '<b>Thank you — your order is in.</b><br/>Your items are reserved. Send the transfer below and we will confirm it.'
-    : '<b>Thank you — your order is in.</b><br/>We will keep you posted as it moves along.';
+  const dead = o.status === 'cancelled' || o.status === 'refunded';
+  const hello = document.getElementById('o-hello');
+  if (dead) {
+    hello.className = 'msg msg--err';
+    hello.innerHTML = o.status === 'cancelled'
+      ? '<b>This order was cancelled.</b><br/>Nothing is owed, and the items have gone back on sale.'
+      : '<b>This order was refunded.</b><br/>The money is on its way back to you.';
+    /* Asking someone to pay for an order that no longer exists is worse than
+       showing nothing, so the payment panel goes with it. */
+    document.querySelector('aside .panel').style.display = 'none';
+  } else {
+    hello.innerHTML = o.status === 'pending'
+      ? '<b>Thank you — your order is in.</b><br/>Your items are reserved. Send the transfer below and we will confirm it.'
+      : '<b>Thank you — your order is in.</b><br/>We will keep you posted as it moves along.';
+  }
 
   document.getElementById('o-items').innerHTML = (o.order_items || []).map(it => `
     <div class="ord__line">
@@ -152,6 +173,26 @@ const gate = (h, p, label, href) => {
   if (o.note) {
     document.getElementById('o-note').innerHTML =
       `<div class="note"><b>Your note:</b> ${esc(o.note)}</div>`;
+  }
+
+  /* Only while it is still awaiting payment — after that the database refuses
+     anyway, and offering the button would just be a promise we cannot keep. */
+  if (o.status === 'pending') {
+    document.getElementById('cancel-box').style.display = '';
+    document.getElementById('cancel-go').onclick = async () => {
+      if (!confirm('Cancel order ' + o.order_number + '? The items go back on sale straight away.')) return;
+      const btn = document.getElementById('cancel-go');
+      btn.disabled = true; btn.textContent = 'Cancelling…';
+
+      const { error } = await db.rpc('cancel_my_order', { p_order: o.id });
+      if (error) {
+        btn.disabled = false; btn.textContent = 'Cancel this order';
+        document.getElementById('c-msg').innerHTML =
+          `<div class="msg msg--err">${esc(error.message)}</div>`;
+        return;
+      }
+      location.reload();
+    };
   }
 
   const rows = [

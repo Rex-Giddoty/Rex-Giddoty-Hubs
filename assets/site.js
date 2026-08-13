@@ -377,8 +377,14 @@
 
     const rail = document.querySelector('[data-rail]');
     if (rail) {
-      rail.innerHTML = `<div class="box__hd">Categories</div><div class="rail">` +
-        entries.map(e => groupHtml(e, false)).join('') + `</div>`;
+      /* The full logo goes on a dark cap: its wordmark is white, so on the
+         sidebar's own white it would simply not be there. */
+      rail.innerHTML = `
+        <a class="rail__logo" href="/" aria-label="${esc(store)}">
+          <img src="/assets/logo.png" alt="${esc(store)}"/>
+        </a>
+        <div class="box__hd">Categories</div>
+        <div class="rail">${entries.map(e => groupHtml(e, false)).join('')}</div>`;
     }
 
     const foot = document.querySelector('[data-foot]');

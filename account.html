@@ -229,9 +229,25 @@ async function loadOrders() {
               <span class="note">× ${it.quantity}</span></span>
             <span>${M.fmt(it.line_total_minor, o.currency)}</span>
           </div>`).join('')}
+        <div class="addr__acts" style="margin-top:10px;">
+          <a class="btn btn--ghost" style="padding:7px 13px;font-size:13px;"
+            href="/order.html?n=${encodeURIComponent(o.order_number)}">View order</a>
+          ${o.status === 'pending' ? `<button class="btn btn--ghost"
+            style="padding:7px 13px;font-size:13px;color:#b3261e;border-color:#f4c7c4;"
+            onclick="cancelOrder('${o.id}','${esc(o.order_number)}')">Cancel order</button>` : ''}
+        </div>
       </div>
     </div>`).join('');
 }
+
+window.cancelOrder = async (id, number) => {
+  if (!confirm('Cancel order ' + number + '? The items go back on sale straight away.')) return;
+  const { error } = await db.rpc('cancel_my_order', { p_order: id });
+  /* The database is the one that decides whether this is still allowed, so its
+     message is the one worth showing. */
+  if (error) return alert(error.message);
+  loadOrders();
+};
 
 /* ── addresses ── */
 async function loadAddresses() {
