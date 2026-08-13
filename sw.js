@@ -8,7 +8,7 @@
  *
  * Bump CACHE when the shell changes; the old one is deleted on activate.
  */
-const CACHE = 'rg-shell-v3';
+const CACHE = 'rg-shell-v4';
 
 const SHELL = [
   '/',
@@ -97,16 +97,24 @@ self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) {}
   const title = d.title || 'Rex-Giddoty Hubs';
-  e.waitUntil(self.registration.showNotification(title, {
-    body: d.body || '',
-    icon: '/assets/icon-192.png',
-    badge: '/assets/icon-192.png',
-    data: { url: d.url || '/' },
-    /* One tag per kind, so three status changes on one order replace each other
-       rather than stacking three banners on the lock screen. */
-    tag: d.url || 'rg',
-    renotify: true,
-  }));
+  e.waitUntil((async () => {
+    await self.registration.showNotification(title, {
+      body: d.body || '',
+      icon: '/assets/icon-192.png',
+      badge: '/assets/icon-192.png',
+      data: { url: d.url || '/' },
+      /* One tag per kind, so three status changes on one order replace each other
+         rather than stacking three banners on the lock screen. */
+      tag: d.url || 'rg',
+      renotify: true,
+    });
+    /* Any tab that is open gets told, so it can ring the shop's own double bell.
+       Android draws the banner itself and sounds the channel's tone, which a
+       website is not permitted to change — so this is the only place a sound of
+       ours can come from. */
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) c.postMessage({ type: 'rg-push' });
+  })());
 });
 
 self.addEventListener('notificationclick', e => {

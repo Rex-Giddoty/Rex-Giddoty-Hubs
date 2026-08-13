@@ -1152,3 +1152,19 @@ textarea.inp{resize:vertical;min-height:74px;}
 @media (prefers-reduced-motion:reduce){
   .sk,.sk--dark,.skeleton{animation:none;}
 }
+
+/* The notification bar borrows the install bar's shape — only the leading mark
+   differs, there being no app icon to show. */
+.instbar__bell{width:38px;height:38px;border-radius:9px;flex-shrink:0;
+  display:grid;place-items:center;background:#f3e9fb;color:var(--brand);}
+.instbar__bell svg{width:21px;height:21px;}
+
+/* The product page before its product arrives. Same grid as the real thing, so
+   nothing moves when it lands. */
+.skpdp__big{width:100%;aspect-ratio:1/1;border-radius:var(--rad);}
+.skpdp__thumbs{display:flex;gap:7px;margin-top:9px;}
+.skpdp__thumbs .sk{flex:0 0 62px;width:62px;height:62px;border-radius:3px;}
+.skpdp__l{height:12px;margin-bottom:9px;}
+.skpdp__chips{display:flex;gap:7px;margin:14px 0 0;}
+.skpdp__chips .sk{width:58px;height:32px;border-radius:16px;}
+.skpdp__btn{height:42px;border-radius:22px;margin-top:16px;}

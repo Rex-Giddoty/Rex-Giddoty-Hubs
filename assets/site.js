@@ -154,22 +154,32 @@
   window.RG_BAG = Bag;
 
   /* ── settings & categories ── */
+  /* The promise is cached rather than the result. Pages now fire the chrome and
+     their own first query in the same tick, and two callers arriving together
+     must share one round trip instead of each making their own. */
   let _settings = null;
-  window.RG_SETTINGS = async function () {
-    if (_settings) return _settings;
-    try {
-      const { data } = await db.from('site_settings').select('key,value');
-      _settings = Object.fromEntries((data || []).map(r => [r.key, r.value]));
-    } catch (_) { _settings = {}; }
+  window.RG_SETTINGS = function () {
+    if (!_settings) _settings = (async () => {
+      try {
+        const { data } = await db.from('site_settings').select('key,value');
+        return Object.fromEntries((data || []).map(r => [r.key, r.value]));
+      } catch (_) { return {}; }
+    })();
     return _settings;
   };
 
   let _cats = null;
-  window.RG_CATS = async function () {
-    if (_cats) return _cats;
-    const { data } = await db.from('categories')
-      .select('id,slug,name,position,parent_id,image_path').eq('is_active', true).order('position').order('name');
-    _cats = data || [];
+  window.RG_CATS = function () {
+    if (!_cats) {
+      _cats = (async () => {
+        const { data } = await db.from('categories')
+          .select('id,slug,name,position,parent_id,image_path').eq('is_active', true).order('position').order('name');
+        return data || [];
+      })();
+      /* A failure is not cached — otherwise one dropped request would leave the
+         page without categories until it is reloaded. */
+      _cats.catch(() => { _cats = null; });
+    }
     return _cats;
   };
 
@@ -980,6 +990,7 @@
           if (chat.msgs.some(x => x.id === p.new.id)) return;
           chat.msgs.push(p.new);
           chatRender();
+          if (p.new.sender_role === 'staff') window.RG_BELL();
           if (chat.open) chatMarkRead();
           else if (p.new.sender_role === 'staff') {
             chatPaintBadge(1);
@@ -1247,6 +1258,7 @@
       }, { onConflict: 'endpoint' });
 
       if (error) return { ok: false, why: error.message };
+      window.RG_NOTIF_SET_OFF(false);
       return { ok: true };
     },
 
@@ -1259,10 +1271,145 @@
       /* Removed from the database too: a row nobody can reach is one the shop
          would keep trying to push to for ever. */
       await db.from('push_subscriptions').delete().eq('endpoint', endpoint);
+      window.RG_NOTIF_SET_OFF(true);
       return { ok: true };
     },
   };
   window.RG_PUSH = Push;
+
+  /* ── the double bell ──
+   * Synthesised rather than fetched: a sound file is one more request on a shop
+   * that already asks the network for plenty, and this is four oscillators and
+   * an envelope.
+   *
+   * A real bell is inharmonic — its partials are not whole multiples of the
+   * fundamental, which is why a chord of plain sines sounds like an organ and
+   * this does not. The ratios below are roughly those of a small hand bell.
+   *
+   * Worth being straight about the limit: this can only ring while the shop is
+   * open on the screen. A push that arrives when it is closed is drawn by
+   * Android itself, and Android takes its sound from the notification channel,
+   * which no website is allowed to set. Chrome ignores a sound passed to
+   * showNotification. So: our bell in the app, the phone's own tone outside it.
+   */
+  let _ac = null;
+  function audio() {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return null;
+    if (!_ac) _ac = new C();
+    if (_ac.state === 'suspended') _ac.resume().catch(() => {});
+    return _ac;
+  }
+  /* No browser will make a sound before the page has been touched once, so the
+     context is woken on the first gesture and is warm by the time it is wanted. */
+  addEventListener('pointerdown', audio, { once: true, passive: true });
+  addEventListener('keydown', audio, { once: true });
+
+  function strike(ctx, at, level) {
+    [1, 2.02, 2.99, 4.21].forEach((ratio, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = 880 * ratio;
+      /* The higher partials are quieter and die sooner — that decay is what
+         makes it read as struck metal rather than as a beep. */
+      const peak = level * (i === 0 ? 1 : 0.3 / i);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(peak, at + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 1.05 - i * 0.17);
+      o.connect(g).connect(ctx.destination);
+      o.start(at);
+      o.stop(at + 1.15);
+    });
+  }
+
+  window.RG_BELL = function () {
+    if (notifOff()) return;          /* off means off, sound included */
+    const ctx = audio();
+    if (!ctx) return;
+    const t = ctx.currentTime + 0.02;
+    strike(ctx, t, 0.17);
+    strike(ctx, t + 0.27, 0.135);    /* the second stroke, a shade softer */
+  };
+
+  /* The service worker tells whichever tabs are open that a push landed, so the
+     bell rings in the app at the same moment the banner appears. */
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data && e.data.type === 'rg-push') window.RG_BELL();
+    });
+  }
+
+  /* ── the standing ask ──
+   * Asked on every page and every visit, not once — which is the "always" part.
+   * It stops asking for exactly two reasons: they turned it on, or they said no
+   * thanks. A no thanks is remembered for good, and Account is the way back.
+   */
+  const NOTIF_OFF = 'rg_notif_off';
+  function notifOff() {
+    try { return !!localStorage.getItem(NOTIF_OFF); } catch (_) { return false; }
+  }
+  window.RG_NOTIF_OFF = notifOff;
+  window.RG_NOTIF_SET_OFF = function (off) {
+    try {
+      if (off) localStorage.setItem(NOTIF_OFF, '1');
+      else localStorage.removeItem(NOTIF_OFF);
+    } catch (_) {}
+  };
+
+  const BELL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.4 19a1.9 1.9 0 0 0 3.2 0"/></svg>';
+
+  function showBellBar() {
+    /* One bar at a time: the install bar sits in the same corner and asking for
+       two things at once gets neither. */
+    if (document.querySelector('.instbar')) return;
+    const bar = document.createElement('div');
+    bar.className = 'instbar instbar--bell';
+    bar.innerHTML = `
+      <span class="instbar__bell">${BELL_SVG}</span>
+      <div class="instbar__t">
+        <b>Turn on notifications</b>
+        <span>Hear the moment your order moves, or we reply to you.</span>
+      </div>
+      <button class="instbar__go" data-on>Turn on</button>
+      <button class="instbar__x" data-off aria-label="No thanks">✕</button>`;
+    document.body.appendChild(bar);
+    requestAnimationFrame(() => bar.classList.add('on'));
+
+    const go = bar.querySelector('[data-on]');
+    go.onclick = async () => {
+      go.disabled = true;
+      const r = await Push.enable();
+      go.disabled = false;
+      if (!r.ok) { window.RG_TOAST(r.why); return; }
+      bar.remove();
+      /* Rung once on the spot, so they hear what they have just agreed to. */
+      window.RG_BELL();
+      window.RG_TOAST('Notifications are on');
+    };
+    bar.querySelector('[data-off]').onclick = () => {
+      window.RG_NOTIF_SET_OFF(true);
+      bar.remove();
+      window.RG_TOAST('Off. You can turn them back on under Account.');
+    };
+  }
+
+  async function maybeAskPush() {
+    if (!Push.supported() || notifOff()) return;
+    if (Notification.permission === 'denied') return;   /* nothing we can do from here */
+    if (location.pathname.startsWith('/ops')) return;
+    /* Only worth asking somebody we can address: a push is tied to an account. */
+    const { data: { session } } = await db.auth.getSession();
+    if (!session || !session.user || session.user.is_anonymous) return;
+    if (await Push.state() === 'on') return;
+    showBellBar();
+  }
+  window.RG_ASK_PUSH = maybeAskPush;
+
+  /* A beat after the page settles, so it does not compete with the load and the
+     install bar gets first claim on the corner if it is coming. */
+  const askSoon = () => setTimeout(maybeAskPush, 1600);
+  if (document.readyState === 'loading') addEventListener('DOMContentLoaded', askSoon);
+  else askSoon();
 
   /* ── install ──
    * Chrome no longer shows a banner of its own: it fires beforeinstallprompt

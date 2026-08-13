@@ -21,6 +21,36 @@
 <div class="shell shell--full">
   <div id="state"></div>
 
+  <!-- What the page is before the product lands. Drawn by the browser on the
+       first frame, without waiting for a script or a request. -->
+  <main class="pdp" id="pdp-sk" aria-hidden="true">
+    <div class="box pdp__main">
+      <div>
+        <div class="sk skpdp__big"></div>
+        <div class="skpdp__thumbs"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+      </div>
+      <div>
+        <div class="sk skpdp__l" style="width:32%;"></div>
+        <div class="sk skpdp__l" style="width:90%;height:16px;"></div>
+        <div class="sk skpdp__l" style="width:58%;height:16px;"></div>
+        <div class="sk skpdp__l" style="width:38%;height:26px;margin-top:18px;"></div>
+        <div class="sk skpdp__l" style="width:26%;"></div>
+        <div class="skpdp__chips"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+        <div class="sk skpdp__btn"></div>
+        <div class="sk skpdp__l" style="width:52%;margin-top:22px;"></div>
+        <div class="sk skpdp__l" style="width:44%;"></div>
+      </div>
+    </div>
+    <aside>
+      <div class="box" style="padding:13px;">
+        <div class="sk skpdp__l" style="width:46%;height:13px;"></div>
+        <div class="sk skpdp__l" style="width:100%;height:11px;"></div>
+        <div class="sk skpdp__l" style="width:94%;height:11px;"></div>
+        <div class="sk skpdp__l" style="width:68%;height:11px;"></div>
+      </div>
+    </aside>
+  </main>
+
   <main class="pdp" id="pdp" style="display:none;">
     <div class="box pdp__main">
       <div>
@@ -114,6 +144,22 @@
 <script src="/assets/site.js"></script>
 <script>
 const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG;
+
+/* Asked for first, awaited last. The product needs neither the header nor the
+   settings, so having it queue behind them cost a whole round trip before there
+   was anything at all to draw.
+   A postgrest builder is lazy — it does not go out until something calls .then
+   on it, which is what wrapping it in Promise.resolve does here. */
+const slug = new URLSearchParams(location.search).get('slug');
+const PRODUCT_Q = slug ? Promise.resolve(db.from('products')
+  .select('id,slug,name,subtitle,description,details,material,brand,badge,sold_count,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,size_guide,product_images(path,position,color),product_variants(id,color,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug,size_guide))')
+  .eq('slug', slug).eq('status', 'published').maybeSingle()) : null;
+
+/* The stand-in goes the moment there is either a product or a verdict. */
+function skDone() {
+  const el = document.getElementById('pdp-sk');
+  if (el) el.remove();
+}
 
 /* The same palette the ops editor offers, so a colour tapped there shows the
    same dot here. Anything typed by hand gets a neutral one rather than nothing. */
@@ -489,19 +535,19 @@ function placeGuideLink() {
     document.getElementById('col-wrap').insertAdjacentElement('afterend', link);
     link.classList.add('guidelink--solo');
   }
-}const slug = new URLSearchParams(location.search).get('slug');
+}
 let _p = null, _v = null, _qty = 1, _lastSize = null;
 
 (async () => {
-  await window.RG_CHROME();
-  const s = await window.RG_SETTINGS();
+  /* All three at once. RG_CHROME wants the settings too, and RG_SETTINGS hands
+     both callers the same promise, so this is two requests and not three. */
+  const [, s, res] = await Promise.all([window.RG_CHROME(), window.RG_SETTINGS(), PRODUCT_Q]);
   if (!slug) return notFound();
 
-  const { data: p } = await db.from('products')
-    .select('id,slug,name,subtitle,description,details,material,brand,badge,sold_count,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,size_guide,product_images(path,position,color),product_variants(id,color,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug,size_guide))')
-    .eq('slug', slug).eq('status','published').maybeSingle();
+  const p = res && res.data;
   if (!p) return notFound();
 
+  skDone();
   _p = p;
   document.title = p.name + ' — Rex-Giddoty Hubs';
   window.RG_SEO(document.title);   /* title is only known once the product loads */
@@ -706,6 +752,7 @@ document.getElementById('add').onclick = () => {
 };
 
 function notFound() {
+  skDone();
   document.getElementById('state').innerHTML = `<div class="box empty">
     <h2 style="font-size:18px;">Product not found</h2>
     <p>It may have been removed or is not published.</p>
