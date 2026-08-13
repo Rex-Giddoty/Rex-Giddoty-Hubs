@@ -95,7 +95,7 @@
 <script src="/assets/site.js"></script>
 <script>
 const db = window.RG_DB, esc = window.RG_ESC, IMG = window.RG_IMG, I = window.RG_ICON;
-const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,created_at,product_images(path,position),product_variants(id,stock,price_minor)';
+const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,sold_count,created_at,product_images(path,position),product_variants(id,stock,price_minor)';
 const img1 = p => { const a = (p.product_images||[]).slice().sort((x,y)=>x.position-y.position); return a[0] ? IMG(a[0].path) : null; };
 const stockOf = p => (p.product_variants||[]).reduce((s,v)=>s+(v.stock||0),0);
 

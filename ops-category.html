@@ -139,6 +139,10 @@
           <div><label class="f">Selling price</label><input class="inp" id="i-price" inputmode="decimal" placeholder="0.00"/></div>
           <div><label class="f">Was (crossed out)</label><input class="inp" id="i-compare" inputmode="decimal" placeholder="Optional"/></div>
           <div><label class="f">Badge</label><input class="inp" id="i-badge" placeholder="e.g. NEW"/></div>
+          <div class="full"><label class="f">Units sold</label>
+            <input class="inp" id="i-sold" type="number" min="0" placeholder="0" oninput="soldNote()"/>
+            <div class="muted" id="i-sold-note" style="font-size:12px;margin-top:5px;"></div>
+          </div>
           <div><label class="f">Status</label>
             <select class="inp" id="i-status">
               <option value="published">Published</option>
@@ -822,6 +826,8 @@ function openItem(id) {
   document.getElementById('i-price').value       = _item ? M.toMajor(_item.price_minor) : '';
   document.getElementById('i-compare').value     = _item?.compare_at_minor ? M.toMajor(_item.compare_at_minor) : '';
   document.getElementById('i-badge').value       = _item?.badge || '';
+  document.getElementById('i-sold').value        = _item?.sold_count || '';
+  loadSoldReal(_item?.id);
   document.getElementById('i-status').value      = _item?.status || 'published';
   document.getElementById('i-low').value         = _item?.low_stock_at ?? 5;
   document.getElementById('i-delete').style.display = _item ? '' : 'none';
@@ -830,6 +836,41 @@ function openItem(id) {
   renderGrid(); renderImages();
   show('item');
 }
+
+/* The count from real orders, so the typed figure can be compared with what
+   this shop has actually shipped rather than guessed at. Cancelled orders do
+   not count; anything else does, because an order placed is a sale made. */
+let _soldReal = null;
+async function loadSoldReal(pid) {
+  _soldReal = null;
+  soldNote();
+  if (!pid) return;
+  const { data } = await db.from('order_items')
+    .select('quantity, orders!inner(status)')
+    .eq('product_id', pid)
+    .neq('orders.status', 'cancelled');
+  _soldReal = (data || []).reduce((n, r) => n + (r.quantity || 0), 0);
+  soldNote();
+}
+
+function soldNote() {
+  const el = document.getElementById('i-sold-note');
+  if (!el) return;
+  const typed = parseInt(document.getElementById('i-sold').value || '0', 10) || 0;
+  const base = 'Shown on the item as “' + (window.RG_SOLD_TXT(typed) || 'nothing') + '”. ';
+  el.textContent = base + (_soldReal == null
+    ? 'Counting what this shop has actually sold…'
+    : _soldReal + ' sold through this shop so far. Type the number you want shoppers to see — many shops count sales made elsewhere too.');
+}
+
+/* Same rule as the storefront, kept here because this page does not load site.js. */
+window.RG_SOLD_TXT = n => {
+  const v = Number(n || 0);
+  if (v <= 0) return '';
+  if (v < 1000) return v + ' sold';
+  if (v < 1000000) return (v / 1000).toFixed(v < 10000 ? 1 : 0).replace(/.0$/, '') + 'k sold';
+  return (v / 1000000).toFixed(1).replace(/.0$/, '') + 'm sold';
+};
 
 function syncSlug() {
   /* Only follow the name while the slug has not been hand-edited. */
@@ -1196,6 +1237,7 @@ async function saveItem() {
     details:     document.getElementById('i-details').value.trim() || null,
     brand:       document.getElementById('i-brand').value.trim() || null,
     badge:       document.getElementById('i-badge').value.trim() || null,
+    sold_count:  Math.max(0, parseInt(document.getElementById('i-sold').value || '0', 10) || 0),
     price_minor: price,
     compare_at_minor: compare,
     low_stock_at: Math.max(0, parseInt(document.getElementById('i-low').value || '5', 10)),

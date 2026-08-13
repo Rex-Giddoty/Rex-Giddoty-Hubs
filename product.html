@@ -24,7 +24,10 @@
       <div>
         <div class="note" id="p-brand"></div>
         <h1 id="p-name" style="font-size:19px;font-weight:500;line-height:1.35;margin:2px 0 6px;"></h1>
-        <div class="stars" id="p-stars" style="margin-bottom:10px;"></div>
+        <div class="pmeta">
+          <div class="stars" id="p-stars"></div>
+          <div class="sold" id="p-sold"></div>
+        </div>
 
         <div>
           <span class="price-now" id="p-price"></span>
@@ -351,7 +354,7 @@ let _p = null, _v = null, _qty = 1, _lastSize = null;
   if (!slug) return notFound();
 
   const { data: p } = await db.from('products')
-    .select('id,slug,name,subtitle,description,details,material,brand,badge,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,size_guide,product_images(path,position,color),product_variants(id,color,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug,size_guide))')
+    .select('id,slug,name,subtitle,description,details,material,brand,badge,sold_count,price_minor,compare_at_minor,currency,rating_avg,rating_count,status,size_guide,product_images(path,position,color),product_variants(id,color,option_name,option_value,price_minor,stock,is_active,position),product_categories(categories(name,slug,size_guide))')
     .eq('slug', slug).eq('status','published').maybeSingle();
   if (!p) return notFound();
 
@@ -389,6 +392,9 @@ let _p = null, _v = null, _qty = 1, _lastSize = null;
   ].filter(Boolean).join('\n\n');
   if (spec) document.getElementById('p-details').textContent = spec;
   else dbox.style.display = 'none';
+
+  const soldTxt = window.RG_SOLD(p.sold_count);
+  if (soldTxt) document.getElementById('p-sold').textContent = soldTxt;
 
   if (p.rating_avg) {
     const full = Math.round(Number(p.rating_avg));
@@ -509,7 +515,7 @@ let _p = null, _v = null, _qty = 1, _lastSize = null;
   if (guide) { paintGuide(guide, p.name); paintSizeFacts(_lastSize); }
 
   const { data: more } = await db.from('products')
-    .select('id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,product_images(path,position),product_variants(id,stock,price_minor)')
+    .select('id,slug,name,price_minor,compare_at_minor,currency,badge,rating_avg,rating_count,sold_count,product_images(path,position),product_variants(id,stock,price_minor)')
     .eq('status','published').neq('id', p.id).limit(12);
   if (more && more.length) {
     document.getElementById('more-sect').style.display = '';

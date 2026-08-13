@@ -60,7 +60,7 @@ const SWATCH = {
 const swatchFor = c => SWATCH[String(c || '').trim().toLowerCase()]
   || 'linear-gradient(135deg,#c9c9c9,#9a9a9a)';
 
-const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,brand,rating_avg,rating_count,created_at,product_images(path,position,color),product_variants(id,stock,color,price_minor)';
+const SEL = 'id,slug,name,price_minor,compare_at_minor,currency,badge,brand,rating_avg,rating_count,sold_count,created_at,product_images(path,position,color),product_variants(id,stock,color,price_minor)';
 let _items = [];
 
 (async () => {

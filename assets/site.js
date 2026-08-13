@@ -28,6 +28,17 @@
   const IS_VID = /\.(mp4|mov|m4v|webm|3gp)$/i;
   window.RG_IS_VIDEO = path => IS_VID.test(String(path || ''));
 
+  /* "1.2k sold" rather than "1240 sold": past a thousand the exact figure stops
+     being information and starts being noise. Zero shows nothing at all — an
+     item nobody has bought yet should not announce it. */
+  window.RG_SOLD = n => {
+    const v = Number(n || 0);
+    if (v <= 0) return '';
+    if (v < 1000) return v + ' sold';
+    if (v < 1000000) return (v / 1000).toFixed(v < 10000 ? 1 : 0).replace(/\.0$/, '') + 'k sold';
+    return (v / 1000000).toFixed(1).replace(/\.0$/, '') + 'm sold';
+  };
+
   function tag(sel, make) {
     let el = document.head.querySelector(sel);
     if (!el) { el = make(); document.head.appendChild(el); }
@@ -556,6 +567,7 @@
       .map(v => v.price_minor != null ? v.price_minor : p.price_minor)
       .filter(n => n != null);
     const lowest = prices.length ? Math.min(...prices) : p.price_minor;
+    const sold = window.RG_SOLD(p.sold_count);
 
     return `<div class="pcard">
       <a href="/product.html?slug=${encodeURIComponent(p.slug)}">
@@ -572,6 +584,7 @@
           ${off ? `<span class="pcard__was">${M.fmt(p.compare_at_minor, p.currency)}</span>` : ''}
         </div>
         ${rating ? `<div class="stars"><i>${'★'.repeat(full)}${'☆'.repeat(5-full)}</i>(${p.rating_count || 0})</div>` : ''}
+        ${sold ? `<div class="sold">${sold}</div>` : ''}
         ${meter ? `<div class="left-note">${stock} items left</div><div class="bar"><span style="width:${meter}%"></span></div>` : ''}
       </a>
       <button class="pcard__add" ${firstV ? `data-add="${firstV.id}"` : 'disabled'}>
