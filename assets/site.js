@@ -373,8 +373,25 @@
           <a href="mailto:${esc(email)}">${I.help}Help</a>
         </div>`;
       document.body.appendChild(drawer);
-      head.querySelector('[data-burger]').onclick = () => drawer.classList.add('open');
-      drawer.querySelector('[data-close]').onclick = () => drawer.classList.remove('open');
+
+      /* Closing waits for the slide-out to finish before the panel is hidden;
+         removing .open outright would make it disappear mid-animation. */
+      let closeTimer;
+      const openDrawer = () => {
+        clearTimeout(closeTimer);
+        drawer.classList.remove('closing');
+        drawer.classList.add('open');
+      };
+      const closeDrawer = () => {
+        if (!drawer.classList.contains('open')) return;
+        drawer.classList.remove('open');
+        drawer.classList.add('closing');
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => drawer.classList.remove('closing'), 300);
+      };
+      head.querySelector('[data-burger]').onclick = openDrawer;
+      drawer.querySelector('[data-close]').onclick = closeDrawer;
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
     }
 
     const rail = document.querySelector('[data-rail]');
@@ -388,6 +405,31 @@
         <div class="box__hd">Categories</div>
         <div class="rail">${entries.map(e => groupHtml(e, false)).join('')}</div>`;
     }
+
+    /* Social links come from settings, so they are changed in ops rather than in
+       the code. An icon with no address behind it is worse than no icon, so a
+       blank setting simply drops it. */
+    const SOCIAL = [
+      ['social_instagram', 'Instagram',
+       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>'],
+      ['social_facebook', 'Facebook',
+       '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 22v-8h3l.5-3H13V9.2c0-.9.3-1.5 1.6-1.5H17V5.1A22 22 0 0014.6 5C12.2 5 10.5 6.5 10.5 9v2H8v3h2.5v8z"/></svg>'],
+      ['social_x', 'X',
+       '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 3h3l-6.6 7.5L21.7 21h-5.9l-4.3-5.6L6.4 21H3.3l7-8L2.6 3h6l3.9 5.2zm-1 16h1.7L8 4.7H6.2z"/></svg>'],
+    ];
+    /* A handle typed without https:// would otherwise resolve against our own
+       domain and 404. */
+    const asUrl = v => {
+      const t = String(v || '').trim();
+      if (!t) return '';
+      return /^https?:\/\//i.test(t) ? t : 'https://' + t.replace(/^\/+/, '');
+    };
+    const socialLinks = SOCIAL
+      .map(([key, label, svg]) => ({ href: asUrl(s[key]), label, svg }))
+      .filter(x => x.href);
+    const socialHtml = socialLinks.length
+      ? socialLinks.map(x => `<a href="${esc(x.href)}" aria-label="${x.label}" target="_blank" rel="noopener noreferrer">${x.svg}</a>`).join('')
+      : `<span style="font-size:12px;color:#9a9a9a;">Coming soon</span>`;
 
     const foot = document.querySelector('[data-foot]');
     if (foot) {
@@ -431,11 +473,7 @@
 
         <div class="foot__pay">
           <div><h4 style="color:#fff;font-size:13px;text-transform:uppercase;margin-bottom:11px;">Join us on</h4>
-            <div class="foot__ic">
-              <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 22v-8h3l.5-3H13V9.2c0-.9.3-1.5 1.6-1.5H17V5.1A22 22 0 0014.6 5C12.2 5 10.5 6.5 10.5 9v2H8v3h2.5v8z"/></svg></a>
-              <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></a>
-              <a href="#" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 3h3l-6.6 7.5L21.7 21h-5.9l-4.3-5.6L6.4 21H3.3l7-8L2.6 3h6l3.9 5.2zm-1 16h1.7L8 4.7H6.2z"/></svg></a>
-            </div>
+            <div class="foot__ic">${socialHtml}</div>
           </div>
           <div><h4 style="color:#fff;font-size:13px;text-transform:uppercase;margin-bottom:11px;">Payment methods</h4>
             <div class="foot__ic">

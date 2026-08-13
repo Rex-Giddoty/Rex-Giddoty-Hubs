@@ -79,6 +79,21 @@
       <div class="full"><label class="f">Hero heading</label><input class="inp" id="s-hero_heading"/></div>
       <div class="full"><label class="f">Hero subheading</label><input class="inp" id="s-hero_subheading"/></div>
     </div>
+
+    <h3 style="font-size:13px;font-weight:600;margin:24px 0 12px;padding-top:18px;border-top:1px solid var(--b);">Contact &amp; social</h3>
+    <div class="grid">
+      <div><label class="f">Contact email</label><input class="inp" id="s-support_email" placeholder="rexgiddotyhubs@gmail.com"/></div>
+      <div><label class="f">Phone shown on the site</label><input class="inp" id="s-support_phone" placeholder="0801 234 5678"/></div>
+      <div class="full"><label class="f">Facebook</label>
+        <input class="inp" id="s-social_facebook" placeholder="https://facebook.com/yourpage"/></div>
+      <div class="full"><label class="f">Instagram</label>
+        <input class="inp" id="s-social_instagram" placeholder="https://instagram.com/yourhandle"/></div>
+      <div class="full"><label class="f">X (Twitter)</label>
+        <input class="inp" id="s-social_x" placeholder="https://x.com/yourhandle"/></div>
+      <div class="full"><div class="muted" style="font-size:12px;">
+        Paste the full address of each page. Leave one blank and its icon simply
+        does not appear in the footer.</div></div>
+    </div>
     <h3 style="font-size:13px;font-weight:600;margin:24px 0 12px;padding-top:18px;border-top:1px solid var(--b);">Payment — manual confirmation</h3>
     <div class="grid">
       <div><label class="f">Bank name</label><input class="inp" id="s-bank_name"/></div>
@@ -206,6 +221,7 @@ async function loadSettings() {
   const { data } = await db.from('site_settings').select('key,value');
   _settings = Object.fromEntries((data || []).map(r => [r.key, r.value]));
   ['store_name','currency','hero_heading','hero_subheading',
+   'support_email','support_phone','social_facebook','social_instagram','social_x',
    'bank_name','bank_account_name','bank_account_number','payment_instructions']
     .forEach(k => { const el = document.getElementById('s-' + k); if (el) el.value = _settings[k] || ''; });
   ['shipping_flat_minor','free_shipping_over_minor'].forEach(k => {
@@ -217,6 +233,7 @@ async function loadSettings() {
 async function saveSettings() {
   const rows = [];
   ['store_name','currency','hero_heading','hero_subheading',
+   'support_email','support_phone','social_facebook','social_instagram','social_x',
    'bank_name','bank_account_name','bank_account_number','payment_instructions']
     .forEach(k => rows.push({ key: k, value: document.getElementById('s-' + k).value.trim(), updated_at: new Date().toISOString() }));
   ['shipping_flat_minor','free_shipping_over_minor'].forEach(k =>
