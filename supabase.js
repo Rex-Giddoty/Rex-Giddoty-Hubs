@@ -49,13 +49,13 @@ window.RG_IMG = path =>
   .rgbusy__card{background:#fff;color:#282828;border-radius:14px;padding:26px 28px;width:100%;
     max-width:330px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.3);}
   .rgbusy__ring{width:44px;height:44px;margin:0 auto 15px;border-radius:50%;
-    border:3px solid #ece0f7;border-top-color:#7526ab;animation:rgbusy-spin .8s linear infinite;}
+    border:3px solid #ece0f7;border-top-color:#9030d0;animation:rgbusy-spin .8s linear infinite;}
   @keyframes rgbusy-spin{to{transform:rotate(360deg);}}
   .rgbusy__label{font-size:14.5px;font-weight:600;}
   .rgbusy__sub{font-size:12.5px;color:#7a7a7a;margin-top:4px;min-height:16px;}
   .rgbusy__bar{height:6px;border-radius:3px;background:#eee;overflow:hidden;margin-top:15px;display:none;}
   .rgbusy--pct .rgbusy__bar{display:block;}
-  .rgbusy__bar i{display:block;height:100%;width:0;background:#7526ab;border-radius:3px;
+  .rgbusy__bar i{display:block;height:100%;width:0;background:#9030d0;border-radius:3px;
     transition:width .25s ease;}
   .rgbusy__pct{font-size:20px;font-weight:700;margin-top:9px;display:none;
     font-variant-numeric:tabular-nums;}

@@ -9,9 +9,9 @@
  */
 
 :root{
-  --brand:#7526ab;        /* the logo purple, taken down in lightness */
-  --brandv:#7526ab;       /* kept as an alias: rules written against it still work */
-  --brand-dk:#5e1c8a;     /* pressed / hover */
+  --brand:#9030d0;        /* sampled from the logo artwork */
+  --brandv:#9030d0;       /* kept as an alias: rules written against it still work */
+  --brand-dk:#7a26b0;     /* pressed / hover */
   --flash:#be1d3e;        /* flash-sale header band */
   --beige:#f0e4fb;        /* section header bands, tinted from the brand */
   --ink:#282828;
