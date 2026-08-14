@@ -141,6 +141,21 @@ Deno.serve(async (req) => {
     if (!order || order.user_id !== user.id) return json({ error: 'no such order' }, 404);
     if (order.payment_status === 'paid') return json({ error: 'already paid' }, 409);
 
+    /* ── while the shop is on test keys ──
+     * Paystack's test cards are published on their own website. A shop that is
+     * reachable on the open internet and running a test key will happily mark
+     * orders paid for anyone who has read the docs, with no money anywhere.
+     * So on a test key only staff may start a payment. The guard lifts itself
+     * the moment a live key is in place — there is nothing to remember to
+     * switch off. */
+    if (SECRET.startsWith('sk_test_')) {
+      const { data: staff } = await admin
+        .from('admin_users').select('id').eq('id', user.id).maybeSingle();
+      if (!staff) {
+        return json({ error: 'Card payment is not open yet. Please contact us to complete this order.' }, 503);
+      }
+    }
+
     /* Unique per attempt: Paystack refuses a reference it has seen, and a
        customer who abandons one payment must be able to start another. The
        database remembers every reference an order has been given. */
