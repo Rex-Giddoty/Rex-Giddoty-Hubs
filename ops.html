@@ -11,8 +11,7 @@
 <body>
 
 <div class="top">
-  <!-- Hidden once the drawer is pinned open, which is anywhere there is room
-       for it — see the wide-screen rules in ops.css. -->
+  <!-- The only way in besides swiping from the left edge, at every width. -->
   <button class="burger" id="burger" aria-label="Sections" aria-expanded="false">
     <span></span><span></span><span></span>
   </button>
@@ -289,16 +288,13 @@ document.querySelectorAll('.modal').forEach(m =>
 
 /* ── the drawer ──
  * Seven sections do not fit across the top of a phone, and the app is a phone
- * now. Wide screens keep it pinned open — it is a menu either way, only the
- * question of whether it needs asking for changes.
+ * now. The same drawer at every width: asked for, not always there.
  */
 const _side = document.getElementById('side');
 const _scrim = document.getElementById('scrim');
 const _burger = document.getElementById('burger');
-const pinned = () => matchMedia('(min-width: 1000px)').matches;
 
 function openSide() {
-  if (pinned()) return;
   _side.classList.add('on');
   _scrim.classList.add('on');
   _burger.setAttribute('aria-expanded', 'true');
@@ -319,7 +315,7 @@ addEventListener('keydown', e => { if (e.key === 'Escape') closeSide(); });
   let x0 = null, y0 = null, from = null;
 
   addEventListener('touchstart', e => {
-    if (pinned() || e.touches.length !== 1) return;
+    if (e.touches.length !== 1) return;
     const t = e.touches[0];
     const open = _side.classList.contains('on');
     /* Closed, only the edge starts a swipe, or every horizontal drag in a table

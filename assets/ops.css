@@ -395,8 +395,9 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
 
 /* ── sections drawer ──
  * Seven of them will not fit across the top of a phone, and ops is a phone app
- * now. Below 1000px it is a drawer you pull out; above, there is room to leave
- * it open and it stops being a drawer at all.
+ * now. It is a drawer at every width: hidden behind the hamburger, pulled out
+ * by a swipe from the left edge, and gone again once you have picked one. The
+ * page keeps the full width underneath it.
  */
 .burger{background:none;border:0;padding:8px 6px;cursor:pointer;flex-shrink:0;
   display:flex;flex-direction:column;gap:4px;}
@@ -419,12 +420,3 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
 .side .tabs{display:flex;flex-direction:column;gap:2px;overflow:visible;}
 .side .tab{width:100%;text-align:left;padding:11px 14px;font-size:14px;
   display:flex;align-items:center;gap:8px;}
-
-@media (min-width:1000px){
-  .burger{display:none;}
-  .side{transform:none;top:56px;}          /* under the bar, which stays put */
-  .scrim{display:none;}
-  /* The pages move over rather than sitting under the drawer. */
-  .page{margin-left:240px;}
-  .msgbox{margin-left:120px;}              /* centred on what is left, not the window */
-}
