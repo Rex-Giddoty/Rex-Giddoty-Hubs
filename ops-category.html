@@ -7,6 +7,13 @@
 <title>Category — Rex-Giddoty Hubs</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/assets/ops.css"/>
+<link rel="manifest" href="/ops.webmanifest"/>
+<meta name="theme-color" content="#0c0c0d"/>
+<link rel="icon" href="/assets/ops-icon-192.png"/>
+<link rel="apple-touch-icon" href="/assets/ops-apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="Ops"/>
 </head>
 <body>
 
@@ -201,6 +208,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
 <script>
+
+/* Registered for installability, not for caching: the worker passes every /ops
+   request straight to the network. ops.html gets this through site.js; these
+   standalone pages need their own, or a phone that lands on the sign-in page
+   first is never offered the install. */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
 const db = window.RG_DB, M = window.RG_MONEY, IMG = window.RG_IMG;
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')

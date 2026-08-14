@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "The operations console as an installable app, separate from the shop's",
+    "manifest.webmanifest. Its own name, its own icon and its own scope, so a",
+    "phone that has both keeps them apart — and so installing ops never puts a",
+    "shop icon on a staff member's home screen.",
+    "",
+    "The scope is the string /ops, which prefix-matches ops.html, ops-login.html,",
+    "ops-category.html and ops-reset.html. Everything else on the domain opens in",
+    "the browser, which is right: a link to a product belongs in the shop."
+  ],
+  "id": "/ops.html",
+  "name": "Rex-Giddoty Ops",
+  "short_name": "Ops",
+  "description": "Operations console for Rex-Giddoty Hubs — products, orders, customers and support.",
+  "start_url": "/ops.html",
+  "scope": "/ops",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c0c0d",
+  "theme_color": "#0c0c0d",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/assets/ops-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/ops-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/ops-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

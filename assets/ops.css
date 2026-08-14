@@ -492,3 +492,13 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
   .dashcard{padding:13px;}
   .dashcard__n{font-size:22px;}
 }
+
+/* The way to install, at the foot of the drawer rather than in a bar across the
+   page: staff open the menu when they are looking for something, which is the
+   only moment this is worth reading. */
+.side__install{display:flex;align-items:center;gap:10px;width:100%;
+  margin-top:14px;padding:11px 14px;border-radius:8px;
+  background:var(--s2);border:1px solid var(--b);color:var(--sub);
+  font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;text-align:left;}
+.side__install:hover{color:var(--text);border-color:rgba(255,255,255,.2);}
+.side__install[hidden]{display:none;}

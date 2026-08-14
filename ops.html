@@ -7,6 +7,13 @@
 <title>Operations — Rex-Giddoty Hubs</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/assets/ops.css"/>
+<link rel="manifest" href="/ops.webmanifest"/>
+<meta name="theme-color" content="#0c0c0d"/>
+<link rel="icon" href="/assets/ops-icon-192.png"/>
+<link rel="apple-touch-icon" href="/assets/ops-apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="Ops"/>
 <style>
 /* ── the loading screen ──
  * Inline and in the head on purpose. It has to paint on the first frame, before
@@ -76,6 +83,12 @@
     <button class="tab" data-page="reviews">Reviews<span class="tab__dot" id="reviews-dot" style="display:none;"></span></button>
     <button class="tab" data-page="settings">Settings</button>
   </div>
+
+  <!-- Shown only when there is something to offer: Chrome has handed us a
+       prompt, or this is an iPhone, where there is no prompt to hand. -->
+  <button class="side__install" id="install-btn" hidden>
+    <span>⬇</span><span id="install-txt">Install this app</span>
+  </button>
 </aside>
 
 <!-- HOME -->
@@ -440,6 +453,30 @@ addEventListener('keydown', e => { if (e.key === 'Escape') closeSide(); });
 
   addEventListener('touchend', () => { x0 = null; });
 })();
+
+/* ── installing ──
+ * Chrome fires beforeinstallprompt once and will not fire it again, so site.js
+ * catches and holds it; this only asks whether it is holding one. iPhones never
+ * fire it and have no programmatic install at all, so they get the instructions
+ * instead.
+ */
+function paintInstall() {
+  const b = document.getElementById('install-btn');
+  if (!window.RG_CAN_INSTALL || window.RG_STANDALONE()) return;   /* already installed */
+  const ios = window.RG_IS_IOS();
+  if (!ios && !window.RG_CAN_INSTALL()) return;
+  document.getElementById('install-txt').textContent =
+    ios ? 'Add to Home Screen' : 'Install this app';
+  b.hidden = false;
+  b.onclick = () => {
+    closeSide();
+    if (ios) return toast('Tap Share, then Add to Home Screen');
+    window.RG_INSTALL();
+  };
+}
+/* The event may land before or after this script runs, so both are covered. */
+addEventListener('beforeinstallprompt', () => setTimeout(paintInstall, 0));
+addEventListener('load', () => setTimeout(paintInstall, 800));
 
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   /* The bar says where you are, now that the sections are not sitting in it. */

@@ -1635,6 +1635,13 @@
     };
   }
 
+  /* Asked by the operations console, which offers installing from its own menu
+     rather than through the bar — the bar is styled by site.css, which ops does
+     not load. */
+  window.RG_CAN_INSTALL = () => !!deferredPrompt;
+  window.RG_IS_IOS = isIOS;
+  window.RG_STANDALONE = isStandalone;
+
   window.RG_INSTALL = () => {
     if (deferredPrompt) { deferredPrompt.prompt(); return true; }
     showInstallBar(isIOS());

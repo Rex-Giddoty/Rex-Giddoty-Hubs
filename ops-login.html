@@ -37,6 +37,13 @@ button:disabled{opacity:.5;cursor:not-allowed;}
 /* Whose shop this is, under the card rather than inside it. */
 .by{margin-top:18px;text-align:center;font-size:11px;color:#5c5c63;line-height:1.6;}
 </style>
+<link rel="manifest" href="/ops.webmanifest"/>
+<meta name="theme-color" content="#0c0c0d"/>
+<link rel="icon" href="/assets/ops-icon-192.png"/>
+<link rel="apple-touch-icon" href="/assets/ops-apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="Ops"/>
 </head>
 <body>
 <div class="wrap">
@@ -87,6 +94,15 @@ button:disabled{opacity:.5;cursor:not-allowed;}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
 <script>
+
+/* Registered for installability, not for caching: the worker passes every /ops
+   request straight to the network. ops.html gets this through site.js; these
+   standalone pages need their own, or a phone that lands on the sign-in page
+   first is never offered the install. */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
 const db  = window.RG_DB;
 const err = document.getElementById('err');
 const ok  = document.getElementById('ok');
