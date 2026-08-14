@@ -1543,6 +1543,10 @@
     /* Notification is a browser object and does not exist in the app's WebView,
        so it is only consulted when there is no native plugin to ask instead. */
     if (!nativePush() && Notification.permission === 'denied') return;
+    /* Only the bar is withheld from ops: it is styled by site.css, which the
+       operations panel does not load. Ops has a button of its own instead.
+       healPush above has already run, so a staff device still keeps its
+       registration alive on every visit. */
     if (location.pathname.startsWith('/ops')) return;
     /* Only worth asking somebody we can address: a push is tied to an account. */
     const { data: { session } } = await db.auth.getSession();
@@ -1592,6 +1596,9 @@
 
   function showInstallBar(ios) {
     if (document.querySelector('.instbar') || isStandalone() || dismissed()) return;
+    /* Unstyled on ops, which does not load site.css — and staff installing the
+       shop app from the operations panel is not what either is for. */
+    if (location.pathname.startsWith('/ops')) return;
     const bar = document.createElement('div');
     bar.className = 'instbar';
     bar.innerHTML = `
@@ -1645,9 +1652,10 @@
      settled, so it is not the first thing a new visitor meets. */
   if (isIOS() && !isStandalone()) setTimeout(() => showInstallBar(true), 4000);
 
-  /* Registered here rather than in supabase.js because only the shop pages load
-     this file. The console loads supabase.js too, and staff software should not
-     be installable or served from a cache. */
+  /* The operations console loads this file too now, for its alerts — so this
+     runs there as well, which is what web push needs: no service worker, no
+     subscription. Staff software still is not served from a cache; the worker
+     itself refuses to touch /ops, and installing is suppressed there. */
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').catch(() => {});

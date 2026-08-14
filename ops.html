@@ -22,6 +22,7 @@
     <button class="tab" data-page="settings">Settings</button>
   </div>
   <div class="who" id="who"></div>
+  <button class="btn btn--sm" id="notif-btn" style="display:none;"></button>
   <button class="link" onclick="signOut()">Sign out</button>
 </div>
 
@@ -232,6 +233,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
+<!-- For RG_PUSH and RG_BELL. Everything else in this file is inert unless
+     called: the header, footer, cart and chat all wait to be asked. -->
+<script src="/assets/site.js"></script>
 <script>
 const db = window.RG_DB;
 const M  = window.RG_MONEY;
@@ -268,6 +272,48 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
 
 async function signOut(){ await db.auth.signOut(); location.href = '/ops-login.html'; }
 
+/* ── alerts ──
+ * A new order or a customer writing in pushes to every admin, but only to the
+ * devices they have actually registered — so this is the switch that makes the
+ * phone in your pocket one of them. It reads the real state each time rather
+ * than remembering one: a permission can be revoked in settings without telling
+ * the page.
+ */
+async function paintNotif() {
+  const b = document.getElementById('notif-btn');
+  if (!window.RG_PUSH) return;                 /* site.js failed to load */
+
+  const st = await window.RG_PUSH.state();
+  if (st === 'unsupported') return;            /* stays hidden */
+  b.style.display = '';
+
+  if (st === 'denied') {
+    b.textContent = '🔕 Alerts blocked';
+    b.disabled = true;
+    b.title = 'Blocked in your browser or Android settings. Turn them back on there, then reload.';
+    return;
+  }
+
+  b.disabled = false;
+  b.title = '';
+  b.textContent = st === 'on' ? '🔔 Alerts on' : '🔔 Turn on alerts';
+  b.classList.toggle('btn--primary', st !== 'on');
+
+  b.onclick = async () => {
+    b.disabled = true;
+    const r = st === 'on' ? await window.RG_PUSH.disable() : await window.RG_PUSH.enable();
+    b.disabled = false;
+    if (!r.ok) { toast(r.why); return; }
+    if (st !== 'on') {
+      window.RG_BELL();                        /* so you hear what you switched on */
+      toast('Alerts on for this device');
+    } else {
+      toast('Alerts off for this device');
+    }
+    paintNotif();
+  };
+}
+
 /* ── boot ── */
 (async () => {
   const { data: { session } } = await db.auth.getSession();
@@ -277,6 +323,7 @@ async function signOut(){ await db.auth.signOut(); location.href = '/ops-login.h
 
   _me = admin;
   document.getElementById('who').textContent = session.user.email;
+  paintNotif();
 
   const saved = localStorage.getItem('rg-ops-tab');
   if (saved) {
