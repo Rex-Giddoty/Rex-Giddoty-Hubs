@@ -454,3 +454,41 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
 @media (prefers-reduced-motion:reduce){
   .dock.on{animation:none;}
 }
+
+/* ── the front page ──
+ * Takings first, because it is the question you open the console to answer, and
+ * then four ways in. Each card carries the one line that might need you to do
+ * something; a number on its own tells you nothing you did not already assume.
+ */
+.till{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--b);border:1px solid var(--b);border-radius:12px;
+  overflow:hidden;margin-bottom:16px;}
+.till__col{background:var(--s1);padding:15px 16px;display:flex;flex-direction:column;gap:3px;}
+.till__col span{font-size:10.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--sub);}
+.till__col b{font-size:18px;font-weight:600;letter-spacing:-.2px;}
+.till__col i{font-style:normal;font-size:12.5px;color:var(--sub);}
+/* Something actually waiting on you gets a mark; nothing waiting stays quiet. */
+.till__col--act.on b{color:var(--amber);}
+.till__col--act.on{box-shadow:inset 3px 0 0 var(--amber);}
+
+.dash{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.dashcard{background:var(--s1);border:1px solid var(--b);border-radius:12px;
+  padding:16px;display:flex;flex-direction:column;gap:5px;align-items:flex-start;
+  cursor:pointer;text-align:left;font-family:inherit;color:var(--text);
+  transition:border-color .15s,transform .15s;}
+.dashcard:hover{border-color:rgba(255,255,255,.2);transform:translateY(-2px);}
+.dashcard__k{font-size:10.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--sub);}
+.dashcard__n{font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1.1;}
+.dashcard__s{font-size:12px;color:var(--sub);}
+.dashcard.warn{border-color:rgba(240,180,41,.35);}
+.dashcard.warn .dashcard__s{color:var(--amber);}
+
+@media (max-width:900px){
+  .dash{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:560px){
+  .till{grid-template-columns:1fr;}
+  .dash{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .dashcard{padding:13px;}
+  .dashcard__n{font-size:22px;}
+}

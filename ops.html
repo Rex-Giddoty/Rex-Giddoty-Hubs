@@ -7,8 +7,48 @@
 <title>Operations — Rex-Giddoty Hubs</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/assets/ops.css"/>
+<style>
+/* ── the loading screen ──
+ * Inline and in the head on purpose. It has to paint on the first frame, before
+ * ops.css has even been fetched — a console that opens on an empty black page
+ * while six queries run reads as broken.
+ */
+#ops-splash{position:fixed;inset:0;z-index:9998;display:grid;place-items:center;
+  background:#0c0c0d;transition:opacity .4s ease,visibility .4s;}
+#ops-splash.gone{opacity:0;visibility:hidden;pointer-events:none;}
+#ops-splash .in{display:flex;flex-direction:column;align-items:center;gap:20px;}
+#ops-splash img{width:160px;max-width:54vw;height:auto;display:block;
+  animation:ops-breathe 2.1s ease-in-out infinite;}
+#ops-splash .ring{position:absolute;width:230px;height:230px;max-width:70vw;max-height:70vw;
+  border-radius:50%;border:2px solid rgba(236,236,236,.10);
+  border-top-color:#ececec;animation:ops-spin 1.15s linear infinite;}
+#ops-splash .bar{width:150px;max-width:46vw;height:3px;border-radius:2px;
+  background:rgba(255,255,255,.10);overflow:hidden;}
+#ops-splash .bar i{display:block;height:100%;width:0;border-radius:2px;background:#ececec;
+  transition:width .3s ease;}
+#ops-splash .say{font:500 12px 'Inter',system-ui,sans-serif;color:#8b8b90;letter-spacing:.05em;}
+
+@keyframes ops-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+@keyframes ops-spin{to{transform:rotate(360deg)}}
+
+@media (prefers-reduced-motion:reduce){
+  #ops-splash img,#ops-splash .ring{animation:none;}
+  #ops-splash .ring{border-top-color:rgba(236,236,236,.10);}
+}
+</style>
 </head>
 <body>
+
+<!-- Removed once every section has its data, not on a timer — the point is
+     that nothing is half-drawn when you first look at it. -->
+<div id="ops-splash">
+  <div class="ring"></div>
+  <div class="in">
+    <img src="/assets/logo.png" alt="Rex-Giddoty Hubs"/>
+    <div class="bar"><i id="ops-splash-bar"></i></div>
+    <div class="say" id="ops-splash-say">Opening operations…</div>
+  </div>
+</div>
 
 <div class="top">
   <!-- The only way in besides swiping from the left edge, at every width. -->
@@ -16,7 +56,7 @@
     <span></span><span></span><span></span>
   </button>
   <div class="brand">Rex-Giddoty</div>
-  <div class="here" id="here">Products</div>
+  <div class="here" id="here">Home</div>
   <div class="spacer"></div>
   <div class="who" id="who"></div>
   <button class="btn btn--sm" id="notif-btn" style="display:none;"></button>
@@ -27,7 +67,8 @@
 
 <aside class="side" id="side">
   <div class="tabs">
-    <button class="tab active" data-page="products">Products</button>
+    <button class="tab active" data-page="home">Home</button>
+    <button class="tab" data-page="products">Products</button>
     <button class="tab" data-page="categories">Categories</button>
     <button class="tab" data-page="orders">Orders</button>
     <button class="tab" data-page="customers">Customers</button>
@@ -37,8 +78,56 @@
   </div>
 </aside>
 
+<!-- HOME -->
+<div class="page active" id="page-home">
+  <div class="head"><h2>Today</h2><span class="count" id="home-when"></span></div>
+
+  <!-- the takings, across the top: the one thing worth knowing before anything
+       else on the page -->
+  <div class="till" id="till">
+    <div class="till__col">
+      <span>Today</span>
+      <b id="till-today-n">—</b>
+      <i id="till-today-m">—</i>
+    </div>
+    <div class="till__col">
+      <span>This week</span>
+      <b id="till-week-n">—</b>
+      <i id="till-week-m">—</i>
+    </div>
+    <div class="till__col till__col--act" id="till-pack-col">
+      <span>Waiting</span>
+      <b id="till-pack">—</b>
+      <i>to pack and send</i>
+    </div>
+  </div>
+
+  <div class="dash">
+    <button class="dashcard" data-go="products">
+      <span class="dashcard__k">Products</span>
+      <span class="dashcard__n" id="dash-products">—</span>
+      <span class="dashcard__s" id="dash-products-s"></span>
+    </button>
+    <button class="dashcard" data-go="categories">
+      <span class="dashcard__k">Categories</span>
+      <span class="dashcard__n" id="dash-categories">—</span>
+      <span class="dashcard__s" id="dash-categories-s"></span>
+    </button>
+    <button class="dashcard" data-go="customers">
+      <span class="dashcard__k">Customers</span>
+      <span class="dashcard__n" id="dash-customers">—</span>
+      <span class="dashcard__s" id="dash-customers-s"></span>
+    </button>
+    <button class="dashcard" data-go="reviews">
+      <span class="dashcard__k">Reviews</span>
+      <span class="dashcard__n" id="dash-reviews">—</span>
+      <span class="dashcard__s" id="dash-reviews-s"></span>
+    </button>
+  </div>
+</div>
+
 <!-- PRODUCTS -->
-<div class="page active" id="page-products">
+<div class="page" id="page-products">
   <div class="head">
     <h2>Products</h2><span class="count" id="products-count"></span>
     <div class="spacer"></div>
@@ -429,10 +518,119 @@ async function paintNotif() {
      it says "Uncategorised" against everything — which it did, more often as
      more queries were added to race alongside. */
   await loadCategories();
-  await Promise.all([loadSettings(), loadProducts(), loadOrders(),
-                     loadCustomers(), loadThreads(), loadReviews()]);
+  splashAt(20, 'Reading the catalogue');
+
+  /* Counted as they land rather than moved on a timer, so the bar is telling
+     the truth about how much is actually here. */
+  let done = 0;
+  const jobs = [loadSettings(), loadProducts(), loadOrders(),
+                loadCustomers(), loadThreads(), loadReviews()];
+  jobs.forEach(j => j.then(() => splashAt(20 + (++done / jobs.length) * 75)));
+  await Promise.all(jobs);
+
+  paintHome();
+  splashAt(100, 'Ready');
+  splashDone();
   watchSupport();
 })();
+
+/* ── the loading screen ──
+ * Lifted when the data is in, not after a set time. The backstop exists only so
+ * a query that never comes back cannot leave staff staring at a logo.
+ */
+let _splashGone = false;
+function splashAt(pct, say) {
+  const bar = document.getElementById('ops-splash-bar');
+  if (bar) bar.style.width = Math.min(100, Math.round(pct)) + '%';
+  if (say) { const s = document.getElementById('ops-splash-say'); if (s) s.textContent = say; }
+}
+function splashDone() {
+  if (_splashGone) return;
+  _splashGone = true;
+  const el = document.getElementById('ops-splash');
+  if (!el) return;
+  /* A beat on a full bar, so it reads as finished rather than interrupted. */
+  setTimeout(() => {
+    el.classList.add('gone');
+    setTimeout(() => el.remove(), 450);
+  }, 180);
+}
+setTimeout(splashDone, 12000);
+
+/* ── the front page ──
+ * Every number here is counted from what the sections have already loaded, so
+ * opening ops costs the same six queries it always did and this page costs
+ * none. It is drawn once, at the end of the boot, when all six have landed.
+ */
+const DAY = 864e5;
+const since = d => new Date(Date.now() - d * DAY);
+
+function paintHome() {
+  const money = m => M.fmt(m, _settings.currency || 'NGN');
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  document.getElementById('home-when').textContent =
+    new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+
+  /* ── the till ── */
+  const when = o => new Date(o.placed_at || o.created_at);
+  const paid = o => o.status !== 'cancelled';          /* a cancelled order is not takings */
+  const today = _orders.filter(o => paid(o) && when(o).toDateString() === new Date().toDateString());
+  const week  = _orders.filter(o => paid(o) && when(o) >= since(7));
+  const sum   = list => list.reduce((n, o) => n + (o.total_minor || 0), 0);
+
+  set('till-today-n', today.length + (today.length === 1 ? ' order' : ' orders'));
+  set('till-today-m', money(sum(today)));
+  set('till-week-n',  week.length + (week.length === 1 ? ' order' : ' orders'));
+  set('till-week-m',  money(sum(week)));
+
+  /* Anything not yet on its way and not called off. */
+  const done = ['shipped', 'delivered', 'cancelled'];
+  const pack = _orders.filter(o => !done.includes(o.status)).length;
+  set('till-pack', String(pack));
+  document.getElementById('till-pack-col').classList.toggle('on', pack > 0);
+
+  /* ── products ── */
+  const stockOf = p => (p.product_variants || []).reduce((n, v) => n + (v.stock || 0), 0);
+  const bare = _products.filter(p => stockOf(p) <= 0).length;
+  set('dash-products', String(_products.length));
+  set('dash-products-s', bare ? bare + ' out of stock' : 'all in stock');
+  document.getElementById('dash-products').closest('.dashcard').classList.toggle('warn', bare > 0);
+
+  /* ── categories ── */
+  const used = new Set();
+  _products.forEach(p => (p.product_categories || []).forEach(pc => used.add(pc.category_id)));
+  const parents = new Set(_categories.map(c => c.parent_id).filter(Boolean));
+  /* A parent holding a drop-down is not empty — its stock lives on its
+     children, which is exactly how Collection and Jewellery are meant to work. */
+  const empty = _categories.filter(c => !used.has(c.id) && !parents.has(c.id)).length;
+  set('dash-categories', String(_categories.length));
+  set('dash-categories-s', empty ? empty + (empty === 1 ? ' with nothing in it' : ' with nothing in them') : 'all filled');
+  document.getElementById('dash-categories').closest('.dashcard').classList.toggle('warn', empty > 0);
+
+  /* ── customers ── */
+  const shoppers = _customers.filter(c => !c.is_staff);
+  const fresh = shoppers.filter(c => new Date(c.created_at) >= since(7)).length;
+  set('dash-customers', String(shoppers.length));
+  set('dash-customers-s', fresh ? fresh + ' new this week' : 'none new this week');
+
+  /* ── reviews ── */
+  const shown = _reviews.filter(r => r.is_visible);
+  const avg = shown.length
+    ? (shown.reduce((n, r) => n + r.rating, 0) / shown.length).toFixed(1) : null;
+  const low = shown.filter(r => r.rating <= 2).length;
+  set('dash-reviews', avg ? '★ ' + avg : String(_reviews.length));
+  set('dash-reviews-s', low
+    ? low + (low === 1 ? ' at 1–2 stars' : ' at 1–2 stars')
+    : _reviews.length + (_reviews.length === 1 ? ' review' : ' reviews'));
+  document.getElementById('dash-reviews').closest('.dashcard').classList.toggle('warn', low > 0);
+}
+
+document.querySelectorAll('.dashcard').forEach(c =>
+  c.onclick = () => {
+    const t = document.querySelector('.tab[data-page="' + c.dataset.go + '"]');
+    if (t) t.click();
+  });
 
 /* ── settings ── */
 async function loadSettings() {
