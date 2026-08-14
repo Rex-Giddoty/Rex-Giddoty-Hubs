@@ -8,7 +8,7 @@
  *
  * Bump CACHE when the shell changes; the old one is deleted on activate.
  */
-const CACHE = 'rg-shell-v4';
+const CACHE = 'rg-shell-v5';
 
 const SHELL = [
   '/',
@@ -54,7 +54,18 @@ self.addEventListener('fetch', e => {
      bundle — is left to the network. Prices, stock and orders are in that
      first group and must never come from a cache. */
   if (url.origin !== self.location.origin) return;
-  if (isOps(url)) return;
+
+  /* Staff pages are never stored — but a navigation still needs an answer when
+     there is no network, or Chrome will not treat the console as installable.
+     Network first, nothing kept, the shared offline page if it fails. */
+  if (isOps(url)) {
+    if (req.mode === 'navigate') {
+      e.respondWith(
+        fetch(req).catch(() => caches.match('/offline.html')
+          .then(r => r || new Response('Offline', { status: 503 }))));
+    }
+    return;
+  }
 
   /* A page: try the network so the catalogue is current, fall back to the copy
      we have, and only then to the offline page. */

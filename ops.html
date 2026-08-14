@@ -462,16 +462,27 @@ addEventListener('keydown', e => { if (e.key === 'Escape') closeSide(); });
  */
 function paintInstall() {
   const b = document.getElementById('install-btn');
-  if (!window.RG_CAN_INSTALL || window.RG_STANDALONE()) return;   /* already installed */
+  if (!window.RG_STANDALONE) return;               /* site.js has not loaded */
+  if (window.RG_STANDALONE()) return;              /* already running installed */
+
   const ios = window.RG_IS_IOS();
-  if (!ios && !window.RG_CAN_INSTALL()) return;
   document.getElementById('install-txt').textContent =
     ios ? 'Add to Home Screen' : 'Install this app';
   b.hidden = false;
+
   b.onclick = () => {
     closeSide();
-    if (ios) return toast('Tap Share, then Add to Home Screen');
-    window.RG_INSTALL();
+    /* Chrome hands over a prompt when it decides the site qualifies, which can
+       be on a later visit or after a little use. When it has, this is one tap.
+       When it has not, saying where the option lives beats a button that looks
+       broken. */
+    if (!ios && window.RG_CAN_INSTALL && window.RG_CAN_INSTALL()) {
+      window.RG_INSTALL();
+      return;
+    }
+    toast(ios
+      ? 'Tap Share, then Add to Home Screen'
+      : 'Open Chrome\'s ⋮ menu and choose Install app');
   };
 }
 /* The event may land before or after this script runs, so both are covered. */
