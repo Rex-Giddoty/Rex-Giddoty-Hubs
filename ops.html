@@ -1309,6 +1309,54 @@ async function loadMessages() {
   renderThread();
 }
 
+/* ── copying ──
+ * The clipboard API needs a secure context and, in a WebView, a permission the
+ * app may not have been given. The textarea route is ancient and ugly and works
+ * where the modern one refuses, so it is kept as the fallback rather than
+ * leaving staff with a button that silently does nothing.
+ */
+async function copyText(text, said) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(said || 'Copied');
+    return;
+  } catch (_) { /* fall through */ }
+
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    /* Off-screen rather than hidden: a display:none textarea cannot be selected,
+       so the copy would fail for the one reason we are here. */
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    toast(ok ? (said || 'Copied') : 'Could not copy — select the text instead', !ok);
+  } catch (_) {
+    toast('Could not copy — select the text instead', true);
+  }
+}
+
+function copyThread() {
+  const t = _threads.find(x => x.id === _thread);
+  if (!t || !_tmsgs.length) return;
+
+  const when = d => new Date(d).toLocaleString('en-NG',
+    { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  /* Named rather than "us" and "them", because the point of copying it out is
+     to be read somewhere this conversation has no context. */
+  const who = m => m.sender_role === 'staff' ? 'Rex-Giddoty' : (t.full_name || t.email || 'Customer');
+  const lines = _tmsgs.map(m =>
+    `[${when(m.created_at)}] ${who(m)}: ${m.body || '(attachment)'}`);
+
+  copyText([
+    (t.full_name || 'Customer') + (t.email ? ' <' + t.email + '>' : ''),
+    ''].concat(lines).join('\n'), _tmsgs.length + ' messages copied');
+}
+
 function renderThread() {
   const t = _threads.find(x => x.id === _thread);
   const pane = document.getElementById('thread-pane');
@@ -1323,6 +1371,7 @@ function renderThread() {
         <b>${esc(t.full_name || t.email || 'Customer')}</b>
         <span>${esc(t.email || '')}${t.phone ? ' · ' + esc(t.phone) : ''}</span>
       </div>
+      <button class="btn btn--sm" onclick="copyThread()" title="Copy the whole conversation">Copy all</button>
       <button class="btn btn--sm" onclick="toggleThreadOpen()">
         ${t.status === 'closed' ? 'Reopen' : 'Mark closed'}</button>
     </div>
@@ -1331,7 +1380,10 @@ function renderThread() {
         <div class="bub bub--${m.sender_role === 'staff' ? 'us' : 'them'}">
           ${fileHtml(m)}
           ${m.body ? `<div class="bub__b">${esc(m.body).replace(/\n/g, '<br/>')}</div>` : ''}
-          <div class="bub__t">${m.sender_role === 'staff' ? 'You · ' : ''}${esc(when(m.created_at))}</div>
+          <div class="bub__t">
+            ${m.sender_role === 'staff' ? 'You · ' : ''}${esc(when(m.created_at))}
+            ${m.body ? `<button class="bub__copy" data-copy="${m.id}" title="Copy this message">copy</button>` : ''}
+          </div>
         </div>`).join('') || '<div class="empty">No messages yet.</div>'}
     </div>
     <div class="thrpend" id="thrpend" hidden></div>
@@ -1346,6 +1398,15 @@ function renderThread() {
 
   const body = document.getElementById('thrbody');
   body.scrollTop = body.scrollHeight;
+
+  /* One listener for the whole list rather than one per bubble — the list is
+     redrawn on every message, and per-bubble handlers would pile up. */
+  body.onclick = e => {
+    const b = e.target.closest('[data-copy]');
+    if (!b) return;
+    const m = _tmsgs.find(x => String(x.id) === b.dataset.copy);
+    if (m) copyText(m.body || '', 'Message copied');
+  };
 
   const box = document.getElementById('reply');
   box.onkeydown = e => {

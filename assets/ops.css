@@ -533,3 +533,12 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
    z-index would leave the winner decided by document order, and this one is
    written first. */
 .modal--top{z-index:120;}
+
+/* Sits with the timestamp and stays out of the way until the message is
+   pointed at — every bubble carrying a visible button would be louder than the
+   conversation. On a touch screen there is no hover, so it is always there. */
+.bub__copy{background:none;border:0;color:var(--sub);font-size:11px;
+  padding:0 0 0 8px;cursor:pointer;opacity:0;transition:opacity .12s;}
+.bub:hover .bub__copy,.bub__copy:focus{opacity:1;}
+.bub__copy:hover{color:var(--text);text-decoration:underline;}
+@media (hover:none){ .bub__copy{opacity:.65;} }
