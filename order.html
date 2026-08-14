@@ -77,6 +77,9 @@
     <div class="panel" id="paid-box" style="display:none;">
       <h2 style="font-size:15px;">Payment received</h2>
       <p class="lede" id="paid-note">Paid in full. Nothing further to send us.</p>
+      <div class="sum__row" id="paid-with-row" style="display:none;">
+        <span>Paid with</span><span id="paid-with"></span>
+      </div>
     </div>
 
     <div class="panel">
@@ -282,6 +285,14 @@ const gate = (h, p, label, href) => {
              && !['cancelled', 'refunded'].includes(o.status);
 
   document.getElementById('paid-box').style.display = o.payment_status === 'paid' ? '' : 'none';
+
+  /* Named on the order itself, so a customer looking at it a month later does
+     not have to remember which of three ways they used. */
+  const paidWith = window.RG_PAID_WITH(o.payment_provider, s);
+  if (o.payment_status === 'paid' && paidWith) {
+    document.getElementById('paid-with').textContent = paidWith;
+    document.getElementById('paid-with-row').style.display = '';
+  }
   document.getElementById('pay-box').style.display  = owing ? '' : 'none';
 
   if (owing) {

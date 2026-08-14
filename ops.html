@@ -1712,6 +1712,14 @@ async function loadOrders() {
 /* One colour per stage, so a glance down the column reads as progress
    rather than as a wall of green. Pending keeps the amber it had — it is the
    one state that is waiting on somebody. */
+/* The slug the database keeps, in words. The transfer case names the bank,
+   because "transfer" alone does not say which account to go and look in. */
+const PAID_WITH = {
+  balance:  'store balance',
+  paystack: 'paystack',
+  transfer: 'bank transfer',
+};
+
 const ORDER_PILL = {
   pending:'pill--warn',
   paid:'pill--blue',
@@ -1909,7 +1917,7 @@ function openOrder(id) {
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
       <span class="pill ${ORDER_PILL[o.status]||'pill--draft'}">${esc(o.status)}</span>
       <span class="pill ${o.payment_status==='paid'?'pill--live':'pill--warn'}">payment ${esc(o.payment_status)}</span>
-      ${o.payment_provider ? `<span class="pill pill--draft">${esc(o.payment_provider)}</span>` : ''}
+      ${o.payment_provider ? `<span class="pill pill--draft">${esc(PAID_WITH[o.payment_provider] || o.payment_provider)}</span>` : ''}
     </div>
 
     <!-- Money first. Everything else about an order waits on whether it has

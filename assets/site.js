@@ -193,6 +193,41 @@
     return tops.map(t => ({ ...t, children: all.filter(c => c.parent_id === t.id) }));
   };
 
+  /* ── how an order was paid ──
+   * The database stores a slug; nobody wants to read "paystack" on a receipt.
+   * The transfer case names the actual bank, because "bank transfer" does not
+   * tell somebody which account the money left for.
+   */
+  window.RG_PAID_WITH = function (provider, settings) {
+    const bank = (settings && settings.bank_name) ? settings.bank_name : '';
+    return ({
+      balance:  'Store balance',
+      paystack: 'Paystack',
+      transfer: bank ? 'Bank transfer · ' + bank : 'Bank transfer',
+    })[provider] || '';
+  };
+
+  /* ── the balance in the header ──
+   * Asked for after the header is on screen rather than before it. Drawing the
+   * shop must not wait on a number, and a signed-out visitor never asks at all.
+   */
+  window.RG_BALANCE = async function () {
+    const el = document.getElementById('hdr-balance');
+    if (!el) return;
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session || !session.user || session.user.is_anonymous) return;
+
+      const { data, error } = await db.rpc('my_balance');
+      if (error) return;
+
+      const s = await window.RG_SETTINGS();
+      el.querySelector('[data-balance]').textContent =
+        window.RG_MONEY.fmt(data || 0, s.currency);
+      el.hidden = false;
+    } catch (_) { /* a header without a balance is still a header */ }
+  };
+
   /* ── icons ── */
   const I = {
     account: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
@@ -363,6 +398,12 @@
             <button type="submit">Search</button>
           </form>
           <div class="hdr__acts">
+            <!-- Filled in after the header is drawn: the header must not wait on
+                 a balance query, and a signed-out visitor never asks for one. -->
+            <a class="hact hact--bal" href="/account.html#balance" id="hdr-balance" hidden>
+              <span class="hact--label">Balance</span>
+              <b data-balance>—</b>
+            </a>
             <div class="dpdw">
               <a class="hact" href="${signedIn ? '/account.html' : '/login.html'}">${I.account}<span class="hact--label">${
                 signedIn ? esc(firstName) : 'Account'}</span>${I.caret}</a>
@@ -663,8 +704,9 @@
 
     mountBackToTop();
     Bag.paint();
-    /* Not awaited: the chat bubble is the last thing anyone needs on arrival,
-       and its own queries should not hold up the header. */
+    /* Neither of these is awaited: the header is already on screen, and a
+       balance query or a chat bubble holding it up would be the wrong trade. */
+    window.RG_BALANCE();
     chatMount();
   };
 

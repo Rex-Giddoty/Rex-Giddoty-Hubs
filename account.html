@@ -149,7 +149,7 @@
 <script src="/assets/site.js"></script>
 <script>
 const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG;
-let _user = null, _addresses = [], _editAddr = null;
+let _user = null, _addresses = [], _editAddr = null, _settings = {};
 
 const note = (el, kind, text) => {
   document.getElementById(el).innerHTML = `<div class="msg msg--${kind}">${text}</div>`;
@@ -180,6 +180,12 @@ const note = (el, kind, text) => {
 
   paintPush();
   openPane(location.hash.replace('#', '') || 'profile');
+
+  /* Awaited before the lists draw. It is memoised, so this costs nothing after
+     the first page — and without it loadOrders races loadBalance for the same
+     settings and prints orders with no payment method against them. */
+  _settings = await window.RG_SETTINGS();
+
   loadOrders();
   loadAddresses();
   loadBalance();
@@ -236,7 +242,7 @@ async function paintPush() {
  * is the same sum the shop charges against, so the two cannot disagree.
  */
 async function loadBalance() {
-  const s = await window.RG_SETTINGS();
+  const s = _settings = await window.RG_SETTINGS();
   document.getElementById('bal-how').textContent = s.balance_instructions
     || 'Transfer to the shop account and send us the receipt from your order, '
      + 'or message us on chat — we add it to your balance once it lands.';
@@ -340,6 +346,8 @@ async function loadOrders() {
       <div class="ord__hd">
         <b>#${esc(o.order_number)}</b>
         <span class="pill pill--${PILL[o.status] || 'done'}">${esc(o.status)}</span>
+        ${o.payment_status === 'paid' && window.RG_PAID_WITH(o.payment_provider, _settings)
+          ? `<span class="paidwith">${esc(window.RG_PAID_WITH(o.payment_provider, _settings))}</span>` : ''}
         <span class="when">${new Date(o.placed_at).toLocaleDateString('en-NG',
           { day:'numeric', month:'short', year:'numeric' })}</span>
         <span class="tot">${M.fmt(o.total_minor, o.currency)}</span>
