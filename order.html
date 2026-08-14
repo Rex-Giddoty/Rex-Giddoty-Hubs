@@ -58,6 +58,18 @@
       </div>
       <div id="pay-msg" style="margin-top:10px;"></div>
       <button class="btn btn--full btn--lg" id="pay-go" style="margin-top:10px;">Pay now</button>
+
+      <!-- Only for a transfer. There is nothing to prove when a card cleared. -->
+      <div id="receipt-box" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+        <b style="display:block;font-size:13.5px;margin-bottom:4px;">Send us the receipt</b>
+        <p class="sum__note" style="margin:0 0 10px;">Once you have transferred,
+          upload the receipt or a screenshot of the transfer. We check it against
+          the amount and confirm your order — usually within working hours.</p>
+        <input type="file" id="receipt-file" accept="image/jpeg,image/png,image/webp,image/avif,application/pdf" hidden/>
+        <button class="btn btn--ghost btn--full" id="receipt-go">Upload receipt</button>
+        <div id="receipt-msg" style="margin-top:10px;"></div>
+      </div>
+
       <p class="sum__note" id="pay-inst"></p>
     </div>
 
@@ -290,9 +302,67 @@ const gate = (h, p, label, href) => {
       document.getElementById('pay-msg').innerHTML = rows.map(([k, v]) =>
         `<div class="bank__row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
       document.getElementById('pay-go').style.display = 'none';
+
+      document.getElementById('receipt-box').style.display = '';
+      paintReceipt(o);
     }
   }
 })();
+
+/* ── the receipt ──
+ * A customer who has sent the money has done their part. Making them find the
+ * chat to prove it is asking them to do it twice, and a receipt in a chat is
+ * one nobody is looking for when they come to confirm the order.
+ */
+function paintReceipt(o) {
+  const msg = document.getElementById('receipt-msg');
+  const go = document.getElementById('receipt-go');
+
+  if (o.receipt_path) {
+    msg.innerHTML = '<div class="msg msg--ok">Receipt received. We will confirm your '
+      + 'order shortly — you will get a notification when we do.</div>';
+    go.textContent = 'Upload a different one';
+  }
+
+  go.onclick = () => document.getElementById('receipt-file').click();
+
+  document.getElementById('receipt-file').onchange = async (e) => {
+    const file = (e.target.files || [])[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      msg.innerHTML = '<div class="msg msg--err">That file is over 10 MB.</div>';
+      return;
+    }
+
+    go.disabled = true; go.textContent = 'Uploading…';
+    msg.innerHTML = '';
+
+    /* Under the order's own folder — the storage policy and the RPC both check
+       that first segment against an order this person owns, so a path pointing
+       anywhere else is refused twice over. */
+    const ext = (file.name.match(/\.[A-Za-z0-9]+$/) || [''])[0].toLowerCase();
+    const path = o.id + '/' + (crypto.randomUUID ? crypto.randomUUID() : Date.now()) + ext;
+
+    const up = await db.storage.from('receipts')
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (up.error) {
+      go.disabled = false; go.textContent = 'Upload receipt';
+      msg.innerHTML = '<div class="msg msg--err">' + esc(up.error.message || 'That did not upload.') + '</div>';
+      return;
+    }
+
+    const { error } = await db.rpc('attach_receipt', { p_order: o.id, p_path: path });
+    go.disabled = false; go.textContent = 'Upload a different one';
+    if (error) {
+      msg.innerHTML = '<div class="msg msg--err">' + esc(error.message) + '</div>';
+      return;
+    }
+    msg.innerHTML = '<div class="msg msg--ok">Receipt received. We will confirm your '
+      + 'order shortly — you will get a notification when we do.</div>';
+  };
+}
 
 /* ── paying an order that is already placed ──
  * The same route checkout uses. An order can end up here by a payment being

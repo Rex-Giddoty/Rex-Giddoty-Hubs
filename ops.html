@@ -1668,6 +1668,38 @@ function renderOrders() {
 }
 
 let _editOrder = null;
+
+/* ── confirming a transfer ──
+ * The receipt lives in a private bucket with no public URL: it is a fragment of
+ * somebody's bank statement with their name and their money on it. Staff get a
+ * link that works for five minutes and then stops.
+ */
+async function viewReceipt(id) {
+  const o = _orders.find(x => x.id === id);
+  if (!o || !o.receipt_path) return;
+  const { data, error } = await db.storage.from('receipts')
+    .createSignedUrl(o.receipt_path, 300);
+  if (error) return toast(error.message, true);
+  window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+async function markPaid(id) {
+  const o = _orders.find(x => x.id === id);
+  if (!o) return;
+  /* Asked rather than assumed. This is the one action here that says money
+     arrived, and it is easy to press while looking at the wrong order. */
+  if (!confirm('Mark ' + o.order_number + ' as paid?\n\n'
+    + M.fmt(o.total_minor, o.currency) + ' — only do this once you have seen it in the account.')) return;
+
+  window.RG_BUSY.show('Confirming payment');
+  const { error } = await db.rpc('admin_mark_paid', { p_order: id });
+  window.RG_BUSY.hide();
+  if (error) return toast(error.message, true);
+  toast('Payment confirmed');
+  await loadOrders();
+  const fresh = _orders.find(x => x.id === id);
+  if (fresh) openOrder(id);
+}
 function openOrder(id) {
   const o = _orders.find(x => x.id === id); if (!o) return;
   _editOrder = o;
@@ -1677,7 +1709,26 @@ function openOrder(id) {
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
       <span class="pill ${ORDER_PILL[o.status]||'pill--draft'}">${esc(o.status)}</span>
       <span class="pill ${o.payment_status==='paid'?'pill--live':'pill--warn'}">payment ${esc(o.payment_status)}</span>
+      ${o.payment_provider ? `<span class="pill pill--draft">${esc(o.payment_provider)}</span>` : ''}
     </div>
+
+    <!-- Money first. Everything else about an order waits on whether it has
+         been paid for, so it is the first thing to read and the first thing
+         to be able to act on. -->
+    ${o.payment_status !== 'paid' ? `
+      <div class="card" style="padding:13px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <b style="font-size:13.5px;">${o.receipt_path ? 'Receipt uploaded' : 'Awaiting payment'}</b>
+          <span class="muted" style="font-size:12px;">${o.receipt_at
+            ? new Date(o.receipt_at).toLocaleString('en-GB')
+            : 'No receipt sent yet'}</span>
+          <div class="spacer"></div>
+          ${o.receipt_path
+            ? `<button class="btn btn--sm" onclick="viewReceipt(\'${o.id}\')">View receipt</button>`
+            : ''}
+          <button class="btn btn--sm btn--primary" onclick="markPaid(\'${o.id}\')">Mark payment received</button>
+        </div>
+      </div>` : ''}
     <div class="card" style="margin-bottom:14px;">
       ${(o.order_items||[]).map(i => `
         <div style="display:flex;gap:11px;align-items:center;padding:10px 13px;border-bottom:1px solid var(--b);">

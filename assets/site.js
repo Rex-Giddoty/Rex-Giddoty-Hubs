@@ -1040,15 +1040,37 @@
   }
 
   async function chatLoad() {
-    const { data: t } = await db.from('support_threads')
-      .select('id,status,customer_unread').eq('status', 'open').maybeSingle();
-    chat.thread = t ? t.id : null;
-    chatPaintBadge(t ? t.customer_unread : 0);
+    if (!chat.me) { chat.msgs = []; chatRender(); return; }
 
-    if (!chat.thread) { chat.msgs = []; chatRender(); return; }
+    /* Every thread this person has, not only an open one.
+     *
+     * This asked for status = 'open' and nothing else, which lost the
+     * conversation twice over. Staff closing a thread emptied the customer's
+     * window although all of it was still in the database — from where they
+     * sit, that is their history deleted. And the query named no owner, so for
+     * an account that can see every thread it matched several, maybeSingle
+     * returned nothing, and the window came up blank.
+     */
+    const { data: threads } = await db.from('support_threads')
+      .select('id,status,customer_unread')
+      .eq('user_id', chat.me.id)
+      .order('created_at', { ascending: false });
+
+    const mine = threads || [];
+    /* Only an open thread can be written to. A closed one is history, and
+       sending starts a fresh thread rather than reopening an answered one. */
+    const open = mine.find(t => t.status === 'open') || null;
+    chat.thread = open ? open.id : null;
+    chatPaintBadge(open ? open.customer_unread : 0);
+
+    if (!mine.length) { chat.msgs = []; chatRender(); return; }
+
+    /* Read as one conversation. The shop files it as several threads; the
+       customer only ever had one conversation with the shop. */
     const { data: m } = await db.from('support_messages')
       .select('id,body,sender_role,created_at,file_path,file_name,file_type,file_size')
-      .eq('thread_id', chat.thread).order('created_at').limit(200);
+      .in('thread_id', mine.map(t => t.id))
+      .order('created_at').limit(200);
     chat.msgs = m || [];
     chatRender();
   }
