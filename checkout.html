@@ -54,8 +54,9 @@
 
     <div class="panel">
       <h2>How you pay</h2>
-      <p class="lede">Bank transfer, confirmed by us before dispatch.</p>
-      <div class="bank" id="bank"></div>
+      <p class="lede">Card, bank transfer or USSD, through Paystack. Your order
+        is confirmed the moment it goes through — nothing to send us.</p>
+      <div class="paylogos"><span>Card</span><span>Bank transfer</span><span>USSD</span></div>
       <p class="sum__note" id="pay-inst"></p>
     </div>
   </div>
@@ -68,8 +69,8 @@
       <div class="sum__row"><span>Delivery</span><span id="s-ship">—</span></div>
       <div class="sum__row total"><span>Total</span><span id="s-total">—</span></div>
       <div id="msg" style="margin-top:12px;"></div>
-      <button class="btn btn--full btn--lg" id="place" style="margin-top:6px;">Place order</button>
-      <p class="sum__note">Placing the order reserves your items. It is not dispatched until we confirm payment.</p>
+      <button class="btn btn--full btn--lg" id="place" style="margin-top:6px;">Pay now</button>
+      <p class="sum__note">Your items are held while you pay. Nothing is dispatched until the payment clears.</p>
     </div>
   </aside>
 </div>
@@ -85,6 +86,7 @@
 <footer class="foot" data-foot></footer>
 <nav class="tabbar" data-tabbar></nav>
 
+<script src="https://js.paystack.co/v2/inline.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
 <script src="/assets/site.js"></script>
@@ -252,9 +254,82 @@ document.getElementById('place').onclick = async () => {
     });
   }
 
+  /* Cleared only once the order exists. If paying fails after this point the
+     order is already placed and waiting — reachable from the account page, and
+     payable from the order page. */
   Bag.clear();
-  location.replace('/order.html?n=' + encodeURIComponent(row.order_number));
+
+  await pay(row.order_id, row.order_number);
 };
+
+/* ── paying ──
+ * The browser is told nothing it could tamper with. It asks the server to start
+ * a payment and gets back a code good for that one transaction; the amount, the
+ * currency and whose order it is are all decided server-side from the database.
+ */
+async function pay(orderId, orderNumber) {
+  const btn = document.getElementById('place');
+  btn.disabled = true; btn.textContent = 'Opening payment…';
+
+  const done = () => location.replace('/order.html?n=' + encodeURIComponent(orderNumber));
+
+  let start;
+  try {
+    start = await callPaystack({ action: 'init', order_id: orderId });
+  } catch (err) {
+    /* The order is placed. Sending them to it beats leaving them on a checkout
+       page for a cart that no longer exists. */
+    show('warn', 'Your order is placed, but we could not open the payment page. '
+      + esc(String(err.message || err)) + ' You can pay from the order page.');
+    setTimeout(done, 2600);
+    return;
+  }
+
+  /* An overlay on this page rather than a popup or a navigation — which is also
+     why it works inside the Android app's WebView. */
+  if (window.PaystackPop && start.access_code) {
+    const pop = new window.PaystackPop();
+    pop.resumeTransaction(start.access_code, {
+      onSuccess: async () => {
+        btn.textContent = 'Confirming…';
+        /* Asked of Paystack, not taken from the callback: a browser saying "it
+           worked" is not evidence. The webhook settles it too, so this only
+           decides how quickly the order page tells the truth. */
+        try { await callPaystack({ action: 'verify', reference: start.reference }); }
+        catch (_) { /* the webhook will do it */ }
+        done();
+      },
+      onCancel: () => {
+        show('warn', 'Payment cancelled. Your order is saved — you can pay for it from the order page.');
+        setTimeout(done, 2600);
+      },
+      onError: () => {
+        show('err', 'That payment could not be started. Your order is saved.');
+        setTimeout(done, 2600);
+      },
+    });
+    return;
+  }
+
+  /* Paystack's script blocked or failed to load: the hosted page needs nothing
+     from us but a browser. */
+  location.href = start.authorization_url;
+}
+
+async function callPaystack(body) {
+  const { data: { session } } = await db.auth.getSession();
+  const res = await fetch(window.RG_FN + '/paystack', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + (session ? session.access_token : ''),
+    },
+    body: JSON.stringify(body),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || ('payment service returned ' + res.status));
+  return out;
+}
 </script>
 </body>
 </html>

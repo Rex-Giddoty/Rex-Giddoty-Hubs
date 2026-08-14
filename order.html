@@ -106,6 +106,27 @@ const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.
 const num = new URLSearchParams(location.search).get('n');
 
 /* One class per status — see the palette in site.css. */
+/* Coming back from Paystack's own hosted page lands here with the reference in
+   the URL. The webhook is what really settles the order, but it can be a moment
+   behind — asking directly means the page tells the truth immediately rather
+   than showing "unpaid" to somebody who has just paid. */
+async function settleReturn() {
+  const ref = new URLSearchParams(location.search).get('ref');
+  if (!ref) return;
+  history.replaceState(null, '', '/order.html?n='
+    + encodeURIComponent(new URLSearchParams(location.search).get('n') || ''));
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) return;
+    await fetch(window.RG_FN + '/paystack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json',
+                 Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify({ action: 'verify', reference: ref }),
+    });
+  } catch (_) { /* the webhook settles it regardless */ }
+}
+
 const PILL = { pending:'pending', paid:'paid', packed:'packed', shipped:'shipped',
                delivered:'delivered', cancelled:'cancelled', refunded:'refunded' };
 
@@ -120,6 +141,7 @@ const gate = (h, p, label, href) => {
 (async () => {
   await window.RG_CHROME();
   const s = await window.RG_SETTINGS();
+  await settleReturn();
 
   const { data: { session } } = await db.auth.getSession();
   if (!session || !session.user || session.user.is_anonymous) {

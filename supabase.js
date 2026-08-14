@@ -3,6 +3,9 @@ const SUPABASE_URL  = 'https://ttlhbmkzhbhflsuisskp.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0bGhibWt6aGJoZmxzdWlzc2twIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MzE0NzMsImV4cCI6MjEwMjEwNzQ3M30.nz6xIJF-Vbh-gXXweqRmx-hdKkDYF6uS1xh3sx1dgiA';
 
 window.RG_URL  = SUPABASE_URL;
+/* Edge functions live here. Written once, so a page that calls one cannot
+   quietly drift onto a different project. */
+window.RG_FN   = SUPABASE_URL + '/functions/v1';
 window.RG_ANON = SUPABASE_ANON;
 window.RG_DB   = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
