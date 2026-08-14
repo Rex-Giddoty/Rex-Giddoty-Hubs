@@ -255,6 +255,21 @@
   <button class="msgbox__x" id="msgbox-close" aria-label="Dismiss">✕</button>
 </div>
 
+<!-- What is left once the box above has had its moment. It is not the box's
+     leftovers though — it counts conversations actually waiting on a reply, so
+     it is still here after a reload, still here tomorrow morning, and gone the
+     moment they have been answered rather than the moment one was dismissed. -->
+<div class="dock" id="dock" hidden>
+  <button class="dock__go" id="dock-go">
+    <span class="dock__icon">💬</span>
+    <span class="dock__body">
+      <b id="dock-n">1 message</b>
+      <span>waiting for a reply</span>
+    </span>
+  </button>
+  <button class="dock__x" id="dock-x" aria-label="Hide until the next one">✕</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
 <!-- For RG_PUSH and RG_BELL. Everything else in this file is inert unless
@@ -963,6 +978,7 @@ async function loadThreads() {
      you are editing a product does not go unnoticed. */
   const waiting = _threads.filter(t => t.staff_unread > 0).length;
   document.getElementById('support-dot').style.display = waiting ? '' : 'none';
+  paintDock();
 }
 
 function renderThreads() {
@@ -1148,7 +1164,7 @@ function watchSupport() {
  * Deliberately not a toast: a toast is for something you did and it disappears
  * whether or not you saw it. This waits.
  */
-let _msgboxTimer = null, _lastBell = 0;
+let _msgboxTimer = null, _msgboxRaf = null, _lastBell = 0;
 
 /* Realtime and the push can both describe the same message, arriving a moment
    apart. Two boxes would be one too many and two bells plainly wrong. */
@@ -1172,7 +1188,14 @@ function showMessageBox(who, text, onOpen) {
   document.getElementById('msgbox-close').onclick = hideMessageBox;
 
   box.hidden = false;
-  requestAnimationFrame(() => box.classList.add('on'));
+  /* Cancelled on the way out, or a frame queued here lands after the box has
+     been hidden and quietly puts it back. The box then reads as "still up" for
+     ever, and the corner card waits politely for something that has gone. */
+  cancelAnimationFrame(_msgboxRaf);
+  _msgboxRaf = requestAnimationFrame(() => box.classList.add('on'));
+
+  /* The card steps aside while the box is saying the same thing. */
+  paintDock();
 
   /* Long enough to finish what you were typing, short enough not to sit over
      the page for the rest of the day. The Support tab's dot is the permanent
@@ -1180,6 +1203,55 @@ function showMessageBox(who, text, onOpen) {
   clearTimeout(_msgboxTimer);
   _msgboxTimer = setTimeout(hideMessageBox, 25000);
 }
+
+/* ── the corner card ──
+ * Driven by what is unanswered, not by what was popped up. A reminder that a
+ * page refresh could wipe would fail at exactly the moment it is needed.
+ */
+let _dockHiddenFor = 0;
+
+function paintDock() {
+  const dock = document.getElementById('dock');
+  const waiting = _threads.filter(t => t.staff_unread > 0).length;
+  const off = () => { dock.classList.remove('on'); dock.hidden = true; };
+
+  /* Nothing waiting: gone, and a previous dismissal forgotten so the next one
+     is shown. */
+  if (!waiting) { _dockHiddenFor = 0; return off(); }
+
+  /* Dismissed at this many, and no more have come since. Reading one does not
+     bring it back — only a new arrival does. */
+  if (waiting <= _dockHiddenFor) return off();
+
+  /* The big box is on screen saying the same thing; this waits its turn.
+     Read from hidden rather than the class: the class arrives a frame later,
+     and a check that runs in between concludes the box is not there. */
+  if (!document.getElementById('msgbox').hidden) return off();
+
+  /* Shown again, so the old dismissal has been served. Without this, having
+     once dismissed at two, answering back down to one would hide the card
+     while somebody is still waiting. */
+  _dockHiddenFor = 0;
+
+  document.getElementById('dock-n').textContent =
+    waiting === 1 ? '1 message' : waiting + ' messages';
+  dock.hidden = false;
+  requestAnimationFrame(() => dock.classList.add('on'));
+}
+
+document.getElementById('dock-go').onclick = () => {
+  goTo('support');
+  /* The one that has waited longest — the customer most likely to have given
+     up on you. */
+  const oldest = _threads.filter(t => t.staff_unread > 0)
+    .sort((a, b) => new Date(a.last_message_at) - new Date(b.last_message_at))[0];
+  if (oldest) openThread(oldest.id);
+};
+
+document.getElementById('dock-x').onclick = () => {
+  _dockHiddenFor = _threads.filter(t => t.staff_unread > 0).length;
+  paintDock();
+};
 
 const goTo = page => {
   const tab = document.querySelector('.tab[data-page="' + page + '"]');
@@ -1212,9 +1284,14 @@ addEventListener('rg-push', e => {
 
 function hideMessageBox() {
   clearTimeout(_msgboxTimer);
+  cancelAnimationFrame(_msgboxRaf);
   const box = document.getElementById('msgbox');
   box.classList.remove('on');
-  setTimeout(() => { box.hidden = true; }, 260);
+  setTimeout(() => {
+    box.hidden = true;
+    /* The handover: the box does not simply go, it leaves the card behind. */
+    paintDock();
+  }, 260);
 }
 
 /* ── reviews ──
