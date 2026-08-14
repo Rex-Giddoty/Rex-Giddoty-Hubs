@@ -167,6 +167,7 @@
     <div class="spacer"></div>
     <select class="inp" id="order-filter" style="max-width:170px;" onchange="renderOrders()">
       <option value="">All statuses</option>
+      <option value="receipt">Receipt to check</option>
       <option value="pending">Pending payment</option>
       <option value="paid">Paid</option>
       <option value="packed">Packed</option>
@@ -1642,10 +1643,17 @@ const ORDER_PILL = {
 
 function renderOrders() {
   const f = document.getElementById('order-filter').value;
-  const list = f ? _orders.filter(o => o.status === f) : _orders;
+  /* Not a status — the one thing in this list that is waiting on somebody
+     rather than describing where an order has got to. */
+  const list = f === 'receipt'
+    ? _orders.filter(o => o.receipt_path && o.payment_status !== 'paid')
+    : f ? _orders.filter(o => o.status === f) : _orders;
   const pending = _orders.filter(o => o.status === 'pending').length;
+  const receipts = _orders.filter(o => o.receipt_path && o.payment_status !== 'paid').length;
   document.getElementById('orders-count').textContent =
-    _orders.length + ' total' + (pending ? ` · ${pending} awaiting payment` : '');
+    _orders.length + ' total'
+    + (pending ? ` · ${pending} awaiting payment` : '')
+    + (receipts ? ` · ${receipts} receipt${receipts === 1 ? '' : 's'} to check` : '');
 
   const box = document.getElementById('orders-body');
   if (!list.length) { box.innerHTML = '<div class="empty">No orders yet.</div>'; return; }
@@ -1662,7 +1670,11 @@ function renderOrders() {
       <td class="hide-sm muted">${new Date(o.placed_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</td>
       <td class="muted">${(o.order_items||[]).reduce((s,i)=>s+i.quantity,0)}</td>
       <td>${M.fmt(o.total_minor, o.currency)}</td>
-      <td><span class="pill ${ORDER_PILL[o.status]||'pill--draft'}">${esc(o.status)}</span></td>
+      <td>
+        <span class="pill ${ORDER_PILL[o.status]||'pill--draft'}">${esc(o.status)}</span>
+        ${o.receipt_path && o.payment_status !== 'paid'
+          ? '<span class="pill pill--warn" title="A receipt is waiting to be checked">receipt</span>' : ''}
+      </td>
       <td style="text-align:right;"><button class="btn btn--sm" onclick="openOrder('${o.id}')">View</button></td>
     </tr>`).join('') + '</tbody></table>';
 }
