@@ -38,7 +38,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Capacitor 8's CLI refuses to run on anything below 22.
+          node-version: '22'
           cache: npm
           cache-dependency-path: native/package-lock.json
 
