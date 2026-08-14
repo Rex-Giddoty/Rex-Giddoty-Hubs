@@ -17,9 +17,12 @@
   "scope": "/ops",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0c0c0d",
+  "background_color": "#e8e8ee",
   "theme_color": "#0c0c0d",
-  "categories": ["business", "productivity"],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/assets/ops-icon-192.png",
