@@ -193,6 +193,83 @@
     return tops.map(t => ({ ...t, children: all.filter(c => c.parent_id === t.id) }));
   };
 
+  /* ── the back button ──
+   * Android's back is a single button that means "undo the last thing that
+   * happened to my screen". A page that ignores it closes the whole app while
+   * a menu is open, which is the most annoying possible answer.
+   *
+   * Handlers are asked newest first and the first one to claim it wins, so what
+   * closes is whatever opened last. When nothing claims it and there is nowhere
+   * to go back to, the app asks once before leaving — a shop closing itself on
+   * a stray thumb is a lost sale.
+   */
+  const backHandlers = [];
+  window.RG_BACK = { add: fn => backHandlers.push(fn) };
+
+  let _exitArmed = false;
+  function runBack(canGoBack) {
+    for (let i = backHandlers.length - 1; i >= 0; i--) {
+      try { if (backHandlers[i]()) return 'handled'; } catch (_) { /* next */ }
+    }
+    if (canGoBack) { history.back(); return 'handled'; }
+
+    if (_exitArmed) return 'exit';
+    _exitArmed = true;
+    window.RG_TOAST('Press back again to exit');
+    setTimeout(() => { _exitArmed = false; }, 2000);
+    return 'handled';
+  }
+  window.RG_RUN_BACK = runBack;
+
+  /* Registered in reverse order of what sits on top, because handlers are asked
+     newest first — so the modal, which can open over any of the others, has to
+     be added last to be asked first. */
+  window.RG_BACK.add(() => {
+    const chatEl = document.querySelector('.chat--open .chat__x');
+    if (!chatEl) return false;
+    chatEl.click();
+    return true;
+  });
+  window.RG_BACK.add(() => {
+    const d = document.querySelector('.drawer.on');
+    if (!d) return false;
+    /* Closed here rather than by clicking the backdrop: that click only does
+       anything once the header has mounted, and back has to work before then. */
+    const bg = d.querySelector('[data-close]');
+    if (bg) bg.click();
+    d.classList.remove('open');
+    d.classList.remove('on');
+    return true;
+  });
+  window.RG_BACK.add(() => {
+    const m = document.querySelector('.gmodal.on');
+    if (!m) return false;
+    m.classList.remove('on');
+    return true;
+  });
+
+  /* In the app the button is a real event we are handed. */
+  const capApp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+  if (capApp) {
+    capApp.addListener('backButton', ({ canGoBack }) => {
+      if (runBack(canGoBack) === 'exit') capApp.exitApp();
+    });
+  } else if (matchMedia('(display-mode: standalone)').matches) {
+    /* Installed from the browser instead: there is no event, only history. A
+       guard entry is pushed once, and only when there is nothing behind us —
+       pushing one on every page would make back need two presses everywhere. */
+    let guarded = false;
+    const guard = () => { history.pushState({ rgBack: 1 }, ''); guarded = true; };
+    if (history.length <= 1) guard();
+
+    addEventListener('popstate', () => {
+      if (!guarded) return;              /* a real navigation, leave it alone */
+      guarded = false;
+      if (runBack(false) === 'exit') return;   /* let the next one leave */
+      guard();
+    });
+  }
+
   /* ── how an order was paid ──
    * The database stores a slug; nobody wants to read "paystack" on a receipt.
    * The transfer case names the actual bank, because "bank transfer" does not

@@ -522,7 +522,42 @@ function paintInstall() {
 addEventListener('beforeinstallprompt', () => setTimeout(paintInstall, 0));
 addEventListener('load', () => setTimeout(paintInstall, 800));
 
+/* ── the back button ──
+ * Sections are kept in a list of their own rather than in browser history: the
+ * console is one page, and pushing a URL per tab would fill the history with
+ * entries that all look identical in a back stack.
+ */
+const _seen = ['home'];
+let _goingBack = false;
+
+if (window.RG_BACK) {
+  RG_BACK.add(() => {
+    const m = document.querySelector('.modal.open');
+    if (!m) return false;
+    closeModal(m.id);
+    return true;
+  });
+  RG_BACK.add(() => {
+    if (!_side.classList.contains('on')) return false;
+    closeSide();
+    return true;
+  });
+  RG_BACK.add(() => {
+    if (_seen.length < 2) return false;
+    _seen.pop();
+    const back = _seen[_seen.length - 1];
+    const tab = document.querySelector('.tab[data-page="' + back + '"]');
+    if (!tab) return false;
+    _goingBack = true;
+    tab.click();
+    _goingBack = false;
+    return true;
+  });
+}
+
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  /* Going back must not add to the list it is walking. */
+  if (!_goingBack && _seen[_seen.length - 1] !== t.dataset.page) _seen.push(t.dataset.page);
   /* The bar says where you are, now that the sections are not sitting in it. */
   document.getElementById('here').textContent = t.textContent.trim();
   closeSide();
