@@ -1152,26 +1152,27 @@ function watchSupport() {
  * Deliberately not a toast: a toast is for something you did and it disappears
  * whether or not you saw it. This waits.
  */
-let _msgboxTimer = null;
+let _msgboxTimer = null, _lastBell = 0;
 
-function announceMessage(m) {
-  loadThreads();                       /* the list and the dot, as before */
+/* Realtime and the push can both describe the same message, arriving a moment
+   apart. Two boxes would be one too many and two bells plainly wrong. */
+function bellOnce() {
+  const now = Date.now();
+  if (now - _lastBell < 4000) return;
+  _lastBell = now;
   if (window.RG_BELL) window.RG_BELL();
+}
 
+function showMessageBox(who, text, onOpen) {
   const box = document.getElementById('msgbox');
-  const t = _threads.find(x => x.id === m.thread_id);
+  bellOnce();
 
-  document.getElementById('msgbox-who').textContent =
-    (t && (t.full_name || t.email)) || 'A customer';
-  document.getElementById('msgbox-text').textContent =
-    (m.body || '').trim().slice(0, 140) || 'Sent an attachment';
+  document.getElementById('msgbox-who').textContent = who;
+  document.getElementById('msgbox-text').textContent = text;
 
-  document.getElementById('msgbox-open').onclick = () => {
-    hideMessageBox();
-    const tab = document.querySelector('.tab[data-page="support"]');
-    if (tab) tab.click();
-    openThread(m.thread_id);
-  };
+  const openBtn = document.getElementById('msgbox-open');
+  openBtn.style.display = onOpen ? '' : 'none';
+  openBtn.onclick = onOpen ? () => { hideMessageBox(); onOpen(); } : null;
   document.getElementById('msgbox-close').onclick = hideMessageBox;
 
   box.hidden = false;
@@ -1183,6 +1184,35 @@ function announceMessage(m) {
   clearTimeout(_msgboxTimer);
   _msgboxTimer = setTimeout(hideMessageBox, 25000);
 }
+
+const goTo = page => {
+  const tab = document.querySelector('.tab[data-page="' + page + '"]');
+  if (tab) tab.click();
+};
+
+/* over realtime, while ops has the page open */
+function announceMessage(m) {
+  loadThreads();                       /* the list and the dot, as before */
+  const t = _threads.find(x => x.id === m.thread_id);
+  showMessageBox(
+    (t && (t.full_name || t.email)) || 'A customer',
+    (m.body || '').trim().slice(0, 140) || 'Sent an attachment',
+    () => { goTo('support'); openThread(m.thread_id); });
+}
+
+/* and through Firebase, which is the path that carries an order as well —
+   and the only one that still works if realtime has quietly dropped. */
+addEventListener('rg-push', e => {
+  e.preventDefault();                  /* tells site.js not to toast it */
+  const d = e.detail || {};
+  const title = d.title || 'Rex-Giddoty Hubs';
+  const open = /order/i.test(title)   ? () => goTo('orders')
+             : /message/i.test(title) ? () => goTo('support')
+             : null;
+  showMessageBox(title, d.body || '', open);
+  if (/message/i.test(title)) loadThreads();
+  if (/order/i.test(title))   loadOrders();
+});
 
 function hideMessageBox() {
   clearTimeout(_msgboxTimer);

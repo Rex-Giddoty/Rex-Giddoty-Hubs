@@ -1255,6 +1255,14 @@
     /* Arriving while the app is already open. Android posts no banner then, so
        this is where the shop's own double bell earns its keep. */
     P.addListener('pushNotificationReceived', (n) => {
+      /* Android draws no banner of its own while the app is in front — it hands
+         the message straight here instead, which is why a notification that
+         arrives with the app open looks like nothing happened.
+         A page that wants to show it properly says so by cancelling this; the
+         toast is only what is left for pages that do not. */
+      const shown = !window.dispatchEvent(
+        new CustomEvent('rg-push', { detail: n || {}, cancelable: true }));
+      if (shown) return;
       window.RG_BELL();
       if (n && n.title) window.RG_TOAST(n.title);
     });
