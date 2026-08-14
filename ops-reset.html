@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Set a new password — Operations</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:#0c0c0d;color:#ececec;-webkit-font-smoothing:antialiased;}
+.wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.card{width:100%;max-width:380px;background:#141416;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:34px 30px;}
+.brand{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#8b8b90;text-align:center;margin-bottom:6px;}
+h1{font-size:19px;font-weight:600;text-align:center;margin-bottom:10px;letter-spacing:-.2px;}
+.lede{font-size:12.5px;color:#8b8b90;line-height:1.55;margin-bottom:20px;text-align:center;}
+label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#8b8b90;margin-bottom:6px;}
+input{width:100%;height:44px;background:#0c0c0d;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:0 44px 0 13px;color:#ececec;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;}
+input:focus{border-color:#8b8b90;}
+.field{margin-bottom:16px;position:relative;}
+.peek{position:absolute;right:4px;bottom:4px;width:36px;height:36px;background:none;border:0;color:#8b8b90;cursor:pointer;font-size:12px;}
+.peek:hover{color:#ececec;}
+.hint{font-size:11.5px;color:#5c5c63;margin-top:6px;}
+button.go{width:100%;height:44px;background:#ececec;color:#0c0c0d;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;}
+button.go:hover{opacity:.88;}
+button.go:disabled{opacity:.5;cursor:not-allowed;}
+.err{background:rgba(220,60,60,.1);border:1px solid rgba(220,60,60,.3);color:#ff9b9b;font-size:12.5px;border-radius:8px;padding:10px 12px;margin-bottom:16px;display:none;line-height:1.5;}
+.ok{background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);color:#8fe3bd;font-size:12.5px;border-radius:8px;padding:10px 12px;margin-bottom:16px;display:none;line-height:1.5;}
+a{color:#ececec;}
+.back{margin-top:16px;text-align:center;font-size:12.5px;color:#8b8b90;}
+.by{margin-top:18px;text-align:center;font-size:11px;color:#5c5c63;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="brand">Rex-Giddoty Hubs</div>
+    <h1>Set a new password</h1>
+    <p class="lede" id="lede">Checking your link…</p>
+
+    <div class="err" id="err"></div>
+    <div class="ok" id="ok"></div>
+
+    <form id="form" style="display:none;">
+      <div class="field">
+        <label for="pw">New password</label>
+        <input type="password" id="pw" autocomplete="new-password" required/>
+        <button type="button" class="peek" id="peek" aria-label="Show password">show</button>
+        <div class="hint">At least 8 characters. Not one you use anywhere else.</div>
+      </div>
+      <button type="submit" class="go" id="go">Save new password</button>
+    </form>
+
+    <div class="back"><a href="/ops-login.html">Back to sign in</a></div>
+  </div>
+
+  <div class="by">Developed by Jayrex inc<br/>on August 11, 2026</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/supabase.js"></script>
+<script>
+const db = window.RG_DB;
+const err = document.getElementById('err');
+const ok  = document.getElementById('ok');
+const lede = document.getElementById('lede');
+const form = document.getElementById('form');
+
+const fail = m => { ok.style.display = 'none'; err.textContent = m; err.style.display = 'block'; };
+const said = m => { err.style.display = 'none'; ok.innerHTML = m; ok.style.display = 'block'; };
+
+document.getElementById('peek').onclick = () => {
+  const pw = document.getElementById('pw');
+  const showing = pw.type === 'text';
+  pw.type = showing ? 'password' : 'text';
+  document.getElementById('peek').textContent = showing ? 'show' : 'hide';
+  pw.focus();
+};
+
+/* ── proving the link ──
+ * The link carries a token hash rather than being a one-time URL that spends
+ * itself on any GET. That matters more than it sounds: mail providers and
+ * security scanners fetch links before a human ever sees them, and a link that
+ * is consumed by being looked at is a link that is always already expired.
+ * Nothing here is spent until this page asks for it.
+ */
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const token_hash = q.get('token_hash');
+
+  if (token_hash) {
+    const { error } = await db.auth.verifyOtp({ type: 'recovery', token_hash });
+    if (error) {
+      lede.textContent = '';
+      fail(error.message + '. Reset links last one hour and work once — ask for a new one from the sign-in page.');
+      return;
+    }
+    /* Out of the address bar: it is spent, and leaving it there means a
+       bookmark or a shared screenshot carries it. */
+    history.replaceState(null, '', '/ops-reset.html');
+  } else {
+    /* Older links, and any that arrive with the session already in the hash. */
+    const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+    if (hash.get('error_description')) {
+      lede.textContent = '';
+      fail(hash.get('error_description') + '. Ask for a new link from the sign-in page.');
+      return;
+    }
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) {
+      lede.textContent = '';
+      fail('This page needs a reset link. Ask for one from the sign-in page.');
+      return;
+    }
+  }
+
+  lede.textContent = 'Choose something you do not use anywhere else.';
+  form.style.display = '';
+  document.getElementById('pw').focus();
+})();
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const go = document.getElementById('go');
+  const pw = document.getElementById('pw').value;
+  if (pw.length < 8) return fail('Use at least 8 characters.');
+
+  go.disabled = true; go.textContent = 'Saving…';
+  const { error } = await db.auth.updateUser({ password: pw });
+  go.disabled = false; go.textContent = 'Save new password';
+
+  if (error) return fail(error.message);
+
+  form.style.display = 'none';
+  lede.textContent = '';
+  said('Your password is updated. <a href="/ops-login.html">Sign in to operations</a>.');
+});
+</script>
+</body>
+</html>

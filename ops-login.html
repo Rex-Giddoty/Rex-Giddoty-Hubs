@@ -139,7 +139,8 @@ resetForm.addEventListener('submit', async e => {
   rbtn.disabled = true; rbtn.textContent = 'Sending…';
   /* ops=1 so the link comes back here afterwards rather than to the shop. */
   const { error } = await db.auth.resetPasswordForEmail(addr, {
-    redirectTo: location.origin + '/reset-password.html?ops=1',
+    /* Staff never touch the storefront to get back into the console. */
+    redirectTo: location.origin + '/ops-reset.html',
   });
   rbtn.disabled = false; rbtn.textContent = 'Send the link';
 
