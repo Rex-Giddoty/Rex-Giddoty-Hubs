@@ -203,6 +203,9 @@
   <div class="sheet" style="max-width:560px;">
     <h3 id="customer-modal-title">Customer</h3>
     <div id="customer-detail"></div>
+    <!-- Its own card, below the details, because money is a different question
+         from who somebody is. -->
+    <div class="card" id="cust-balance" style="padding:13px;margin-top:14px;"></div>
     <div class="row-actions">
       <button class="btn btn--danger" id="cu-delete" onclick="deleteCustomer()">Delete account</button>
       <div class="spacer"></div>
@@ -1077,6 +1080,7 @@ function openCustomer(id) {
   const c = _editCustomer;
 
   document.getElementById('customer-modal-title').textContent = c.full_name || c.email || 'Customer';
+  paintCustomerBalance(c);
   document.getElementById('customer-detail').innerHTML = `
     <div class="grid">
       <div><label class="f">Email</label><input class="inp" value="${esc(c.email || '')}" disabled/></div>
@@ -1802,6 +1806,81 @@ async function viewReceipt(id) {
     closeModal('receipt-modal');
     await markPaid(id);
   };
+}
+
+/* ── a customer's store balance ──
+ * Read from the ledger every time it is opened rather than carried around, so
+ * what staff see is the same sum the shop charges against.
+ */
+async function paintCustomerBalance(c) {
+  const box = document.getElementById('cust-balance');
+  if (!box) return;
+  box.innerHTML = '<span class="muted">Loading balance…</span>';
+
+  const { data: rows, error } = await db.from('wallet_entries')
+    .select('amount_minor,kind,note,created_at')
+    .eq('user_id', c.id).order('created_at', { ascending: false }).limit(20);
+  if (error) { box.innerHTML = '<span class="muted">' + esc(error.message) + '</span>'; return; }
+
+  const all = rows || [];
+  const bal = all.reduce((n, r) => n + Number(r.amount_minor), 0);
+
+  box.innerHTML = `
+    <div class="head" style="margin-bottom:10px;">
+      <h3 style="font-size:13px;">Store balance</h3>
+      <b style="font-size:17px;">${esc(M.fmt(bal, _settings.currency))}</b>
+      <div class="spacer"></div>
+      <button class="btn btn--sm btn--primary" onclick="creditBalance('${c.id}')">Add money</button>
+      <button class="btn btn--sm" onclick="debitBalance('${c.id}')">Take off</button>
+    </div>
+    ${all.length ? all.map(r => `
+      <div class="balrow">
+        <div><b>${esc({topup:'Added',spend:'Spent',refund:'Refunded',adjustment:'Adjustment'}[r.kind] || r.kind)}</b>
+          ${r.note ? `<span>${esc(r.note)}</span>` : ''}
+          <span>${new Date(r.created_at).toLocaleString('en-GB')}</span></div>
+        <i class="${r.amount_minor > 0 ? 'in' : 'out'}">${r.amount_minor > 0 ? '+' : '−'}${esc(M.fmt(Math.abs(r.amount_minor), _settings.currency))}</i>
+      </div>`).join('')
+      : '<span class="muted">No balance activity yet.</span>'}`;
+}
+
+async function creditBalance(userId) {
+  const amount = prompt('How much to add? (in ' + (_settings.currency || 'NGN') + ')');
+  if (!amount) return;
+  const minor = M.toMinor(amount);
+  if (!minor || minor <= 0) return toast('That is not an amount', true);
+
+  const note = prompt('A note — where did it come from?\n\nThis is the only record of why, so name the transfer.',
+    'Bank transfer') || null;
+  if (!confirm('Add ' + M.fmt(minor, _settings.currency) + ' to this balance?\n\n'
+    + 'Only do this once you have seen the money arrive.')) return;
+
+  window.RG_BUSY.show('Adding to balance');
+  const { error } = await db.rpc('admin_credit_balance',
+    { p_user: userId, p_amount_minor: minor, p_note: note });
+  window.RG_BUSY.hide();
+  if (error) return toast(error.message, true);
+  toast('Balance updated');
+  const c = _customers.find(x => x.id === userId);
+  if (c) paintCustomerBalance(c);
+}
+
+async function debitBalance(userId) {
+  const amount = prompt('How much to take off? (in ' + (_settings.currency || 'NGN') + ')');
+  if (!amount) return;
+  const minor = M.toMinor(amount);
+  if (!minor || minor <= 0) return toast('That is not an amount', true);
+
+  const note = prompt('Why? This is the only record of it.', 'Correction') || null;
+  if (!confirm('Take ' + M.fmt(minor, _settings.currency) + ' off this balance?')) return;
+
+  window.RG_BUSY.show('Updating balance');
+  const { error } = await db.rpc('admin_debit_balance',
+    { p_user: userId, p_amount_minor: minor, p_note: note });
+  window.RG_BUSY.hide();
+  if (error) return toast(error.message, true);
+  toast('Balance updated');
+  const c = _customers.find(x => x.id === userId);
+  if (c) paintCustomerBalance(c);
 }
 
 async function markPaid(id) {

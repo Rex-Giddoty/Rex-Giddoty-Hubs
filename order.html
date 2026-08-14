@@ -57,6 +57,7 @@
         <span>To pay</span><span id="o-pay"></span>
       </div>
       <div id="pay-msg" style="margin-top:10px;"></div>
+      <button class="btn btn--full btn--lg" id="bal-go" style="display:none;margin-top:10px;">Pay from my balance</button>
       <button class="btn btn--full btn--lg" id="pay-go" style="margin-top:10px;">Pay now</button>
 
       <!-- Only for a transfer. There is nothing to prove when a card cleared. -->
@@ -285,6 +286,7 @@ const gate = (h, p, label, href) => {
 
   if (owing) {
     document.getElementById('pay-inst').textContent = s.payment_instructions || '';
+    paintBalanceOption(o, s);
 
     if (s.payment_mode === 'paystack') {
       document.getElementById('pay-go').onclick = () => payNow(o);
@@ -308,6 +310,33 @@ const gate = (h, p, label, href) => {
     }
   }
 })();
+
+/* ── the store balance ──
+ * Offered on an unpaid order whatever else is on the page: an order left
+ * waiting because a card failed is exactly when somebody remembers they have
+ * credit sitting here.
+ */
+async function paintBalanceOption(o, s) {
+  const btn = document.getElementById('bal-go');
+  const { data } = await db.rpc('my_balance');
+  const bal = Number(data || 0);
+  if (bal < o.total_minor) return;
+
+  btn.textContent = 'Pay from my balance (' + M.fmt(bal, s.currency) + ')';
+  btn.style.display = '';
+  btn.onclick = async () => {
+    btn.disabled = true; btn.textContent = 'Paying…';
+    const { data: res, error } = await db.rpc('pay_order_from_balance', { p_order: o.id });
+    if (error || !res || !res.ok) {
+      btn.disabled = false; btn.textContent = 'Pay from my balance';
+      document.getElementById('pay-msg').innerHTML =
+        '<div class="msg msg--warn">' + esc(error ? error.message
+          : 'Your balance no longer covers this order.') + '</div>';
+      return;
+    }
+    location.reload();
+  };
+}
 
 /* ── the receipt ──
  * A customer who has sent the money has done their part. Making them find the

@@ -26,6 +26,7 @@
       <span id="who-email"></span>
     </div>
     <a href="#profile"   data-pane="profile">Profile</a>
+    <a href="#balance"   data-pane="balance">Store balance</a>
     <a href="#orders"    data-pane="orders">My orders</a>
     <a href="#addresses" data-pane="addresses">Addresses</a>
     <a href="#password"  data-pane="password">Password</a>
@@ -33,6 +34,25 @@
   </aside>
 
   <main>
+    <!-- store balance -->
+    <section class="acct__panel pane" id="pane-balance">
+      <h1>Store balance</h1>
+      <p class="lede">Money you have with us, to spend on anything in the shop.</p>
+
+      <div class="balbox">
+        <span>Available</span>
+        <b id="bal-amount">—</b>
+      </div>
+
+      <div class="balnote">
+        <b>Adding money</b>
+        <p id="bal-how"></p>
+      </div>
+
+      <h2 style="font-size:15px;margin:22px 0 10px;">Statement</h2>
+      <div id="bal-list"><p class="lede">Loading…</p></div>
+    </section>
+
     <!-- profile -->
     <section class="acct__panel pane" id="pane-profile">
       <h2>Profile</h2>
@@ -162,6 +182,7 @@ const note = (el, kind, text) => {
   openPane(location.hash.replace('#', '') || 'profile');
   loadOrders();
   loadAddresses();
+  loadBalance();
 })();
 
 /* The switch reads the real state each time rather than remembering one:
@@ -210,9 +231,48 @@ async function paintPush() {
   };
 }
 
+/* ── store balance ──
+ * Read from the ledger, never from a number kept somewhere. What is shown here
+ * is the same sum the shop charges against, so the two cannot disagree.
+ */
+async function loadBalance() {
+  const s = await window.RG_SETTINGS();
+  document.getElementById('bal-how').textContent = s.balance_instructions
+    || 'Transfer to the shop account and send us the receipt from your order, '
+     + 'or message us on chat — we add it to your balance once it lands.';
+
+  const { data: bal } = await db.rpc('my_balance');
+  document.getElementById('bal-amount').textContent = M.fmt(bal || 0, s.currency);
+
+  const { data: rows, error } = await db.from('wallet_entries')
+    .select('id,amount_minor,kind,note,created_at')
+    .order('created_at', { ascending: false }).limit(100);
+
+  const box = document.getElementById('bal-list');
+  if (error) { box.innerHTML = '<p class="lede">' + esc(error.message) + '</p>'; return; }
+  if (!rows || !rows.length) {
+    box.innerHTML = '<p class="lede">Nothing yet. Once you add money it is listed here.</p>';
+    return;
+  }
+
+  const KIND = { topup: 'Added', spend: 'Spent', refund: 'Refunded', adjustment: 'Adjustment' };
+  box.innerHTML = rows.map(r => {
+    const inb = r.amount_minor > 0;
+    return `<div class="balrow">
+      <div>
+        <b>${esc(KIND[r.kind] || r.kind)}</b>
+        ${r.note ? `<span>${esc(r.note)}</span>` : ''}
+        <span>${new Date(r.created_at).toLocaleString('en-NG',
+          { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+      </div>
+      <i class="${inb ? 'in' : 'out'}">${inb ? '+' : '−'}${esc(M.fmt(Math.abs(r.amount_minor), s.currency))}</i>
+    </div>`;
+  }).join('');
+}
+
 /* ── panes ── */
 function openPane(name) {
-  const valid = ['profile','orders','addresses','password'];
+  const valid = ['profile','balance','orders','addresses','password'];
   if (!valid.includes(name)) name = 'profile';
   document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
   document.getElementById('pane-' + name).classList.add('on');

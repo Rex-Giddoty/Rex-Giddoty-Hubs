@@ -542,3 +542,13 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
 .bub:hover .bub__copy,.bub__copy:focus{opacity:1;}
 .bub__copy:hover{color:var(--text);text-decoration:underline;}
 @media (hover:none){ .bub__copy{opacity:.65;} }
+
+/* A customer's balance, in their panel. */
+.balrow{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding:9px 0;border-top:1px solid var(--b);}
+.balrow:first-child{border-top:0;}
+.balrow b{display:block;font-size:12.5px;font-weight:600;}
+.balrow span{display:block;font-size:11px;color:var(--sub);line-height:1.5;}
+.balrow i{font-style:normal;font-weight:600;font-size:12.5px;white-space:nowrap;}
+.balrow i.in{color:var(--green);}
+.balrow i.out{color:var(--text);}
