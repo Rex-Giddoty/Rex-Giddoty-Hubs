@@ -111,6 +111,10 @@ Deno.serve(async (req) => {
 
   let sent = 0;
   const dead: string[] = [];
+  /* Carried back to the caller rather than only to the log. Only the database
+     can reach this function, so there is nobody to leak to — and a silent
+     "sent:0, dropped:0" is impossible to diagnose from the outside. */
+  const errors: string[] = [];
 
   await Promise.all(rows.map(async (r) => {
     const message = {
@@ -144,10 +148,10 @@ Deno.serve(async (req) => {
        the row means trying again for ever. */
     const text = await res.text();
     if (res.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/.test(text)) dead.push(r.id);
-    else console.error('fcm', res.status, text);
+    else { console.error('fcm', res.status, text); errors.push(res.status + ' ' + text.slice(0, 300)); }
   }));
 
   if (dead.length) await admin.from('device_tokens').delete().in('id', dead);
 
-  return Response.json({ sent, dropped: dead.length });
+  return Response.json({ sent, dropped: dead.length, errors });
 });
