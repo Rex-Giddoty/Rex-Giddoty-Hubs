@@ -1,11 +1,5 @@
 # Builds the Android app in the cloud.
 #
-# NOTE ON ITS LOCATION: this file has to sit at .github/workflows/android.yml to
-# run. It is kept here because the deploy token this repository pushes with has
-# no 'workflow' scope, and GitHub refuses a push that writes to .github/workflows
-# without it. Copy it into place through GitHub's web editor, or grant the token
-# the Workflows permission and it can be moved for you.
-#
 # There is no Android Studio and no JDK on the shop's machine, and installing
 # them is about ten gigabytes — so the build happens here instead. Push a tag
 # like v2.0, or press "Run workflow" in the Actions tab, and a signed APK and
