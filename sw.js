@@ -8,7 +8,7 @@
  *
  * Bump CACHE when the shell changes; the old one is deleted on activate.
  */
-const CACHE = 'rg-shell-v9';
+const CACHE = 'rg-shell-v10';
 
 const SHELL = [
   '/',

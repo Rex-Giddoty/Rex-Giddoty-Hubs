@@ -747,6 +747,11 @@ function bump(d) {
 
 document.getElementById('add').onclick = () => {
   if (!_v || _v.stock <= 0) return;
+  /* The gallery's big picture, or its first thumbnail when a clip is showing. */
+  const big = document.getElementById('big-img');
+  window.RG_FLY(big && big.tagName === 'IMG'
+    ? big : document.querySelector('.gal__thumbs img'));
+
   window.RG_BAG.add(_v.id, _qty);
   window.RG_TOAST(_qty + ' added to cart');
 };

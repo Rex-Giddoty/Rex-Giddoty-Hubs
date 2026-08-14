@@ -1178,3 +1178,13 @@ textarea.inp{resize:vertical;min-height:74px;}
 .skpdp__chips{display:flex;gap:7px;margin:14px 0 0;}
 .skpdp__chips .sk{width:58px;height:32px;border-radius:16px;}
 .skpdp__btn{height:42px;border-radius:22px;margin-top:16px;}
+
+/* ── the item on its way to the cart ──
+ * Fixed, above everything, and deaf to clicks: it is a picture of a thing
+ * moving, not a thing.
+ */
+.flyer{position:fixed;z-index:9999;pointer-events:none;
+  background-size:cover;background-position:center;background-color:#fff;
+  border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.28);
+  will-change:transform,opacity;}
+.flyer--blank{background:var(--brand);}

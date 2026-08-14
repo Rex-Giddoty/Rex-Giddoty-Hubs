@@ -796,12 +796,87 @@
   }
   window.addEventListener('resize', () => { clearTimeout(window.__crsT); window.__crsT = setTimeout(syncCarousels, 120); });
 
+  /* ── flying to the cart ──
+   * A confirmation you can see without reading one. The toast says the same
+   * thing at the bottom of the screen while the cart sits at the top, and
+   * nothing joins the two — so an item appears to have gone nowhere. This draws
+   * the line between them.
+   */
+  const cartTarget = () => {
+    const seen = [...document.querySelectorAll('[data-bag-count]')]
+      .map(el => el.closest('a'))
+      .filter(el => {
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+    /* The one in the header by preference — that is the corner being aimed at.
+       The tab bar's cart is the fallback, for anywhere the header is not. */
+    return seen.find(el => el.closest('.hdr')) || seen[0] || null;
+  };
+
+  window.RG_FLY = function (from) {
+    const target = cartTarget();
+    if (!target) return;
+
+    /* Somebody who has asked for less motion still gets the answer, just
+       without the journey. */
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return bumpCart(target);
+
+    const a = from && from.getBoundingClientRect();
+    const b = target.getBoundingClientRect();
+    if (!a || !a.width || !b.width) return bumpCart(target);
+
+    /* A video has no src worth cloning and a missing image would fly as a
+       broken icon, so those travel as a plain brand-coloured disc instead. */
+    const src = from.tagName === 'IMG' ? (from.currentSrc || from.src) : '';
+    const ghost = document.createElement('div');
+    ghost.className = 'flyer' + (src ? '' : ' flyer--blank');
+    if (src) ghost.style.backgroundImage = 'url("' + src + '")';
+    ghost.style.left = a.left + 'px';
+    ghost.style.top = a.top + 'px';
+    ghost.style.width = a.width + 'px';
+    ghost.style.height = a.height + 'px';
+    document.body.appendChild(ghost);
+
+    const dx = (b.left + b.width / 2) - (a.left + a.width / 2);
+    const dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+
+    /* Thrown rather than dragged: it rises before it falls into the cart, which
+       is what makes it read as an object rather than a sliding rectangle. */
+    const lift = Math.min(140, Math.max(60, Math.abs(dy) * 0.45));
+
+    const flight = ghost.animate([
+      { transform: 'translate(0,0) scale(1)', opacity: 1, borderRadius: '10px' },
+      { transform: 'translate(' + (dx * 0.45) + 'px,' + (dy * 0.4 - lift) + 'px) scale(.5)',
+        opacity: .95, borderRadius: '40%', offset: .55 },
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.1)',
+        opacity: .2, borderRadius: '50%' },
+    ], { duration: 720, easing: 'cubic-bezier(.4,0,.5,1)' });
+
+    const land = () => { ghost.remove(); bumpCart(target); };
+    flight.onfinish = land;
+    /* If the tab is hidden mid-flight the animation may never finish, and a
+       stray ghost pinned over the page is worse than no animation at all. */
+    setTimeout(() => { if (document.body.contains(ghost)) land(); }, 1400);
+  };
+
+  function bumpCart(target) {
+    if (!target || !target.animate) return;
+    target.animate([
+      { transform: 'scale(1)' },
+      { transform: 'scale(1.32)' },
+      { transform: 'scale(1)' },
+    ], { duration: 420, easing: 'cubic-bezier(.34,1.56,.64,1)' });
+  }
+
   /* One listener for every grid rather than one per card. */
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-add]');
     if (!b) return;
     e.preventDefault();
     Bag.add(b.dataset.add, 1);
+    window.RG_FLY(b.closest('.pcard') && b.closest('.pcard').querySelector('img'));
     window.RG_TOAST('Added to cart');
   });
 
