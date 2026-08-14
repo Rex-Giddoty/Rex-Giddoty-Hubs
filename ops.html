@@ -343,6 +343,22 @@
 
 <!-- CATEGORY MODAL -->
 <!-- ORDER MODAL -->
+<!-- The receipt is looked at here rather than handed to a browser. In the ops
+     app a new tab leaves the app entirely, and the link is a five-minute signed
+     URL — by the time you have found your way back it may well have expired. -->
+<div class="modal" id="receipt-modal">
+  <div class="sheet" style="max-width:760px;">
+    <h3 id="receipt-title">Receipt</h3>
+    <div id="receipt-view" class="rcpt"></div>
+    <div class="row-actions">
+      <a class="btn" id="receipt-open" target="_blank" rel="noopener" style="display:none;">Open full size</a>
+      <div class="spacer"></div>
+      <button class="btn btn--primary" id="receipt-paid">Mark payment received</button>
+      <button class="btn" onclick="closeModal('receipt-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="order-modal">
   <div class="sheet" style="max-width:640px;">
     <h3 id="order-modal-title">Order</h3>
@@ -1671,9 +1687,11 @@ function renderOrders() {
       <td class="muted">${(o.order_items||[]).reduce((s,i)=>s+i.quantity,0)}</td>
       <td>${M.fmt(o.total_minor, o.currency)}</td>
       <td>
-        <span class="pill ${ORDER_PILL[o.status]||'pill--draft'}">${esc(o.status)}</span>
-        ${o.receipt_path && o.payment_status !== 'paid'
-          ? '<span class="pill pill--warn" title="A receipt is waiting to be checked">receipt</span>' : ''}
+        <div class="pills">
+          <span class="pill ${ORDER_PILL[o.status]||'pill--draft'}">${esc(o.status)}</span>
+          ${o.receipt_path && o.payment_status !== 'paid'
+            ? '<span class="pill pill--warn" title="A receipt is waiting to be checked">receipt</span>' : ''}
+        </div>
       </td>
       <td style="text-align:right;"><button class="btn btn--sm" onclick="openOrder('${o.id}')">View</button></td>
     </tr>`).join('') + '</tbody></table>';
@@ -1689,10 +1707,40 @@ let _editOrder = null;
 async function viewReceipt(id) {
   const o = _orders.find(x => x.id === id);
   if (!o || !o.receipt_path) return;
+
+  const view = document.getElementById('receipt-view');
+  document.getElementById('receipt-title').textContent = 'Receipt — ' + o.order_number;
+  view.innerHTML = '<div class="muted" style="padding:20px;">Loading…</div>';
+  openModal('receipt-modal');
+
+  /* Five minutes is enough to look at it and long enough that a slow phone
+     does not lose it mid-scroll. */
   const { data, error } = await db.storage.from('receipts')
     .createSignedUrl(o.receipt_path, 300);
-  if (error) return toast(error.message, true);
-  window.open(data.signedUrl, '_blank', 'noopener');
+  if (error) {
+    view.innerHTML = '<div class="muted" style="padding:20px;">' + esc(error.message) + '</div>';
+    return;
+  }
+
+  const pdf = /\.pdf($|\?)/i.test(o.receipt_path);
+  view.innerHTML = pdf
+    /* A PDF cannot be an <img>, and an <embed> is the one thing that renders it
+       inline on both a desktop browser and the app's WebView. */
+    ? '<embed src="' + esc(data.signedUrl) + '" type="application/pdf"/>'
+    : '<img src="' + esc(data.signedUrl) + '" alt="Payment receipt"/>';
+
+  /* Kept as a way out for anything neither of those can show. */
+  const open = document.getElementById('receipt-open');
+  open.href = data.signedUrl;
+  open.style.display = '';
+
+  /* Confirming from here, where the receipt is actually in front of you. */
+  const paid = document.getElementById('receipt-paid');
+  paid.style.display = o.payment_status === 'paid' ? 'none' : '';
+  paid.onclick = async () => {
+    closeModal('receipt-modal');
+    await markPaid(id);
+  };
 }
 
 async function markPaid(id) {
