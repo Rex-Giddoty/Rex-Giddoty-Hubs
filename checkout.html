@@ -124,7 +124,11 @@ const gate = (h, p, label, href) => {
     return gate('One item sold out', 'Something in your cart is no longer available.', 'Review my cart', '/bag.html');
 
   document.getElementById('wrap').style.display = '';
-  paintBank();
+  /* The two that matter are awaited on their own. A panel that cannot draw
+     itself must not be able to take the address form and the total with it,
+     which is exactly what happened when the bank rows were removed and the
+     function that filled them was left behind. */
+  try { paintPayNote(); } catch (err) { console.error('pay note', err); }
   await loadAddresses();
   paintSummary();
 })();
@@ -189,17 +193,13 @@ function paintSummary() {
   document.getElementById('s-total').textContent = M.fmt(sub + ship, cur);
 }
 
-function paintBank() {
-  const rows = [
-    ['Bank',           _settings.bank_name],
-    ['Account name',   _settings.bank_account_name],
-    ['Account number', _settings.bank_account_number],
-  ].filter(r => r[1]);
-  document.getElementById('bank').innerHTML = rows.length
-    ? rows.map(([k, v]) => `<div class="bank__row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')
-    : '<p class="note" style="margin:0;">Transfer details will be sent to you once the order is placed.</p>';
-  document.getElementById('pay-inst').textContent =
-    _settings.payment_instructions || 'Transfer the order total, then reply to your confirmation email with the receipt.';
+/* The bank rows are gone with the transfer, but the shop can still say
+   something of its own here — delivery times, a note about confirmations —
+   without it being about where to send money. */
+function paintPayNote() {
+  const el = document.getElementById('pay-inst');
+  if (!el) return;
+  el.textContent = _settings.payment_instructions || '';
 }
 
 /* ── place the order ── */
