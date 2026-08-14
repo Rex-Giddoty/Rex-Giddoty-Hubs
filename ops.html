@@ -11,7 +11,22 @@
 <body>
 
 <div class="top">
+  <!-- Hidden once the drawer is pinned open, which is anywhere there is room
+       for it — see the wide-screen rules in ops.css. -->
+  <button class="burger" id="burger" aria-label="Sections" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
   <div class="brand">Rex-Giddoty</div>
+  <div class="here" id="here">Products</div>
+  <div class="spacer"></div>
+  <div class="who" id="who"></div>
+  <button class="btn btn--sm" id="notif-btn" style="display:none;"></button>
+  <button class="link" onclick="signOut()">Sign out</button>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="side" id="side">
   <div class="tabs">
     <button class="tab active" data-page="products">Products</button>
     <button class="tab" data-page="categories">Categories</button>
@@ -21,10 +36,7 @@
     <button class="tab" data-page="reviews">Reviews<span class="tab__dot" id="reviews-dot" style="display:none;"></span></button>
     <button class="tab" data-page="settings">Settings</button>
   </div>
-  <div class="who" id="who"></div>
-  <button class="btn btn--sm" id="notif-btn" style="display:none;"></button>
-  <button class="link" onclick="signOut()">Sign out</button>
-</div>
+</aside>
 
 <!-- PRODUCTS -->
 <div class="page active" id="page-products">
@@ -275,7 +287,64 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal').forEach(m =>
   m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
 
+/* ── the drawer ──
+ * Seven sections do not fit across the top of a phone, and the app is a phone
+ * now. Wide screens keep it pinned open — it is a menu either way, only the
+ * question of whether it needs asking for changes.
+ */
+const _side = document.getElementById('side');
+const _scrim = document.getElementById('scrim');
+const _burger = document.getElementById('burger');
+const pinned = () => matchMedia('(min-width: 1000px)').matches;
+
+function openSide() {
+  if (pinned()) return;
+  _side.classList.add('on');
+  _scrim.classList.add('on');
+  _burger.setAttribute('aria-expanded', 'true');
+}
+function closeSide() {
+  _side.classList.remove('on');
+  _scrim.classList.remove('on');
+  _burger.setAttribute('aria-expanded', 'false');
+}
+_burger.onclick = () => (_side.classList.contains('on') ? closeSide() : openSide());
+_scrim.onclick = closeSide;
+addEventListener('keydown', e => { if (e.key === 'Escape') closeSide(); });
+
+/* Swipe: from the left edge to open, anywhere on the drawer to close. The
+   drawer does not follow the finger — it is 240px of menu, not a photo, and a
+   flick either means open or it does not. */
+(function () {
+  let x0 = null, y0 = null, from = null;
+
+  addEventListener('touchstart', e => {
+    if (pinned() || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const open = _side.classList.contains('on');
+    /* Closed, only the edge starts a swipe, or every horizontal drag in a table
+       would open it. Open, anywhere does. */
+    if (!open && t.clientX > 24) return;
+    x0 = t.clientX; y0 = t.clientY; from = open ? 'open' : 'edge';
+  }, { passive: true });
+
+  addEventListener('touchmove', e => {
+    if (x0 === null || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - x0, dy = t.clientY - y0;
+    /* Mostly sideways, or it is a scroll and none of our business. */
+    if (Math.abs(dy) > Math.abs(dx)) { x0 = null; return; }
+    if (from === 'edge' && dx > 45) { openSide(); x0 = null; }
+    if (from === 'open' && dx < -45) { closeSide(); x0 = null; }
+  }, { passive: true });
+
+  addEventListener('touchend', () => { x0 = null; });
+})();
+
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  /* The bar says where you are, now that the sections are not sitting in it. */
+  document.getElementById('here').textContent = t.textContent.trim();
+  closeSide();
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
   t.classList.add('active');
