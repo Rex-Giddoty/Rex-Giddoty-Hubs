@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>How to use ops — Rex-Giddoty Hubs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/assets/ops.css"/>
+<link rel="manifest" href="/ops.webmanifest"/>
+<meta name="theme-color" content="#0c0c0d"/>
+<link rel="icon" href="/assets/ops-icon-192.png"/>
+<link rel="apple-touch-icon" href="/assets/ops-apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="Ops"/>
+<style>
+/* This page is prose, which the console has no styles for. */
+.guide{max-width:760px;margin:0 auto;padding:22px 18px 80px;}
+.guide h2{font-size:17px;font-weight:600;margin:34px 0 10px;padding-top:20px;
+  border-top:1px solid var(--b);letter-spacing:-.2px;}
+.guide h2:first-of-type{border-top:0;padding-top:0;margin-top:18px;}
+.guide h3{font-size:14px;font-weight:600;margin:20px 0 6px;}
+.guide p{font-size:13.5px;line-height:1.65;color:var(--text);margin-bottom:10px;}
+.guide p.sub{color:var(--sub);}
+.guide ul,.guide ol{margin:0 0 12px 18px;}
+.guide li{font-size:13.5px;line-height:1.65;margin-bottom:6px;}
+.guide b{font-weight:600;}
+.guide code{background:var(--s2);border:1px solid var(--b);border-radius:4px;
+  padding:1px 6px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace;}
+.guide .card{padding:14px 16px;margin:14px 0;}
+.guide .card p:last-child{margin-bottom:0;}
+.guide .warn{border-color:rgba(240,180,41,.35);}
+.guide .warn b{color:var(--amber);}
+.toc{display:flex;flex-wrap:wrap;gap:7px;margin:16px 0 6px;}
+.toc a{font-size:12.5px;color:var(--sub);border:1px solid var(--b);border-radius:20px;
+  padding:5px 12px;text-decoration:none;}
+.toc a:hover{color:var(--text);border-color:rgba(255,255,255,.2);}
+.gtop{display:flex;align-items:center;gap:12px;padding:13px 18px;
+  border-bottom:1px solid var(--b);background:var(--s1);position:sticky;top:0;z-index:10;}
+.gtop b{font-size:14px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<div class="gtop">
+  <a class="btn btn--sm" href="/ops.html">← Back to ops</a>
+  <b>How to use ops</b>
+</div>
+
+<div class="guide">
+
+  <p class="sub">Everything the operations console does, in the order you will
+    actually need it. Nothing here changes the shop — reading this page is safe.</p>
+
+  <div class="toc">
+    <a href="#day">A normal day</a>
+    <a href="#home">Home</a>
+    <a href="#products">Products</a>
+    <a href="#categories">Categories</a>
+    <a href="#orders">Orders</a>
+    <a href="#money">Getting paid</a>
+    <a href="#balance">Store balance</a>
+    <a href="#customers">Customers</a>
+    <a href="#support">Support</a>
+    <a href="#reviews">Reviews</a>
+    <a href="#settings">Settings</a>
+    <a href="#alerts">Alerts</a>
+    <a href="#app">The app</a>
+  </div>
+
+
+  <h2 id="day">A normal day</h2>
+  <p>Open ops. <b>Home</b> tells you what happened and what is waiting: today's
+    orders and takings, and four cards that only speak up when something needs
+    you — items out of stock, empty categories, new customers, poor reviews.</p>
+  <ol>
+    <li>Check <b>Orders</b> for anything marked <b>receipt</b> — somebody has paid
+      and is waiting on you.</li>
+    <li>Check <b>Support</b> for the dot, or the card in the bottom-right corner.</li>
+    <li>Pack what is paid, and move each order along its status as you go.</li>
+  </ol>
+  <p class="sub">The <b>☰</b> button, top left, opens the menu. You can also swipe
+    in from the left edge of the screen. It closes when you pick something.</p>
+
+
+  <h2 id="home">Home</h2>
+  <p>The strip across the top is money: orders and takings for today, then for
+    the last seven days, then how many orders are <b>waiting to pack and send</b>.
+    That last number turns amber when it is not zero.</p>
+  <p>Cancelled orders are never counted as takings.</p>
+  <p>The four cards below are shortcuts — tap one to go to that section. A card
+    turns amber when it is telling you about something rather than just counting.</p>
+
+
+  <h2 id="products">Products</h2>
+  <h3>Adding an item</h3>
+  <ol>
+    <li><b>Products → + New product</b>.</li>
+    <li>Fill in the name, description and price, and choose a category.</li>
+    <li>Pick a colour, then add photos <i>for that colour</i>. Repeat for each
+      colour you stock. Every colour gets its own Add tile — you do not have to
+      set anything up first.</li>
+    <li>Set stock and price per colour and size in the grid. A pairing you leave
+      empty simply is not offered to shoppers.</li>
+    <li><b>Save</b>, then set it to <b>published</b> when you want it live.</li>
+  </ol>
+  <p>A short video can be uploaded alongside photos. Whichever media sits first
+    in order is what shoppers see first, but a video never plays on its own.</p>
+
+  <h3>Units sold</h3>
+  <p>The <b>sold</b> figure is yours to enter — it shows under the quantity
+    selector as <code>🔥 1.2k+ sold</code>. It is not counted automatically, so
+    it says whatever you put there.</p>
+
+  <h3>Size guides</h3>
+  <p>An item shows its category's size guide unless you give it one of its own.
+    Give the body table a <b>Height</b> and a <b>Weight</b> column and shoppers
+    also get a "find my size" box.</p>
+
+
+  <h2 id="categories">Categories</h2>
+  <p>A category can sit under another one — that is how <b>Collection</b> and
+    <b>Jewellery</b> hold their drop-downs.</p>
+  <div class="card">
+    <p><b>A category holding a drop-down holds no stock of its own.</b> When you
+      open one, the "Items in this category" and "Size guide" cards are hidden
+      on purpose: its items live on its children. File a product under
+      <i>Watches</i>, not under <i>Jewellery</i>, or nobody browsing the
+      drop-down will find it.</p>
+  </div>
+
+
+  <h2 id="orders">Orders</h2>
+  <p>Each row shows the order number, the customer's name and email, what they
+    spent and where the order has got to. Tap <b>View</b> for the full order.</p>
+
+  <h3>What the colours mean</h3>
+  <ul>
+    <li><b>pending</b> — placed, not paid for yet</li>
+    <li><b>paid</b> — money received, needs packing</li>
+    <li><b>packed</b> — boxed, waiting for the rider</li>
+    <li><b>shipped</b> — on its way</li>
+    <li><b>delivered</b> — arrived</li>
+    <li><b>cancelled</b> / <b>refunded</b> — closed</li>
+  </ul>
+  <p>Changing a status notifies the customer, so move an order along as it
+    actually happens rather than in a batch at the end of the day.</p>
+  <p class="sub">Cancelling or refunding an order puts its stock back
+    automatically, and returns anything paid from a store balance.</p>
+
+  <h3>The filter</h3>
+  <p><b>Receipt to check</b> at the top of the filter is not a status — it shows
+    only orders where a customer has sent proof of payment and is waiting on you.</p>
+
+
+  <h2 id="money">Getting paid</h2>
+  <p>How customers pay is set in <b>Settings → Payment</b>. There are two modes.</p>
+
+  <h3>Bank transfer (what the shop uses now)</h3>
+  <ol>
+    <li>The customer sees your account details and their order number.</li>
+    <li>They transfer, then upload the receipt on their order page.</li>
+    <li>You get a notification, and the order shows a <b>receipt</b> mark.</li>
+    <li>Open it, tap <b>View receipt</b>, and check it against your bank.</li>
+    <li>Tap <b>Mark payment received</b>. The customer is told automatically.</li>
+  </ol>
+  <div class="card warn">
+    <p><b>Only mark it once you have seen the money.</b> A receipt is a picture
+      somebody sent you, not proof the transfer cleared. This is the one action
+      in ops that cannot be undone by pressing it again.</p>
+  </div>
+
+  <h3>Paystack (card, transfer and USSD)</h3>
+  <p>When Paystack has activated the business and a live key is in place, switch
+    <b>Settings → Payment</b> to Paystack. Orders then confirm themselves the
+    moment the payment clears and there is nothing to check off.</p>
+  <p class="sub">Until then, leave it on bank transfer. While the shop is on
+    Paystack's test keys, only staff accounts can start a card payment — a
+    customer would meet a payment they cannot complete.</p>
+
+
+  <h2 id="balance">Store balance</h2>
+  <p>Customers can hold money with the shop and spend it here. It is store
+    credit: it buys goods and cannot be withdrawn as cash.</p>
+  <ol>
+    <li>The customer transfers to your account and tells you, on chat or with a
+      receipt.</li>
+    <li>Open <b>Customers</b>, find them, and tap <b>Add money</b>.</li>
+    <li>Enter the amount and a note saying where it came from.</li>
+    <li>They are notified straight away, and can spend it at checkout.</li>
+  </ol>
+  <p><b>Take off</b> is there for a mistake or a chargeback. Both actions ask you
+    to confirm, and the note you write is the only record of why it happened —
+    so write a real one.</p>
+  <p class="sub">The customer sees their balance in the shop's header and a full
+    statement under Account → Store balance.</p>
+
+
+  <h2 id="customers">Customers</h2>
+  <p>Everyone who has an account, what they have spent, and how many orders they
+    have placed. Opening one shows their details, their store balance and its
+    recent movements.</p>
+  <ul>
+    <li><b>Block</b> stops an account signing in. It keeps everything.</li>
+    <li><b>Delete account</b> removes the person. Their orders remain, because
+      the shop's records are not theirs to erase.</li>
+  </ul>
+
+
+  <h2 id="support">Support</h2>
+  <p>Every conversation with a customer, oldest message first. Realtime — a
+    reply appears without refreshing.</p>
+  <ul>
+    <li>A message arriving anywhere in ops shows a box across the top with who
+      wrote and what they said. <b>Open</b> jumps straight into the conversation.</li>
+    <li>When that box goes, a small card stays in the bottom-right corner saying
+      how many are waiting. It does not leave until they are answered, so a
+      message cannot be quietly forgotten.</li>
+    <li><b>copy</b> on any message copies its text. <b>Copy all</b> in the header
+      copies the whole conversation with both names on it.</li>
+    <li>The paperclip attaches a file. <b>Mark closed</b> ends a conversation;
+      the customer keeps their history and can start a new one.</li>
+  </ul>
+
+
+  <h2 id="reviews">Reviews</h2>
+  <p>Only customers who bought an item can review it. You cannot edit a review —
+    you decide whether it is shown.</p>
+  <p>Hiding one also takes it out of the item's star average, so the rating
+    always reflects what shoppers can actually read.</p>
+
+
+  <h2 id="settings">Settings</h2>
+  <ul>
+    <li><b>Payment</b> — bank transfer or Paystack, and your account details.</li>
+    <li><b>Delivery</b> — a flat fee, and the spend above which it is free.</li>
+    <li><b>Store</b> — name, currency, hero heading, contact details, socials.</li>
+    <li><b>Instructions shown at checkout</b> — the line under the payment
+      section. Say to use the order number as the transfer reference; it is what
+      makes matching a receipt to an order quick.</li>
+  </ul>
+  <p>Press <b>Save settings</b> — nothing here saves on its own.</p>
+
+
+  <h2 id="alerts">Alerts on your phone</h2>
+  <p>Tap <b>🔔 Turn on alerts</b> in the ops top bar and allow the prompt. You
+    then get a notification for:</p>
+  <ul>
+    <li>a new order, with its number and total</li>
+    <li>a customer writing in, with the first line of what they said</li>
+    <li>a receipt being uploaded</li>
+  </ul>
+  <p class="sub">Alerts go to whichever account is signed in, so turn them on
+    while signed in as staff. If the button says <b>Alerts blocked</b>, allow
+    notifications for the app in your phone's settings, then reload.</p>
+
+
+  <h2 id="app">The app, and staying signed in</h2>
+  <p>Ops installs to a home screen: <b>☰ → Install this app</b>. On an iPhone
+    that menu shows <b>Add to Home Screen</b> instead, which you do from the
+    Share button.</p>
+  <p><b>Remember me</b> on the sign-in page keeps your email so you only type a
+    password. It never stores the password — that belongs to your browser's own
+    password manager, which locks with the device.</p>
+  <p><b>Forgot password?</b> emails a link that brings you back to ops. The link
+    lasts an hour and works once.</p>
+
+  <div class="card">
+    <p><b>Something not behaving?</b> Reload the page twice. The first load
+      fetches the new version of the console, the second runs it. If it still
+      looks wrong, say so and it gets fixed.</p>
+  </div>
+
+</div>
+
+</body>
+</html>
