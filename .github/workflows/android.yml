@@ -51,6 +51,7 @@ jobs:
       # there is no push. It is not in the repository: it names the project and
       # ships an API key, so it lives in a secret.
       - name: Write google-services.json
+        id: gs
         working-directory: native/android/app
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -62,6 +63,15 @@ jobs:
           printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json
           node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))" \
             || { echo "::error::google-services.json is not valid JSON."; exit 1; }
+          # The Google services plugin fails the build outright if a flavour's
+          # applicationId has no client in this file, so the ops flavour is only
+          # attempted once Firebase has been told about it.
+          if node -e "const j=require('./google-services.json');process.exit(j.client.some(c=>c.client_info.android_client_info.package_name==='shop.rexgiddotyhubs.ops')?0:1)"; then
+            echo "ops=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ops=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::google-services.json has no client for shop.rexgiddotyhubs.ops — building the shop app only. Add the second Android app in Firebase, then re-upload GOOGLE_SERVICES_JSON."
+          fi
 
       - name: Sync web assets and plugins
         working-directory: native
@@ -91,7 +101,11 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease bundleRelease
+          TASKS="assembleShopRelease bundleShopRelease"
+          if [ "${{ steps.gs.outputs.ops }}" = "true" ]; then
+            TASKS="$TASKS assembleOpsRelease bundleOpsRelease"
+          fi
+          ./gradlew --no-daemon $TASKS
 
       - name: Shred the signing key
         if: always()
@@ -100,11 +114,25 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: rex-giddoty-hubs-apk
-          path: native/android/app/build/outputs/apk/release/*.apk
+          path: native/android/app/build/outputs/apk/shop/release/*.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: steps.gs.outputs.ops == 'true'
+        with:
+          name: rex-giddoty-ops-apk
+          path: native/android/app/build/outputs/apk/ops/release/*.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: steps.gs.outputs.ops == 'true'
+        with:
+          name: rex-giddoty-ops-aab
+          path: native/android/app/build/outputs/bundle/opsRelease/*.aab
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
           name: rex-giddoty-hubs-aab
-          path: native/android/app/build/outputs/bundle/release/*.aab
+          path: native/android/app/build/outputs/bundle/shopRelease/*.aab
           if-no-files-found: error

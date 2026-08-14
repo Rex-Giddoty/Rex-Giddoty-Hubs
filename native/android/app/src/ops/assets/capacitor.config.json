@@ -1,0 +1,22 @@
+{
+  "appId": "shop.rexgiddotyhubs.twa",
+  "appName": "Rex-Giddoty Ops",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "url": "https://rexgiddotyhubs.shop/ops.html",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+  Overrides main/res/values/strings.xml for the ops flavour only. Android merges
+  a flavour's resources over main's, so naming them identically is the point.
+-->
+<resources>
+    <string name="app_name">Rex-Giddoty Ops</string>
+    <string name="title_activity_main">Rex-Giddoty Ops</string>
+    <string name="package_name">shop.rexgiddotyhubs.ops</string>
+    <string name="custom_url_scheme">shop.rexgiddotyhubs.ops</string>
+</resources>

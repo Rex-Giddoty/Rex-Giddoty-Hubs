@@ -38,6 +38,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Two apps out of one project. They share every line of code and differ only
+    // in which page they open, what they are called, and their icon — so a
+    // second copy of the whole Android project would be two things to keep in
+    // step for no gain.
+    //
+    // The overrides live in src/ops: its strings.xml renames the app, its
+    // mipmaps replace the icon, and its capacitor.config.json points the
+    // WebView at /ops.html instead of the shop's front page. Android merges a
+    // flavour's resources over main's, so nothing has to be conditional.
+    flavorDimensions = ["surface"]
+    productFlavors {
+        shop {
+            dimension "surface"
+            applicationId "shop.rexgiddotyhubs.twa"
+        }
+        ops {
+            dimension "surface"
+            // A separate package, so staff can hold both at once and Android
+            // treats them as what they are: two different apps.
+            applicationId "shop.rexgiddotyhubs.ops"
+        }
+    }
+
     buildTypes {
         release {
             if (keystorePath) {
