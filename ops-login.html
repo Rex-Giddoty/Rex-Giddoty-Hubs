@@ -9,7 +9,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:#0c0c0d;color:#ececec;-webkit-font-smoothing:antialiased;}
-.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
 .card{width:100%;max-width:380px;background:#141416;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:34px 30px;}
 .brand{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#8b8b90;text-align:center;margin-bottom:6px;}
 h1{font-size:19px;font-weight:600;text-align:center;margin-bottom:26px;letter-spacing:-.2px;}
@@ -21,6 +21,21 @@ button{width:100%;height:44px;background:#ececec;color:#0c0c0d;border:none;borde
 button:hover{opacity:.88;}
 button:disabled{opacity:.5;cursor:not-allowed;}
 .err{background:rgba(220,60,60,.1);border:1px solid rgba(220,60,60,.3);color:#ff9b9b;font-size:12.5px;border-radius:8px;padding:10px 12px;margin-bottom:16px;display:none;line-height:1.5;}
+.ok{background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);color:#8fe3bd;font-size:12.5px;border-radius:8px;padding:10px 12px;margin-bottom:16px;display:none;line-height:1.5;}
+
+/* remember me, and the way to the reset step */
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
+.check{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:0;}
+.check input{width:15px;height:15px;accent-color:#ececec;cursor:pointer;flex-shrink:0;}
+.check span{font-size:12.5px;color:#8b8b90;text-transform:none;letter-spacing:0;}
+.check:hover span{color:#ececec;}
+.linkbtn{background:none;border:0;color:#8b8b90;font-size:12.5px;cursor:pointer;
+  font-family:inherit;text-decoration:underline;padding:0;width:auto;height:auto;}
+.linkbtn:hover{color:#ececec;opacity:1;}
+.lede{font-size:12.5px;color:#8b8b90;line-height:1.55;margin-bottom:18px;text-align:center;}
+
+/* Whose shop this is, under the card rather than inside it. */
+.by{margin-top:18px;text-align:center;font-size:11px;color:#5c5c63;line-height:1.6;}
 </style>
 </head>
 <body>
@@ -29,6 +44,8 @@ button:disabled{opacity:.5;cursor:not-allowed;}
     <div class="brand">Rex-Giddoty Hubs</div>
     <h1>Operations</h1>
     <div class="err" id="err"></div>
+    <div class="ok" id="ok"></div>
+
     <form id="form">
       <div class="field">
         <label for="email">Email</label>
@@ -38,9 +55,33 @@ button:disabled{opacity:.5;cursor:not-allowed;}
         <label for="password">Password</label>
         <input type="password" id="password" autocomplete="current-password" required/>
       </div>
+      <div class="row">
+        <label class="check">
+          <input type="checkbox" id="remember"/>
+          <span>Remember me</span>
+        </label>
+        <button type="button" class="linkbtn" id="to-reset">Forgot password?</button>
+      </div>
       <button type="submit" id="btn">Sign in</button>
     </form>
+
+    <!-- the reset step, in place rather than on the shop's own page: staff
+         should not be bounced into the storefront to get back in here -->
+    <form id="reset-form" style="display:none;">
+      <p class="lede">Type the email you sign in with and we will send a link to
+        set a new password.</p>
+      <div class="field">
+        <label for="reset-email">Email</label>
+        <input type="email" id="reset-email" autocomplete="username" required/>
+      </div>
+      <button type="submit" id="reset-btn">Send the link</button>
+      <div class="row" style="margin:16px 0 0;justify-content:center;">
+        <button type="button" class="linkbtn" id="to-signin">Back to sign in</button>
+      </div>
+    </form>
   </div>
+
+  <div class="by">Developed by Jayrex inc<br/>on August 11, 2026</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -48,9 +89,67 @@ button:disabled{opacity:.5;cursor:not-allowed;}
 <script>
 const db  = window.RG_DB;
 const err = document.getElementById('err');
+const ok  = document.getElementById('ok');
 const btn = document.getElementById('btn');
 
-function fail(msg) { err.textContent = msg; err.style.display = 'block'; }
+function fail(msg) { ok.style.display = 'none'; err.textContent = msg; err.style.display = 'block'; }
+function said(msg) { err.style.display = 'none'; ok.textContent = msg; ok.style.display = 'block'; }
+
+/* ── remember me ──
+ * The address, and only the address. A password sitting in localStorage is a
+ * password anybody who picks up the laptop can read, and this account can empty
+ * the shop — so that part stays with the browser's own password manager, which
+ * is built for it and locks with the device.
+ */
+const REMEMBER = 'rg_ops_email';
+const emailEl = document.getElementById('email');
+const rememberEl = document.getElementById('remember');
+try {
+  const saved = localStorage.getItem(REMEMBER);
+  if (saved) {
+    emailEl.value = saved;
+    rememberEl.checked = true;
+    document.getElementById('password').focus();
+  }
+} catch (_) {}
+
+/* ── the reset step ── */
+const signInForm = document.getElementById('form');
+const resetForm  = document.getElementById('reset-form');
+
+document.getElementById('to-reset').onclick = () => {
+  err.style.display = 'none'; ok.style.display = 'none';
+  signInForm.style.display = 'none';
+  resetForm.style.display = '';
+  document.getElementById('reset-email').value = emailEl.value.trim();
+  document.getElementById('reset-email').focus();
+};
+document.getElementById('to-signin').onclick = () => {
+  err.style.display = 'none'; ok.style.display = 'none';
+  resetForm.style.display = 'none';
+  signInForm.style.display = '';
+};
+
+resetForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const rbtn = document.getElementById('reset-btn');
+  const addr = document.getElementById('reset-email').value.trim();
+  if (!/^\S+@\S+\.\S+$/.test(addr)) return fail('That email address does not look right.');
+
+  rbtn.disabled = true; rbtn.textContent = 'Sending…';
+  /* ops=1 so the link comes back here afterwards rather than to the shop. */
+  const { error } = await db.auth.resetPasswordForEmail(addr, {
+    redirectTo: location.origin + '/reset-password.html?ops=1',
+  });
+  rbtn.disabled = false; rbtn.textContent = 'Send the link';
+
+  if (error) return fail(error.message);
+  /* Deliberately the same answer either way — otherwise this form becomes a
+     way to find out which addresses have operations access. */
+  resetForm.style.display = 'none';
+  signInForm.style.display = '';
+  said('If that address can sign in here, a reset link is on its way. Check the spam folder if it does not appear.');
+});
 
 /* Already signed in as staff? Go straight through. */
 (async () => {
@@ -69,8 +168,14 @@ document.getElementById('form').addEventListener('submit', async e => {
   window.RG_BUSY.show('Signing in', true);
   window.RG_BUSY.pct(10, 'Checking your password');
 
+  const addr = emailEl.value.trim();
+  try {
+    if (rememberEl.checked) localStorage.setItem(REMEMBER, addr);
+    else localStorage.removeItem(REMEMBER);
+  } catch (_) {}
+
   const { data, error } = await db.auth.signInWithPassword({
-    email: document.getElementById('email').value.trim(),
+    email: addr,
     password: document.getElementById('password').value,
   });
 
