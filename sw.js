@@ -8,7 +8,7 @@
  *
  * Bump CACHE when the shell changes; the old one is deleted on activate.
  */
-const CACHE = 'rg-shell-v5';
+const CACHE = 'rg-shell-v6';
 
 const SHELL = [
   '/',
@@ -41,8 +41,15 @@ self.addEventListener('activate', e => {
 });
 
 /* Staff work in a browser, and their console has its own session and its own
-   freshness needs. It is left entirely alone. */
-const isOps = url => /^\/ops(-|\.)/.test(url.pathname);
+   freshness needs. It is left entirely alone.
+
+   Its stylesheet counts as part of it. That file lives under /assets like the
+   shop's, so it used to fall through to the shell rule below — which answers
+   from cache first and only refreshes afterwards. Right for a storefront,
+   wrong here: it made every change to the console appear one visit late, so a
+   change that had plainly shipped looked like it had not. */
+const isOps = url => /^\/ops(-|\.)/.test(url.pathname)
+                  || url.pathname === '/assets/ops.css';
 
 self.addEventListener('fetch', e => {
   const req = e.request;
