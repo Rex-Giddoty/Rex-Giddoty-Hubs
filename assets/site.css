@@ -601,9 +601,19 @@ textarea.inp{resize:vertical;min-height:74px;}
 .ord__line .nm{flex:1;min-width:0;}
 .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:11px;
   text-transform:uppercase;letter-spacing:.04em;}
-.pill--pending{background:#fff3e0;color:#a35a00;}
-.pill--paid{background:#e9f6ed;color:#186a3a;}
-.pill--shipped{background:#eef4fd;color:#1c4e8a;}
+/* One colour per stage, matching the operations console so staff and customer
+   are never describing the same order differently. Light grounds under dark
+   text, because the shop is a light theme — the console's glowing chips would
+   be unreadable here. */
+.pill--pending{background:#fff3e0;color:#a35a00;}   /* waiting on somebody */
+.pill--paid{background:#eaf1fd;color:#1c4e8a;}      /* blue */
+.pill--packed{background:#f3ebe3;color:#7a4a1e;}    /* brown */
+.pill--shipped{background:#fff0e0;color:#a2540c;}   /* orange */
+.pill--delivered{background:#e9f6ed;color:#186a3a;} /* green */
+.pill--cancelled{background:#fdeceb;color:#b3261e;} /* red */
+.pill--refunded{background:#eef0f2;color:#4a4a4a;}  /* grey */
+
+/* Kept for anything that falls through the map above. */
 .pill--done{background:#eef0f2;color:#4a4a4a;}
 .pill--dead{background:#fdeceb;color:#b3261e;}
 

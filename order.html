@@ -105,8 +105,9 @@
 const db = window.RG_DB, M = window.RG_MONEY, esc = window.RG_ESC, IMG = window.RG_IMG;
 const num = new URLSearchParams(location.search).get('n');
 
-const PILL = { pending:'pending', paid:'paid', packed:'shipped', shipped:'shipped',
-               delivered:'done', cancelled:'dead', refunded:'dead' };
+/* One class per status — see the palette in site.css. */
+const PILL = { pending:'pending', paid:'paid', packed:'packed', shipped:'shipped',
+               delivered:'delivered', cancelled:'cancelled', refunded:'refunded' };
 
 const gate = (h, p, label, href) => {
   document.getElementById('gate').style.display = '';

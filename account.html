@@ -255,9 +255,12 @@ document.getElementById('save-pw').onclick = async () => {
 };
 
 /* ── orders ── */
+/* One class per status now, rather than four statuses sharing three colours —
+   an order that was packed used to look exactly like one already out with the
+   rider. */
 const PILL = {
-  pending:'pending', paid:'paid', packed:'shipped', shipped:'shipped',
-  delivered:'done', cancelled:'dead', refunded:'dead',
+  pending:'pending', paid:'paid', packed:'packed', shipped:'shipped',
+  delivered:'delivered', cancelled:'cancelled', refunded:'refunded',
 };
 async function loadOrders() {
   const { data, error } = await db.from('orders')
