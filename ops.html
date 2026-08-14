@@ -231,6 +231,19 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- A customer writing in, wherever you happen to be in ops. Sits above every
+     tab because a question waiting on an answer is not a Support-tab concern,
+     it is the shop's. -->
+<div class="msgbox" id="msgbox" hidden>
+  <div class="msgbox__icon">💬</div>
+  <div class="msgbox__body">
+    <b id="msgbox-who">New message</b>
+    <span id="msgbox-text"></span>
+  </div>
+  <button class="btn btn--primary btn--sm" id="msgbox-open">Open</button>
+  <button class="msgbox__x" id="msgbox-close" aria-label="Dismiss">✕</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
 <!-- For RG_PUSH and RG_BELL. Everything else in this file is inert unless
@@ -1055,10 +1068,58 @@ function watchSupport() {
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'support_threads' },
       () => loadThreads())
+    /* The thread row barely changes when a message lands, so the messages
+       themselves are what the box listens to. */
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'support_messages' },
+      p => { if (p.new.sender_role !== 'staff') announceMessage(p.new); })
     .subscribe();
   /* Realtime can drop quietly on a laptop that has been asleep; this is the
      floor under it rather than the mechanism. */
   setInterval(() => { if (document.visibilityState === 'visible') loadThreads(); }, 30000);
+}
+
+/* ── the message box ──
+ * Deliberately not a toast: a toast is for something you did and it disappears
+ * whether or not you saw it. This waits.
+ */
+let _msgboxTimer = null;
+
+function announceMessage(m) {
+  loadThreads();                       /* the list and the dot, as before */
+  if (window.RG_BELL) window.RG_BELL();
+
+  const box = document.getElementById('msgbox');
+  const t = _threads.find(x => x.id === m.thread_id);
+
+  document.getElementById('msgbox-who').textContent =
+    (t && (t.full_name || t.email)) || 'A customer';
+  document.getElementById('msgbox-text').textContent =
+    (m.body || '').trim().slice(0, 140) || 'Sent an attachment';
+
+  document.getElementById('msgbox-open').onclick = () => {
+    hideMessageBox();
+    const tab = document.querySelector('.tab[data-page="support"]');
+    if (tab) tab.click();
+    openThread(m.thread_id);
+  };
+  document.getElementById('msgbox-close').onclick = hideMessageBox;
+
+  box.hidden = false;
+  requestAnimationFrame(() => box.classList.add('on'));
+
+  /* Long enough to finish what you were typing, short enough not to sit over
+     the page for the rest of the day. The Support tab's dot is the permanent
+     record; this is only the interruption. */
+  clearTimeout(_msgboxTimer);
+  _msgboxTimer = setTimeout(hideMessageBox, 25000);
+}
+
+function hideMessageBox() {
+  clearTimeout(_msgboxTimer);
+  const box = document.getElementById('msgbox');
+  box.classList.remove('on');
+  setTimeout(() => { box.hidden = true; }, 260);
 }
 
 /* ── reviews ──

@@ -364,3 +364,31 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
 .grec{margin-top:12px;padding:9px 12px;border-radius:8px;font-size:12px;line-height:1.55;
   background:var(--s2);border:1px solid var(--b);color:var(--sub);}
 .grec--on{color:var(--green);border-color:rgba(62,207,142,.3);}
+
+/* ── the message box ──
+ * Fixed, above everything, and across the top where it cannot be mistaken for
+ * part of whichever tab is open. It slides rather than appears: something that
+ * simply materialises over the page reads as a misclick.
+ */
+.msgbox{position:fixed;top:66px;left:50%;transform:translate(-50%,-18px);z-index:200;
+  width:min(560px,calc(100vw - 24px));
+  display:flex;align-items:center;gap:12px;
+  background:var(--s1);border:1px solid var(--accent);border-radius:12px;
+  padding:12px 14px;box-shadow:0 14px 40px rgba(0,0,0,.5);
+  opacity:0;transition:opacity .22s ease,transform .22s cubic-bezier(.22,.61,.36,1);}
+.msgbox.on{opacity:1;transform:translate(-50%,0);}
+/* [hidden] is only a UA rule, and any class that sets display outranks it. */
+.msgbox[hidden]{display:none;}
+
+.msgbox__icon{font-size:20px;line-height:1;flex-shrink:0;}
+.msgbox__body{flex:1;min-width:0;line-height:1.35;}
+.msgbox__body b{display:block;font-size:13px;font-weight:600;}
+.msgbox__body span{display:block;font-size:12px;color:var(--sub);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.msgbox__x{background:none;border:0;color:var(--sub);font-size:14px;
+  padding:4px 2px;cursor:pointer;flex-shrink:0;}
+.msgbox__x:hover{color:var(--text);}
+
+@media (max-width:600px){
+  .msgbox{top:auto;bottom:14px;}
+}

@@ -62,7 +62,7 @@
     </div>
 
     <!-- items in this category -->
-    <div class="card">
+    <div class="card" id="cat-items-card">
       <div class="head" style="margin-bottom:14px;">
         <h3>Items in this category</h3>
         <span class="count" id="items-count"></span>
@@ -73,7 +73,7 @@
   </div>
 
   <!-- size guide, full width: the tables need the room -->
-  <div class="card" style="margin-top:16px;">
+  <div class="card" id="cat-guide-card" style="margin-top:16px;">
     <h3 style="margin-bottom:6px;">Size guide</h3>
     <div class="muted" style="font-size:12px;margin-bottom:12px;">
       Every item in this category shows this, unless the item carries one of its
@@ -649,6 +649,15 @@ function paintCategory() {
   psel.value = _cat?.parent_id || '';
   psel.disabled = !!hasKids;
   psel.title = hasKids ? 'This category holds a drop-down, so it stays top level.' : '';
+
+  /* A category that holds a drop-down holds no stock of its own — Collection and
+     Jewellery keep their items on Watches, Necklaces and the rest. Two empty
+     cards here only invite filing something in the parent, where no shopper
+     browsing a sub-category would ever find it.
+     Hidden rather than removed: whatever guide a parent was given is still read
+     back on save, so nothing is quietly discarded. */
+  document.getElementById('cat-items-card').style.display = hasKids ? 'none' : '';
+  document.getElementById('cat-guide-card').style.display = hasKids ? 'none' : '';
 }
 
 /* ── card image ── */
