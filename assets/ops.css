@@ -502,3 +502,15 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
   font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;text-align:left;}
 .side__install:hover{color:var(--text);border-color:rgba(255,255,255,.2);}
 .side__install[hidden]{display:none;}
+
+/* ── order stages ──
+ * Each stage its own colour, so the Orders column reads as a journey: money in,
+ * boxed, out with the rider, arrived — and the two ways it can end. Every one
+ * is a tinted fill behind a matching border, the pattern the other pills
+ * already use, so they sit together rather than shouting over each other.
+ */
+.pill--blue{color:#6aa8ff;border-color:rgba(106,168,255,.35);background:rgba(106,168,255,.1);}
+.pill--brown{color:#c08a5e;border-color:rgba(192,138,94,.35);background:rgba(192,138,94,.1);}
+.pill--orange{color:#f08a3c;border-color:rgba(240,138,60,.35);background:rgba(240,138,60,.1);}
+.pill--green{color:var(--green);border-color:rgba(62,207,142,.35);background:rgba(62,207,142,.1);}
+.pill--grey{color:var(--sub);border-color:var(--b);background:rgba(255,255,255,.04);}

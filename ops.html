@@ -1617,9 +1617,17 @@ async function loadOrders() {
   renderOrders();
 }
 
+/* One colour per stage, so a glance down the column reads as progress
+   rather than as a wall of green. Pending keeps the amber it had — it is the
+   one state that is waiting on somebody. */
 const ORDER_PILL = {
-  pending:'pill--warn', paid:'pill--live', packed:'pill--live', shipped:'pill--live',
-  delivered:'pill--live', cancelled:'pill--red', refunded:'pill--red',
+  pending:'pill--warn',
+  paid:'pill--blue',
+  packed:'pill--brown',
+  shipped:'pill--orange',
+  delivered:'pill--green',
+  cancelled:'pill--red',
+  refunded:'pill--grey',
 };
 
 function renderOrders() {
@@ -1633,7 +1641,14 @@ function renderOrders() {
   if (!list.length) { box.innerHTML = '<div class="empty">No orders yet.</div>'; return; }
   box.innerHTML = `<table><thead><tr><th>Order</th><th class="hide-sm">Placed</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>` +
     list.map(o => `<tr>
-      <td><div style="font-weight:500;">${esc(o.order_number)}</div><div class="muted">${esc(o.email || '')}</div></td>
+      <td>
+        <div style="font-weight:500;">${esc(o.order_number)}</div>
+        <!-- The name is on the order already, in the address it is being sent
+             to — no lookup needed, and it is the name that matters, since a
+             signed-in account can be ordering for somebody else. -->
+        ${(o.shipping_address||{}).full_name ? `<div class="muted">${esc(o.shipping_address.full_name)}</div>` : ''}
+        <div class="muted">${esc(o.email || '')}</div>
+      </td>
       <td class="hide-sm muted">${new Date(o.placed_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</td>
       <td class="muted">${(o.order_items||[]).reduce((s,i)=>s+i.quantity,0)}</td>
       <td>${M.fmt(o.total_minor, o.currency)}</td>
