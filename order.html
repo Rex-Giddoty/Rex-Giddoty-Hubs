@@ -47,22 +47,31 @@
   </div>
 
   <aside>
-    <div class="panel">
+    <!-- Only for an order that still owes money. Hidden by default so a paid
+         order never flashes a demand for payment while the page settles. -->
+    <div class="panel" id="pay-box" style="display:none;">
       <h2 style="font-size:15px;">Pay for this order</h2>
-      <p class="lede">Transfer the total below, then we confirm and dispatch.</p>
-      <div class="bank" id="bank"></div>
+      <p class="lede">Card, bank transfer or USSD. Your order is confirmed the
+        moment it clears.</p>
       <div class="sum__row total" style="margin-top:12px;">
-        <span>To transfer</span><span id="o-pay"></span>
+        <span>To pay</span><span id="o-pay"></span>
       </div>
+      <div id="pay-msg" style="margin-top:10px;"></div>
+      <button class="btn btn--full btn--lg" id="pay-go" style="margin-top:10px;">Pay now</button>
       <p class="sum__note" id="pay-inst"></p>
+    </div>
+
+    <div class="panel" id="paid-box" style="display:none;">
+      <h2 style="font-size:15px;">Payment received</h2>
+      <p class="lede" id="paid-note">Paid in full. Nothing further to send us.</p>
     </div>
 
     <div class="panel">
       <h2 style="font-size:15px;">What happens next</h2>
       <div class="steps">
-        <div class="step"><i>1</i><span>Transfer the total, using <b id="ref-1"></b> as the reference.</span></div>
-        <div class="step"><i>2</i><span>We confirm the payment — your items are already reserved.</span></div>
-        <div class="step"><i>3</i><span>Your order is packed and sent out.</span></div>
+        <div class="step"><i>1</i><span>Your payment is confirmed automatically — your items are already reserved.</span></div>
+        <div class="step"><i>2</i><span>We pack your order.</span></div>
+        <div class="step"><i>3</i><span>It is sent out, and you are told when it moves.</span></div>
       </div>
       <a class="btn btn--ghost btn--full" href="/account.html#orders" style="margin-top:14px;">All my orders</a>
       <a class="btn btn--full" href="/shop.html" style="margin-top:8px;">Keep shopping</a>
@@ -98,6 +107,7 @@
 <footer class="foot" data-foot></footer>
 <nav class="tabbar" data-tabbar></nav>
 
+<script src="https://js.paystack.co/v2/inline.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/supabase.js"></script>
 <script src="/assets/site.js"></script>
@@ -160,7 +170,6 @@ const gate = (h, p, label, href) => {
 
   document.getElementById('wrap').style.display = '';
   document.getElementById('o-num').textContent = '#' + o.order_number;
-  document.getElementById('ref-1').textContent = o.order_number;
   document.title = 'Order ' + o.order_number + ' — Rex-Giddoty Hubs';
 
   const pill = document.getElementById('o-status');
@@ -255,17 +264,76 @@ const gate = (h, p, label, href) => {
     };
   }
 
-  const rows = [
-    ['Bank',           s.bank_name],
-    ['Account name',   s.bank_account_name],
-    ['Account number', s.bank_account_number],
-    ['Reference',      o.order_number],
-  ].filter(r => r[1]);
-  document.getElementById('bank').innerHTML = rows.map(([k, v]) =>
-    `<div class="bank__row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
-  document.getElementById('pay-inst').textContent =
-    s.payment_instructions || 'Once your transfer lands we will confirm the order and send it out.';
+  /* One or the other, never both, and never a demand for money already paid. */
+  const owing = o.payment_status !== 'paid'
+             && !['cancelled', 'refunded'].includes(o.status);
+
+  document.getElementById('paid-box').style.display = o.payment_status === 'paid' ? '' : 'none';
+  document.getElementById('pay-box').style.display  = owing ? '' : 'none';
+
+  if (owing) {
+    document.getElementById('pay-inst').textContent = s.payment_instructions || '';
+    document.getElementById('pay-go').onclick = () => payNow(o);
+  }
 })();
+
+/* ── paying an order that is already placed ──
+ * The same route checkout uses. An order can end up here by a payment being
+ * cancelled, a card being declined, or a browser closing at the wrong moment —
+ * all of which leave a real order that simply has not been paid for yet.
+ */
+async function payNow(o) {
+  const btn = document.getElementById('pay-go');
+  const msg = document.getElementById('pay-msg');
+  const say = (kind, text) => { msg.innerHTML = `<div class="msg msg--${kind}">${esc(text)}</div>`; };
+
+  btn.disabled = true; btn.textContent = 'Opening payment…';
+  msg.innerHTML = '';
+
+  let start;
+  try {
+    start = await callPaystack({ action: 'init', order_id: o.id });
+  } catch (err) {
+    btn.disabled = false; btn.textContent = 'Pay now';
+    return say('err', String(err.message || err));
+  }
+
+  if (window.PaystackPop && start.access_code) {
+    new window.PaystackPop().resumeTransaction(start.access_code, {
+      onSuccess: async () => {
+        btn.textContent = 'Confirming…';
+        try { await callPaystack({ action: 'verify', reference: start.reference }); }
+        catch (_) { /* the webhook settles it anyway */ }
+        location.reload();
+      },
+      onCancel: () => {
+        btn.disabled = false; btn.textContent = 'Pay now';
+        say('warn', 'Payment cancelled. Your order is still here whenever you are ready.');
+      },
+      onError: () => {
+        btn.disabled = false; btn.textContent = 'Pay now';
+        say('err', 'That payment could not be started. Please try again.');
+      },
+    });
+    return;
+  }
+  location.href = start.authorization_url;
+}
+
+async function callPaystack(body) {
+  const { data: { session } } = await db.auth.getSession();
+  const res = await fetch(window.RG_FN + '/paystack', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + (session ? session.access_token : ''),
+    },
+    body: JSON.stringify(body),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || ('payment service returned ' + res.status));
+  return out;
+}
 </script>
 </body>
 </html>
