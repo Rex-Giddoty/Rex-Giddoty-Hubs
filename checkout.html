@@ -54,9 +54,11 @@
 
     <div class="panel">
       <h2>How you pay</h2>
-      <p class="lede">Card, bank transfer or USSD, through Paystack. Your order
-        is confirmed the moment it goes through — nothing to send us.</p>
-      <div class="paylogos"><span>Card</span><span>Bank transfer</span><span>USSD</span></div>
+      <p class="lede" id="pay-lede"></p>
+      <div class="paylogos" id="paylogos" style="display:none;">
+        <span>Card</span><span>Bank transfer</span><span>USSD</span>
+      </div>
+      <div class="bank" id="bank"></div>
       <p class="sum__note" id="pay-inst"></p>
     </div>
   </div>
@@ -196,10 +198,40 @@ function paintSummary() {
 /* The bank rows are gone with the transfer, but the shop can still say
    something of its own here — delivery times, a note about confirmations —
    without it being about where to send money. */
+/* Paystack, or a transfer you confirm by hand. The switch is a setting rather
+   than a deploy, because which one is right depends on whether Paystack has
+   activated the business yet — and that is not something the code can know. */
+function paystackMode() { return _settings.payment_mode === 'paystack'; }
+
 function paintPayNote() {
-  const el = document.getElementById('pay-inst');
-  if (!el) return;
-  el.textContent = _settings.payment_instructions || '';
+  const lede = document.getElementById('pay-lede');
+  const logos = document.getElementById('paylogos');
+  const bank = document.getElementById('bank');
+  const note = document.getElementById('pay-inst');
+
+  if (paystackMode()) {
+    lede.textContent = 'Card, bank transfer or USSD, through Paystack. Your order '
+      + 'is confirmed the moment it goes through — nothing to send us.';
+    logos.style.display = '';
+    bank.innerHTML = '';
+    note.textContent = _settings.payment_instructions || '';
+    document.getElementById('place').textContent = 'Pay now';
+    return;
+  }
+
+  lede.textContent = 'Bank transfer, confirmed by us before dispatch.';
+  logos.style.display = 'none';
+  const rows = [
+    ['Bank',           _settings.bank_name],
+    ['Account name',   _settings.bank_account_name],
+    ['Account number', _settings.bank_account_number],
+  ].filter(r => r[1]);
+  bank.innerHTML = rows.length
+    ? rows.map(([k, v]) => `<div class="bank__row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')
+    : '<p class="note" style="margin:0;">Transfer details will be sent to you once the order is placed.</p>';
+  note.textContent = _settings.payment_instructions
+    || 'Transfer the order total, then reply to your confirmation email with the receipt.';
+  document.getElementById('place').textContent = 'Place order';
 }
 
 /* ── place the order ── */
@@ -259,6 +291,12 @@ document.getElementById('place').onclick = async () => {
      payable from the order page. */
   Bag.clear();
 
+  /* On a transfer there is nothing to open — the order page carries the account
+     details and the reference. */
+  if (!paystackMode()) {
+    location.replace('/order.html?n=' + encodeURIComponent(row.order_number));
+    return;
+  }
   await pay(row.order_id, row.order_number);
 };
 

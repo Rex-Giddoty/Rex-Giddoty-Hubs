@@ -273,7 +273,24 @@ const gate = (h, p, label, href) => {
 
   if (owing) {
     document.getElementById('pay-inst').textContent = s.payment_instructions || '';
-    document.getElementById('pay-go').onclick = () => payNow(o);
+
+    if (s.payment_mode === 'paystack') {
+      document.getElementById('pay-go').onclick = () => payNow(o);
+    } else {
+      /* A transfer needs the account and the reference, not a button that opens
+         a payment page the shop cannot yet take money through. */
+      const rows = [
+        ['Bank',           s.bank_name],
+        ['Account name',   s.bank_account_name],
+        ['Account number', s.bank_account_number],
+        ['Reference',      o.order_number],
+      ].filter(r => r[1]);
+      document.querySelector('#pay-box .lede').textContent =
+        'Transfer the total below, then we confirm and dispatch.';
+      document.getElementById('pay-msg').innerHTML = rows.map(([k, v]) =>
+        `<div class="bank__row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+      document.getElementById('pay-go').style.display = 'none';
+    }
   }
 })();
 

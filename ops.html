@@ -278,8 +278,18 @@
         Paste the full address of each page. Leave one blank and its icon simply
         does not appear in the footer.</div></div>
     </div>
-    <h3 style="font-size:13px;font-weight:600;margin:24px 0 12px;padding-top:18px;border-top:1px solid var(--b);">Payment — manual confirmation</h3>
+    <h3 style="font-size:13px;font-weight:600;margin:24px 0 12px;padding-top:18px;border-top:1px solid var(--b);">Payment</h3>
     <div class="grid">
+      <div class="full">
+        <label class="f">How customers pay</label>
+        <select class="inp" id="s-payment_mode">
+          <option value="manual">Bank transfer — you confirm each one in Orders</option>
+          <option value="paystack">Paystack — card, transfer and USSD, confirmed automatically</option>
+        </select>
+        <div class="hint">Paystack only works once your Paystack business is
+          activated and a live key is in place. Until then this should stay on
+          bank transfer, or customers will meet a payment they cannot complete.</div>
+      </div>
       <div><label class="f">Bank name</label><input class="inp" id="s-bank_name"/></div>
       <div><label class="f">Account name</label><input class="inp" id="s-bank_account_name"/></div>
       <div><label class="f">Account number</label><input class="inp" id="s-bank_account_number"/></div>
@@ -686,7 +696,7 @@ async function loadSettings() {
   _settings = Object.fromEntries((data || []).map(r => [r.key, r.value]));
   ['store_name','currency','hero_heading','hero_subheading',
    'support_email','support_phone','social_facebook','social_instagram','social_x',
-   'bank_name','bank_account_name','bank_account_number','payment_instructions']
+   'payment_mode','bank_name','bank_account_name','bank_account_number','payment_instructions']
     .forEach(k => { const el = document.getElementById('s-' + k); if (el) el.value = _settings[k] || ''; });
   ['shipping_flat_minor','free_shipping_over_minor'].forEach(k => {
     const el = document.getElementById('s-' + k);
@@ -699,7 +709,7 @@ async function saveSettings() {
   const rows = [];
   ['store_name','currency','hero_heading','hero_subheading',
    'support_email','support_phone','social_facebook','social_instagram','social_x',
-   'bank_name','bank_account_name','bank_account_number','payment_instructions']
+   'payment_mode','bank_name','bank_account_name','bank_account_number','payment_instructions']
     .forEach(k => rows.push({ key: k, value: document.getElementById('s-' + k).value.trim(), updated_at: new Date().toISOString() }));
   ['shipping_flat_minor','free_shipping_over_minor'].forEach(k =>
     rows.push({ key: k, value: String(M.toMinor(document.getElementById('s-' + k).value)), updated_at: new Date().toISOString() }));
