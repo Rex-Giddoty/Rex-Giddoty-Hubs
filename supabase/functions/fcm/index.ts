@@ -125,12 +125,23 @@ Deno.serve(async (req) => {
       notification: { title, body: body ?? '' },
       data: { url: url ?? '/' },
       android: {
+        /* How urgently Google delivers it — waking a sleeping phone, getting
+           past battery saver. Not the same thing as whether it pops up. */
         priority: 'HIGH',
         notification: {
+          /* Whether it slides over the screen is decided by the importance of
+             the channel it lands on, and only a channel the app made itself is
+             allowed to be interrupting. Without this it falls back to an
+             auto-created default channel: a sound, and a line in the shade. */
+          channel_id: 'rg_alerts',
+          /* For Android 7 and earlier, which has no channels and reads this
+             instead. */
+          notification_priority: 'PRIORITY_MAX',
           /* Matching the web side: several updates to one order replace each
              other rather than stacking. */
           tag: url ?? 'rg',
           default_sound: true,
+          default_vibrate_timings: true,
         },
       },
     };

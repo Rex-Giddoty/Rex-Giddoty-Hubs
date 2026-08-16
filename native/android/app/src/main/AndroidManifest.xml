@@ -29,6 +29,12 @@
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_stat_notify"
         />
+        <!-- Anything that arrives without naming a channel lands on this one
+             rather than on an auto-created default that cannot interrupt. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="rg_alerts"
+        />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/rg_notification"

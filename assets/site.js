@@ -1455,6 +1455,7 @@
   let _nativeWired = false;
 
   function wireNative(P, userId) {
+    ensureChannel();
     if (_nativeWired) return;
     _nativeWired = true;
 
@@ -1498,6 +1499,7 @@
   async function nativeEnable() {
     const P = nativePush();
     if (!P) return { ok: false, why: 'Notifications are not available in this app build.' };
+    await ensureChannel();
 
     const { data: { session } } = await db.auth.getSession();
     if (!session || !session.user || session.user.is_anonymous) {
@@ -1793,6 +1795,10 @@
 
   /* A beat after the page settles, so it does not compete with the load and the
      install bar gets first claim on the corner if it is coming. */
+  /* Made on arrival too: a device that already had alerts on must not have to
+     go and toggle something to get the channel it should have had. */
+  if (nativePush()) ensureChannel();
+
   const askSoon = () => setTimeout(maybeAskPush, 1600);
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', askSoon);
   else askSoon();
