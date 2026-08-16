@@ -577,6 +577,18 @@ async function signOut(){ await db.auth.signOut(); location.href = '/ops-login.h
  * than remembering one: a permission can be revoked in settings without telling
  * the page.
  */
+/* Says plainly when the phone will not let an alert interrupt. The app cannot
+   raise a channel's level once it exists — only the person holding the phone
+   can — so the only useful thing to do is name the setting. */
+async function reportChannel() {
+  if (!window.RG_CHANNEL_STATE) return;
+  const s = await window.RG_CHANNEL_STATE();
+  if (!s || s.pops) return;
+  toast(s.found
+    ? 'Alerts will not pop up: this phone has the Orders and messages category set to silent. Settings → Apps → Notifications.'
+    : 'Alerts will arrive but may not pop up — reopen the app once to finish setting them up.', true);
+}
+
 async function paintNotif() {
   const b = document.getElementById('notif-btn');
   if (!window.RG_PUSH) return;                 /* site.js failed to load */
@@ -605,6 +617,7 @@ async function paintNotif() {
     if (st !== 'on') {
       window.RG_BELL();                        /* so you hear what you switched on */
       toast('Alerts on for this device');
+      reportChannel();
     } else {
       toast('Alerts off for this device');
     }

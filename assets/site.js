@@ -1453,6 +1453,58 @@
 
   let _fcmToken = null;
   let _nativeWired = false;
+  let _channelMade = false;
+
+  /* ── the notification channel ──
+   * On Android 8 and later, whether a notification slides over what you are
+   * looking at is decided by the importance of the channel it lands on, not by
+   * anything the message says. Without a channel of our own everything arrived
+   * on an auto-created default, which is made at Default importance: a sound, a
+   * line in the shade, nothing on screen.
+   *
+   * A second id rather than the first one reused. Android remembers a channel
+   * after it is deleted and restores its old level if the same id returns, so
+   * an id already created at the wrong level cannot be corrected — only
+   * replaced.
+   */
+  const RG_CHANNEL = 'rg_alerts_v2';
+
+  async function ensureChannel() {
+    const P = nativePush();
+    if (!P || _channelMade || !P.createChannel) return;
+    _channelMade = true;
+    try {
+      await P.createChannel({
+        id: RG_CHANNEL,
+        name: 'Orders and messages',
+        description: 'Orders, replies and anything else that needs you now.',
+        /* 4 is IMPORTANCE_HIGH, the level Android documents as the one that
+           shows a banner. 5 exists but its own documentation calls it unused,
+           and 5 is what the first attempt sent. */
+        importance: 4,
+        visibility: 1,
+        vibration: true,
+        lights: true,
+      });
+    } catch (_) { /* an older build without the method still gets the sound */ }
+  }
+
+  /* ── what Android actually did ──
+   * Creating a channel is a request, not an instruction: the level is fixed on
+   * first creation and the person holding the phone can change it afterwards.
+   * Reading it back lets a notification that will not pop say why, rather than
+   * simply not popping.
+   */
+  window.RG_CHANNEL_STATE = async function () {
+    const P = nativePush();
+    if (!P || !P.listChannels) return null;
+    try {
+      const { channels } = await P.listChannels();
+      const mine = (channels || []).find(c => c.id === RG_CHANNEL);
+      if (!mine) return { found: false };
+      return { found: true, importance: mine.importance, pops: mine.importance >= 4 };
+    } catch (_) { return null; }
+  };
 
   function wireNative(P, userId) {
     ensureChannel();
@@ -1797,7 +1849,7 @@
      install bar gets first claim on the corner if it is coming. */
   /* Made on arrival too: a device that already had alerts on must not have to
      go and toggle something to get the channel it should have had. */
-  if (nativePush()) ensureChannel();
+  try { if (nativePush()) ensureChannel(); } catch (_) { /* never fatal */ }
 
   const askSoon = () => setTimeout(maybeAskPush, 1600);
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', askSoon);

@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
              the channel it lands on, and only a channel the app made itself is
              allowed to be interrupting. Without this it falls back to an
              auto-created default channel: a sound, and a line in the shade. */
-          channel_id: 'rg_alerts',
+          channel_id: 'rg_alerts_v2',
           /* For Android 7 and earlier, which has no channels and reads this
              instead. */
           notification_priority: 'PRIORITY_MAX',

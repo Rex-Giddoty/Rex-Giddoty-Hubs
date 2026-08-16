@@ -33,7 +33,7 @@
              rather than on an auto-created default that cannot interrupt. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="rg_alerts"
+            android:value="rg_alerts_v2"
         />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
