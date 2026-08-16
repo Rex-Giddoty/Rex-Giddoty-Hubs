@@ -8,7 +8,7 @@
  *
  * Bump CACHE when the shell changes; the old one is deleted on activate.
  */
-const CACHE = 'rg-shell-v21';
+const CACHE = 'rg-shell-v22';
 
 const SHELL = [
   '/',
@@ -119,7 +119,11 @@ self.addEventListener('push', e => {
     await self.registration.showNotification(title, {
       body: d.body || '',
       icon: '/assets/icon-192.png',
-      badge: '/assets/icon-192.png',
+      /* The badge is the little mark in the status bar, and it gets the same
+         treatment as Android's small icon: colour thrown away, alpha kept. A
+         full-colour icon there becomes a white blob, so this one is drawn as
+         the invader silhouette to begin with. */
+      badge: '/assets/badge-96.png',
       data: { url: d.url || '/' },
       /* One tag per kind, so three status changes on one order replace each other
          rather than stacking three banners on the lock screen. */

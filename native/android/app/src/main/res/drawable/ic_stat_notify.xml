@@ -1,8 +1,13 @@
 <!--
   The small icon in the status bar. Android throws away every colour in it and
-  keeps only the alpha, drawing whatever is left as a flat silhouette — so the
-  shop's logo cannot be used here. At 24dp its mark would collapse into a blob.
-  A shopping bag survives the treatment and still says what the app is.
+  keeps only the alpha, drawing whatever is left as a flat silhouette tinted
+  with the accent colour — so the logo itself cannot be used here, and neither
+  can an emoji.
+
+  The invader survives that treatment where the full mark would not: it is
+  already a blocky pixel shape, so a silhouette of it is the shape, not a
+  smudge of one. Drawn as whole squares on a 24 grid at 2 units each, which
+  keeps its edges on pixel boundaries at 24dp.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -10,14 +15,31 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
 
-    <!-- the bag -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M4,8 L20,8 L18.8,22 L5.2,22 Z" />
+        android:pathData="
+            M6,4  h2 v2 h-2 z
+            M16,4 h2 v2 h-2 z
 
-    <!-- the handle -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M8.5,8 L8.5,5.8 C8.5,3.7 10.1,2 12,2 C13.9,2 15.5,3.7 15.5,5.8 L15.5,8 L13.5,8 L13.5,5.8 C13.5,4.8 12.8,4 12,4 C11.2,4 10.5,4.8 10.5,5.8 L10.5,8 Z" />
+            M8,6  h2 v2 h-2 z
+            M14,6 h2 v2 h-2 z
+
+            M6,8  h12 v2 h-12 z
+
+            M4,10 h4 v2 h-4 z
+            M10,10 h4 v2 h-4 z
+            M16,10 h4 v2 h-4 z
+
+            M4,12 h16 v2 h-16 z
+
+            M6,14 h2 v2 h-2 z
+            M10,14 h4 v2 h-4 z
+            M16,14 h2 v2 h-2 z
+
+            M4,16 h2 v2 h-2 z
+            M8,16 h2 v2 h-2 z
+            M14,16 h2 v2 h-2 z
+            M18,16 h2 v2 h-2 z
+            " />
 
 </vector>
