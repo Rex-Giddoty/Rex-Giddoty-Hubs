@@ -1142,12 +1142,22 @@
     const atBottom = chat.list.scrollHeight - chat.list.scrollTop - chat.list.clientHeight < 60;
 
     chat.list.innerHTML = chat.msgs.length
-      ? chat.msgs.map(m => `
-          <div class="cmsg cmsg--${m.sender_role === 'staff' ? 'them' : 'me'}">
-            ${chatFileHtml(m)}
-            ${m.body ? `<div class="cmsg__b">${esc(m.body).replace(/\n/g, '<br/>')}</div>` : ''}
-            <div class="cmsg__t">${m.sender_role === 'staff' ? 'Rex-Giddoty Hubs · ' : ''}${chatTime(m.created_at)}</div>
-          </div>`).join('')
+      ? chat.msgs.map((m, i) => {
+          const them = m.sender_role === 'staff';
+          /* One avatar per run of replies rather than one per bubble. Three
+             messages in a row from the shop is one person still talking, and
+             three identical faces down the side reads as three people. */
+          const first = them && (i === 0 || chat.msgs[i - 1].sender_role !== 'staff');
+          return `
+          <div class="cmsg cmsg--${them ? 'them' : 'me'}${first ? ' cmsg--first' : ''}">
+            ${them ? `<img class="cmsg__av" src="/assets/icon-192.png" alt="" aria-hidden="true"/>` : ''}
+            <div class="cmsg__c">
+              ${chatFileHtml(m)}
+              ${m.body ? `<div class="cmsg__b">${esc(m.body).replace(/\n/g, '<br/>')}</div>` : ''}
+              <div class="cmsg__t">${them ? 'Rex-Giddoty Hubs · ' : ''}${chatTime(m.created_at)}</div>
+            </div>
+          </div>`;
+        }).join('')
       : `<div class="cempty">
            <b>Ask us anything</b>
            <span>Sizes, delivery, an order you have already placed — we answer
@@ -1334,8 +1344,9 @@
     el.innerHTML = `
       <div class="chat__panel" hidden>
         <div class="chat__hd">
+          <img class="chat__av" src="/assets/icon-192.png" alt=""/>
           <div>
-            <b>Support</b>
+            <b>Rex-Giddoty Hubs</b>
             <span>We reply during working hours</span>
           </div>
           <button class="chat__x" data-chat-close aria-label="Close">${CHAT_I.close}</button>

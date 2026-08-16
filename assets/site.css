@@ -1243,3 +1243,21 @@ textarea.inp{resize:vertical;min-height:74px;}
 /* How an order was paid, beside its status in the account list. */
 .paidwith{font-size:11px;color:var(--mute);border:1px solid var(--line);
   border-radius:20px;padding:2px 9px;white-space:nowrap;}
+
+/* ── the shop's face in the chat ──
+ * A reply from a shop that shows nothing but text could be from anyone. The
+ * mark is the same one on the app icon, so it is recognisable before it is
+ * read.
+ */
+.chat__av{width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  background:#fff;object-fit:cover;}
+
+/* The bubble becomes a row: avatar, then what was said. */
+.cmsg--them{display:flex;align-items:flex-end;gap:7px;}
+.cmsg__c{min-width:0;}
+.cmsg__av{width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  object-fit:cover;margin-bottom:16px;}
+
+/* Only the first of a run carries one; the rest are indented to line up under
+   it, so a stream of replies still reads as one column. */
+.cmsg--them:not(.cmsg--first) .cmsg__av{visibility:hidden;}
