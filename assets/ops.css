@@ -555,3 +555,11 @@ figure .main{position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.8);col
 
 /* The guide link shares the install button's shape but is not a button. */
 a.side__install{text-decoration:none;}
+
+/* Recording a reply. Red while live, for the same reason the shop's is. */
+.thrclip.rec{background:#c62828;border-color:#c62828;color:#fff;}
+.thrclip.rec:hover{background:#a81f1f;}
+
+.svoice{display:flex;flex-direction:column;gap:4px;}
+.svoice audio{width:min(260px,60vw);height:36px;display:block;}
+.svoice__dl{font-size:10.5px;color:var(--sub);text-decoration:underline;}

@@ -1261,3 +1261,15 @@ textarea.inp{resize:vertical;min-height:74px;}
 /* Only the first of a run carries one; the rest are indented to line up under
    it, so a stream of replies still reads as one column. */
 .cmsg--them:not(.cmsg--first) .cmsg__av{visibility:hidden;}
+
+/* ── voice notes ──
+ * The mic sits with the paperclip and turns into a stop while it is running.
+ * Red because a live microphone is the one control on this page worth being
+ * unmistakable.
+ */
+.chat__mic.on{color:#fff;background:#c62828;border-radius:50%;}
+.chat__mic.on:hover{background:#a81f1f;}
+
+.cvoice{display:flex;flex-direction:column;gap:4px;}
+.cvoice audio{width:min(230px,60vw);height:36px;display:block;}
+.cvoice__dl{font-size:10.5px;color:var(--mute);text-decoration:underline;}

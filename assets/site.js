@@ -1056,6 +1056,9 @@
    * Writes go through send_support_message rather than an insert, so the shop
    * side of a conversation cannot be forged from a browser console. */
   const CHAT_I = {
+    mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">'
+       + '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>',
+    stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
     bubble: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">'
       + '<path d="M21 11.5a8.4 8.4 0 01-9 8.4 9.5 9.5 0 01-2.9-.4L4 21l1.4-3.9A8.2 8.2 0 013 11.5 8.4 8.4 0 0112 3a8.4 8.4 0 019 8.5z"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
@@ -1070,7 +1073,7 @@
 
   /* Attachments. The bucket is private, so every file is fetched through a
      signed URL — one round trip per panel-load, cached for the session. */
-  const FILE_OK  = /^(image\/(jpeg|png|webp|avif|gif|heic)|application\/pdf|video\/(mp4|quicktime|webm|3gpp))$/;
+  const FILE_OK  = /^(image\/(jpeg|png|webp|avif|gif|heic)|application\/pdf|video\/(mp4|quicktime|webm|3gpp)|audio\/)/;
   const FILE_MAX = 10 * 1024 * 1024;        // photos and documents
   const VID_MAX  = 25 * 1024 * 1024;        // a short clip
   const VID_SECS = 60;
@@ -1104,9 +1107,78 @@
     root.querySelectorAll('[data-file]').forEach(el => {
       const url = fileUrls.get(el.dataset.file);
       if (!url) return;
-      if (el.tagName === 'IMG' || el.tagName === 'VIDEO') el.src = url; else el.href = url;
+      /* AUDIO belongs with the other two: give it an href and it silently does
+         nothing, which looks exactly like a file that failed to upload. */
+      if (el.tagName === 'IMG' || el.tagName === 'VIDEO' || el.tagName === 'AUDIO') el.src = url;
+      else el.href = url;
     });
   }
+
+  /* ── voice notes ──
+   * Browsers do not agree on what they record. Chrome makes WebM/Opus, Safari
+   * makes MP4/AAC, and Safari has never reliably played WebM — so the format is
+   * chosen at record time from what this browser will actually produce, and
+   * playback falls back to a download link rather than a dead player.
+   */
+  const VOICE_MAX_SECS = 120;
+
+  function voiceType() {
+    if (!window.MediaRecorder) return null;
+    /* mp4 first: an iPhone can play both, and Android cannot play what an
+       iPhone records only in the other direction. */
+    for (const t of ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']) {
+      if (MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return '';
+  }
+
+  window.RG_VOICE = {
+    supported: () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder),
+
+    /* Resolves with a File when stop() is called, or null if it was cancelled.
+       The caller gets a handle rather than a promise chain because the button
+       has to be able to change what it does while this is running. */
+    async start(onTick) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const type = voiceType();
+      const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      const chunks = [];
+      let cancelled = false;
+      const started = Date.now();
+
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.start();
+
+      /* The microphone stays on until every track is stopped, and a phone shows
+         a recording dot the whole time it is. This must run on every path out. */
+      const release = () => stream.getTracks().forEach(t => t.stop());
+
+      const tick = setInterval(() => {
+        const secs = Math.floor((Date.now() - started) / 1000);
+        if (onTick) onTick(secs);
+        if (secs >= VOICE_MAX_SECS) handle.stop();
+      }, 250);
+
+      const done = new Promise(resolve => {
+        rec.onstop = () => {
+          clearInterval(tick);
+          release();
+          if (cancelled || !chunks.length) return resolve(null);
+          const mime = (chunks[0] && chunks[0].type) || type || 'audio/webm';
+          const ext = mime.includes('mp4') ? '.m4a' : mime.includes('ogg') ? '.ogg' : '.webm';
+          const secs = Math.max(1, Math.round((Date.now() - started) / 1000));
+          resolve(new File([new Blob(chunks, { type: mime })],
+            'voice-' + secs + 's' + ext, { type: mime }));
+        };
+      });
+
+      const handle = {
+        stop() { if (rec.state !== 'inactive') rec.stop(); return done; },
+        cancel() { cancelled = true; return handle.stop(); },
+      };
+      return handle;
+    },
+  };
 
   function chatFileHtml(m) {
     if (!m.file_path) return '';
@@ -1118,6 +1190,16 @@
     if ((m.file_type || '').startsWith('video/')) {
       return `<video class="cfile--vid" data-file="${esc(m.file_path)}" controls preload="metadata"
                 playsinline></video>`;
+    }
+    if ((m.file_type || '').startsWith('audio/')) {
+      /* The link underneath is not decoration: a browser that cannot play what
+         the other end recorded shows a broken player and nothing else, and this
+         is the way out of that. */
+      return `<div class="cvoice">
+                <audio data-file="${esc(m.file_path)}" controls preload="metadata"></audio>
+                <a class="cvoice__dl" data-file="${esc(m.file_path)}" target="_blank" rel="noopener"
+                   download>Cannot play it? Download</a>
+              </div>`;
     }
     return `<a class="cfile" data-file="${esc(m.file_path)}" target="_blank" rel="noopener">
               ${CHAT_I.file}<span><b>${name}</b>${m.file_size ? '<i>' + fileSize(m.file_size) + '</i>' : ''}</span></a>`;
@@ -1358,6 +1440,7 @@
             <input type="file" hidden data-chat-file
               accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,application/pdf,video/mp4,video/quicktime,video/webm,video/3gpp"/>
             <button type="button" class="chat__clip" data-chat-pick aria-label="Attach a file">${CHAT_I.clip}</button>
+            <button type="button" class="chat__clip chat__mic" data-chat-mic aria-label="Record a voice note">${CHAT_I.mic}</button>
             <textarea rows="1" placeholder="Type a message…" maxlength="4000"
               aria-label="Message" data-chat-input></textarea>
             <button type="submit" aria-label="Send">${CHAT_I.send}</button>
@@ -1409,6 +1492,37 @@
 
     const picker = el.querySelector('[data-chat-file]');
     el.querySelector('[data-chat-pick]').onclick = () => picker.click();
+
+    /* ── recording ──
+     * One button that starts, then stops. Hold-to-talk is fashionable and loses
+     * the recording if a finger slips, which on a message to support is the
+     * worst possible moment to lose one.
+     */
+    const mic = el.querySelector('[data-chat-mic]');
+    let rec = null;
+    if (mic) {
+      if (!window.RG_VOICE || !RG_VOICE.supported()) mic.hidden = true;
+      mic.onclick = async () => {
+        if (rec) {
+          const handle = rec; rec = null;
+          mic.classList.remove('on');
+          mic.innerHTML = CHAT_I.mic;
+          const file = await handle.stop();
+          if (file) chatAttach(file);
+          return;
+        }
+        try {
+          rec = await RG_VOICE.start(secs => {
+            mic.setAttribute('aria-label', 'Stop recording (' + secs + 's)');
+          });
+          mic.classList.add('on');
+          mic.innerHTML = CHAT_I.stop;
+        } catch (_) {
+          window.RG_TOAST('We could not use the microphone. Check the app has permission.');
+          rec = null;
+        }
+      };
+    }
     picker.onchange = () => {
       const f = picker.files && picker.files[0];
       picker.value = '';          // so the same file can be picked twice running

@@ -52,4 +52,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Voice notes in support. Without this the WebView refuses getUserMedia
+         and recording fails silently inside the app while working fine in a
+         browser, which is a confusing way to find out. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>

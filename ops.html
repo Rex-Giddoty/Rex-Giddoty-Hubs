@@ -1198,7 +1198,7 @@ const SUP_CLIP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const SUP_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">'
   + '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/></svg>';
 
-const FILE_OK  = /^(image\/(jpeg|png|webp|avif|gif|heic)|application\/pdf|video\/(mp4|quicktime|webm|3gpp))$/;
+const FILE_OK  = /^(image\/(jpeg|png|webp|avif|gif|heic)|application\/pdf|video\/(mp4|quicktime|webm|3gpp)|audio\/)/;
 const FILE_MAX = 10 * 1024 * 1024;        // photos and documents
 const VID_MAX  = 25 * 1024 * 1024;        // a short clip
 const VID_SECS = 60;
@@ -1233,7 +1233,10 @@ async function signFiles(root) {
   root.querySelectorAll('[data-file]').forEach(el => {
     const url = _urls.get(el.dataset.file);
     if (!url) return;
-    if (el.tagName === 'IMG' || el.tagName === 'VIDEO') el.src = url; else el.href = url;
+    /* AUDIO belongs with the other two: give it an href and it silently does
+       nothing, which looks exactly like a file that failed to upload. */
+    if (el.tagName === 'IMG' || el.tagName === 'VIDEO' || el.tagName === 'AUDIO') el.src = url;
+    else el.href = url;
   });
 }
 
@@ -1247,8 +1250,48 @@ function fileHtml(m) {
   if ((m.file_type || '').startsWith('video/')) {
     return `<video class="sfile--vid" data-file="${esc(m.file_path)}" controls preload="metadata"></video>`;
   }
+  if ((m.file_type || '').startsWith('audio/')) {
+    /* The link is not decoration: a browser that cannot play what the other end
+       recorded shows a dead player and nothing else. */
+    return `<div class="svoice">
+              <audio data-file="${esc(m.file_path)}" controls preload="metadata"></audio>
+              <a class="svoice__dl" data-file="${esc(m.file_path)}" target="_blank" rel="noopener"
+                 download>Cannot play it? Download</a>
+            </div>`;
+  }
   return `<a class="sfile" data-file="${esc(m.file_path)}" target="_blank" rel="noopener">
             ${SUP_FILE}<span><b>${name}</b>${m.file_size ? '<i>' + fileSize(m.file_size) + '</i>' : ''}</span></a>`;
+}
+
+const SUP_MIC = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>';
+const SUP_STOP = '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+
+/* ── recording a reply ──
+ * One button that starts, then stops. Hold-to-talk loses the recording if a
+ * finger slips, which is the worst moment to lose one.
+ */
+let _rec = null;
+async function toggleVoice() {
+  const b = document.getElementById('reply-mic');
+  if (!b) return;
+
+  if (_rec) {
+    const handle = _rec; _rec = null;
+    b.innerHTML = SUP_MIC; b.classList.remove('rec');
+    const file = await handle.stop();
+    if (file) attachReply(file);
+    return;
+  }
+
+  if (!window.RG_VOICE || !RG_VOICE.supported()) return toast('This browser cannot record audio', true);
+
+  try {
+    _rec = await RG_VOICE.start(secs => { b.title = 'Stop recording (' + secs + 's)'; });
+    b.innerHTML = SUP_STOP; b.classList.add('rec');
+  } catch (_) {
+    _rec = null;
+    toast('We could not use the microphone. Check this app has permission.', true);
+  }
 }
 
 function pickReplyFile() { document.getElementById('reply-file').click(); }
@@ -1446,6 +1489,7 @@ function renderThread() {
       <input type="file" id="reply-file" hidden
         accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,application/pdf,video/mp4,video/quicktime,video/webm,video/3gpp"/>
       <button class="btn thrclip" type="button" onclick="pickReplyFile()" title="Attach a file">${SUP_CLIP}</button>
+      <button class="btn thrclip" type="button" id="reply-mic" onclick="toggleVoice()" title="Record a voice note">${SUP_MIC}</button>
       <textarea class="inp" id="reply" rows="2" maxlength="4000"
         placeholder="Write a reply… (Enter sends, Shift+Enter for a new line)"></textarea>
       <button class="btn btn--primary" type="submit">Send</button>
